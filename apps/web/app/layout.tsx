@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { Geo, Tomorrow } from 'next/font/google';
 import { ClerkProvider } from '@clerk/nextjs';
-import { SiteNav } from '@/components/site-nav';
 import './globals.css';
 
 // Tomorrow — primary UI typeface (full weight range, geometric-tech look).
@@ -35,8 +34,16 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       className={`${tomorrow.variable} ${geo.variable} dark h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
-        <ClerkProvider afterSignOutUrl="/">
-          <SiteNav />
+        <ClerkProvider
+          afterSignOutUrl="/"
+          appearance={{
+            elements: {
+              footer: 'hidden',
+              userButtonPopoverFooter: 'hidden',
+              devModeBadge: 'hidden',
+            },
+          }}
+        >
           {children}
         </ClerkProvider>
       </body>

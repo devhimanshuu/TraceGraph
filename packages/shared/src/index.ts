@@ -165,6 +165,22 @@ export interface HistoryIssue {
   createdAt: string;
 }
 
+/** `GET /api/repository/activity` — repo-wide recent engineering activity. */
+export interface RepositoryActivity {
+  commits: HistoryCommit[];
+  pullRequests: HistoryPullRequest[];
+  issues: HistoryIssue[];
+}
+
+/** `GET /api/repository/components` — core components ranked by dependents. */
+export interface RepositoryComponent {
+  id: string;
+  type: NodeType;
+  label: string;
+  /** Number of distinct callers (functions) that depend on this component. */
+  dependents: number;
+}
+
 /** One evidence path in a traversal result: root → … → target. */
 export interface TraversalPath {
   /** Ordered node ids from root to target (inclusive). */

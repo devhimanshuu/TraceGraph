@@ -238,5 +238,37 @@ export function createFakeGraphRepository(): GraphRepository {
         ? [{ id: paymentService.id, type: paymentService.type, label: paymentService.label }]
         : [],
     ),
+    findRepositoryActivity: jest.fn(async () => ({
+      commits: [
+        {
+          sha: '8f21ac7',
+          message: 'Add retry handling to payment flow',
+          timestamp: '2025-03-05T08:45:00.000Z',
+          branch: 'main',
+          author: { username: 'alex', name: 'Alex Morgan' },
+        },
+      ],
+      pullRequests: [
+        {
+          number: 421,
+          title: 'Add payment retry handling',
+          status: 'merged',
+          createdAt: '2025-03-05T08:45:00.000Z',
+          mergedAt: '2025-03-08T17:30:00.000Z',
+        },
+      ],
+      issues: [
+        {
+          number: 912,
+          title: 'Checkout occasionally times out',
+          status: 'closed',
+          createdAt: '2025-02-20T10:15:00.000Z',
+        },
+      ],
+    })),
+    findRepositoryComponents: jest.fn(async () => [
+      { id: paymentService.id, type: 'Class' as const, label: 'PaymentService', dependents: 6 },
+      { id: checkoutService.id, type: 'Class' as const, label: 'CheckoutService', dependents: 4 },
+    ]),
   } as unknown as GraphRepository;
 }

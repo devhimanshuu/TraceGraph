@@ -1,25 +1,27 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { RepositoryOverview, RepositoryStats } from '@tracegraph/shared';
+import type {
+  GraphNode,
+  RepositoryActivity,
+  RepositoryComponent,
+  RepositoryOverview,
+  RepositoryStats,
+} from '@tracegraph/shared';
 import { GraphRepository } from '../graph/graph.repository';
 
 /**
- * RepositoryService — `GET /api/repository` overview (Phase 5 §5).
+ * RepositoryService — `GET /api/repository*` (Phase 5 §5, Phase 6 §8–§14).
  *
  * Composes the repository node with label-scoped statistics. All counts are
  * scoped to TraceGraph labels so statistics never leak other domains' data on
- * a shared CognoDB instance.
+ * a shared CognoDB instance. Phase 6 adds repo-wide recent activity and core
+ * components — same repository anchor, one look up, three parallel reads.
  */
 @Injectable()
 export class RepositoryService {
   constructor(private readonly graphRepository: GraphRepository) {}
 
   async getOverview(): Promise<RepositoryOverview> {
-    const repo = await this.graphRepository.findDefaultRepository();
-    if (!repo) {
-      throw new NotFoundException(
-        'No repository found — the graph is empty. Run `npm run db:seed`.',
-      );
-    }
+    const repo = await this.requireRepository();
 
     const [counts, relationshipCount] = await Promise.all([
       this.graphRepository.countNodesByLabel(),
@@ -48,5 +50,28 @@ export class RepositoryService {
       stats,
       relationshipCount,
     };
+  }
+
+  /** Recent commits / pull requests / issues across the repository. */
+  async getActivity(limit = 10): Promise<RepositoryActivity> {
+    const repo = await this.requireRepository();
+    return this.graphRepository.findRepositoryActivity(repo.id, limit);
+  }
+
+  /** Core components (classes) ranked by distinct calling functions. */
+  async getComponents(limit = 8): Promise<RepositoryComponent[]> {
+    const repo = await this.requireRepository();
+    return this.graphRepository.findRepositoryComponents(repo.id, limit);
+  }
+
+  /** The seeded repository, or a 404 that explains why the graph is empty. */
+  private async requireRepository(): Promise<GraphNode> {
+    const repo = await this.graphRepository.findDefaultRepository();
+    if (!repo) {
+      throw new NotFoundException(
+        'No repository found — the graph is empty. Run `npm run db:seed`.',
+      );
+    }
+    return repo;
   }
 }

@@ -1,4 +1,11 @@
-import type { ApiError, AppHealth, DatabaseHealth, RepositoryOverview } from '@tracegraph/shared';
+import type {
+  ApiError,
+  AppHealth,
+  DatabaseHealth,
+  RepositoryActivity,
+  RepositoryComponent,
+  RepositoryOverview,
+} from '@tracegraph/shared';
 
 /**
  * Central API client. All frontend → NestJS communication goes through here;
@@ -57,4 +64,8 @@ export const apiClient = {
   getAppHealth: () => request<AppHealth>('/health'),
   getDatabaseHealth: () => request<DatabaseHealth>('/health/database'),
   getRepositoryOverview: (token?: string | null) => request<RepositoryOverview>('/repository', token),
+  getRepositoryActivity: (limit: number, token?: string | null) =>
+    request<RepositoryActivity>(`/repository/activity?limit=${limit}`, token),
+  getRepositoryComponents: (limit: number, token?: string | null) =>
+    request<RepositoryComponent[]>(`/repository/components?limit=${limit}`, token),
 };

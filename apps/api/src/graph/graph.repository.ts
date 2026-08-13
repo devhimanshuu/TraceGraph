@@ -18,6 +18,8 @@ import type {
   NodeRelationships,
   NodeType,
   RelationshipType,
+  RepositoryActivity,
+  RepositoryComponent,
   SearchResultItem,
   TestCoverage,
   TraversalPath,
@@ -69,6 +71,12 @@ import {
   SEARCH_NODES,
   countNodesByLabel,
 } from './queries/graph.queries';
+import {
+  FIND_REPOSITORY_ACTIVITY_COMMITS,
+  FIND_REPOSITORY_ACTIVITY_ISSUES,
+  FIND_REPOSITORY_ACTIVITY_PULL_REQUESTS,
+  FIND_REPOSITORY_COMPONENTS,
+} from './queries/repository.queries';
 
 /** Row shapes produced by the catalogued queries. */
 type RelRow = RelationshipRow;
@@ -463,6 +471,50 @@ export class GraphRepository {
     return rows
       .map((row) => toGraphNode(row))
       .map((n) => ({ id: n.id, type: n.type, label: n.label }));
+  }
+
+  // ── Repository-level intelligence (Phase 6) ─────────────────────────────────
+
+  /** Recent commits / PRs / issues across the whole repository (3 parallel reads). */
+  async findRepositoryActivity(repoId: string, limit: number): Promise<RepositoryActivity> {
+    const [commits, pullRequests, issues] = await Promise.all([
+      this.db.executeRead<
+        Array<{ c?: Record<string, unknown>; d?: Record<string, unknown> | null }>
+      >((tx) => tx.run(FIND_REPOSITORY_ACTIVITY_COMMITS, { id: repoId, limit }), {
+        name: 'repository-activity-commits',
+      }),
+      this.db.executeRead<Array<{ pr?: Record<string, unknown> }>>(
+        (tx) => tx.run(FIND_REPOSITORY_ACTIVITY_PULL_REQUESTS, { id: repoId, limit }),
+        { name: 'repository-activity-pull-requests' },
+      ),
+      this.db.executeRead<Array<{ i?: Record<string, unknown> }>>(
+        (tx) => tx.run(FIND_REPOSITORY_ACTIVITY_ISSUES, { id: repoId, limit }),
+        { name: 'repository-activity-issues' },
+      ),
+    ]);
+    return {
+      commits: commits.map(toHistoryCommit),
+      pullRequests: pullRequests.map(toHistoryPullRequest),
+      issues: issues.map(toHistoryIssue),
+    };
+  }
+
+  /** Core components ranked by distinct calling functions. */
+  async findRepositoryComponents(repoId: string, limit: number): Promise<RepositoryComponent[]> {
+    const rows = await this.db.executeRead<
+      Array<{ n?: Record<string, unknown>; nodeType?: string; dependents?: unknown }>
+    >((tx) => tx.run(FIND_REPOSITORY_COMPONENTS, { id: repoId, limit }), {
+      name: 'repository-components',
+    });
+    return rows.map((row) => {
+      const props = asProperties(row.n);
+      return {
+        id: String(props.id ?? ''),
+        type: (row.nodeType ?? 'Class') as NodeType,
+        label: humanLabel(props),
+        dependents: toNumber(row.dependents),
+      };
+    });
   }
 }
 

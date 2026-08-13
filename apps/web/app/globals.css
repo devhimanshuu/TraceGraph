@@ -128,3 +128,15 @@
     @apply font-sans;
   }
 }
+
+/* Hide Clerk branding & Development Mode badge */
+.cl-userButtonPopoverFooter,
+.cl-footer,
+.cl-devModeBadge,
+.cl-internal-b3f30d,
+[class*="cl-userButtonPopoverFooter"],
+[class*="cl-footer"],
+[class*="cl-devModeBadge"] {
+  display: none !important;
+}
+

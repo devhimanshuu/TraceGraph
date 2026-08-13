@@ -21,6 +21,8 @@ describe('RepositoryService', () => {
     findDefaultRepository: jest.fn(),
     countNodesByLabel: jest.fn(),
     countTraceGraphRelationships: jest.fn(),
+    findRepositoryActivity: jest.fn(),
+    findRepositoryComponents: jest.fn(),
   } as unknown as GraphRepository;
   const service = new RepositoryService(graphRepository);
 
@@ -67,5 +69,47 @@ describe('RepositoryService', () => {
     (graphRepository.findDefaultRepository as jest.Mock).mockResolvedValue(null);
     await expect(service.getOverview()).rejects.toBeInstanceOf(NotFoundException);
     expect(graphRepository.countNodesByLabel).not.toHaveBeenCalled();
+  });
+
+  describe('getActivity', () => {
+    it('returns repo-wide commits, pull requests and issues', async () => {
+      (graphRepository.findDefaultRepository as jest.Mock).mockResolvedValue(repoNode);
+      const activity = {
+        commits: [{ sha: '8f21ac7', message: 'x', timestamp: '2025-03-05T00:00:00.000Z', branch: 'main', author: null }],
+        pullRequests: [{ number: 421, title: 'Add payment retry handling', status: 'merged', createdAt: '2025-03-05T00:00:00.000Z' }],
+        issues: [{ number: 912, title: 'Checkout occasionally times out', status: 'closed', createdAt: '2025-02-20T00:00:00.000Z' }],
+      };
+      (graphRepository.findRepositoryActivity as jest.Mock).mockResolvedValue(activity);
+
+      const result = await service.getActivity(10);
+      expect(result).toEqual(activity);
+      expect(graphRepository.findRepositoryActivity).toHaveBeenCalledWith(
+        'repo:commerce-platform',
+        10,
+      );
+    });
+
+    it('404s when no repository is seeded', async () => {
+      (graphRepository.findDefaultRepository as jest.Mock).mockResolvedValue(null);
+      await expect(service.getActivity()).rejects.toBeInstanceOf(NotFoundException);
+      expect(graphRepository.findRepositoryActivity).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getComponents', () => {
+    it('returns core components ranked by dependents', async () => {
+      (graphRepository.findDefaultRepository as jest.Mock).mockResolvedValue(repoNode);
+      const components = [
+        { id: 'class:payment.service.ts:PaymentService', type: 'Class', label: 'PaymentService', dependents: 6 },
+      ];
+      (graphRepository.findRepositoryComponents as jest.Mock).mockResolvedValue(components);
+
+      const result = await service.getComponents(8);
+      expect(result).toEqual(components);
+      expect(graphRepository.findRepositoryComponents).toHaveBeenCalledWith(
+        'repo:commerce-platform',
+        8,
+      );
+    });
   });
 });

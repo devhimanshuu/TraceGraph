@@ -62,6 +62,27 @@ describe('Graph API (e2e, in-memory repository)', () => {
       expect(res.body.stats.commits).toBe(24);
       expect(res.body.relationshipCount).toBe(348);
     });
+
+    it('GET /api/repository/activity returns recent commits, PRs and issues', async () => {
+      const res = await authedGet('/api/repository/activity?limit=5').expect(200);
+      expect(res.body.commits[0]).toMatchObject({ sha: '8f21ac7', author: { username: 'alex' } });
+      expect(res.body.pullRequests[0].number).toBe(421);
+      expect(res.body.issues[0].number).toBe(912);
+    });
+
+    it('GET /api/repository/components returns core components with dependents', async () => {
+      const res = await authedGet('/api/repository/components?limit=5').expect(200);
+      expect(res.body[0]).toMatchObject({
+        label: 'PaymentService',
+        type: 'Class',
+        dependents: 6,
+      });
+    });
+
+    it('rejects an invalid limit on activity with 400', async () => {
+      const res = await authedGet('/api/repository/activity?limit=0').expect(400);
+      expect((res.body as ApiError).code).toBe('VALIDATION_ERROR');
+    });
   });
 
   describe('GET /api/nodes/:id', () => {
