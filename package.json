@@ -20,6 +20,7 @@
     "lint": "npm run lint --workspace @tracegraph/api && npm run lint --workspace @tracegraph/web",
     "typecheck": "npm run typecheck --workspace @tracegraph/api && npm run typecheck --workspace @tracegraph/web && npm run typecheck --workspace @tracegraph/shared",
     "test": "npm run test --workspace @tracegraph/api",
+    "db:check": "npm run db:check --workspace @tracegraph/api",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

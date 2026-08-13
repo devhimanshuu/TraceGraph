@@ -35,6 +35,9 @@ export const envValidationSchema = Joi.object({
   COGNODB_PASSWORD: Joi.string().required(),
   DB_CONNECT_RETRIES: Joi.number().integer().min(1).max(10).default(3),
   DB_CONNECT_RETRY_DELAY_MS: Joi.number().integer().min(0).max(10_000).default(500),
+  // 0 disables the safety-net timeout.
+  DB_CONNECT_TIMEOUT_MS: Joi.number().integer().min(0).max(60_000).default(5_000),
+  DB_QUERY_TIMEOUT_MS: Joi.number().integer().min(0).max(120_000).default(10_000),
   LOG_LEVEL: Joi.string().valid('debug', 'info', 'warn', 'error').default('info'),
 }).options({ allowUnknown: true });
 

@@ -11,8 +11,13 @@ export interface AppConfig {
     password: string;
   };
   database: {
+    /** Startup connectivity retry attempts before entering degraded mode. */
     retries: number;
     retryDelayMs: number;
+    /** Hard bound on establishing a connection (ms). */
+    connectTimeoutMs: number;
+    /** Safety-net timeout for query execution (ms); 0 disables. */
+    queryTimeoutMs: number;
   };
   logLevel: string;
 }
@@ -39,6 +44,8 @@ export default registerAs('app', (): AppConfig => {
     database: {
       retries: parseInt(process.env.DB_CONNECT_RETRIES ?? '3', 10),
       retryDelayMs: parseInt(process.env.DB_CONNECT_RETRY_DELAY_MS ?? '500', 10),
+      connectTimeoutMs: parseInt(process.env.DB_CONNECT_TIMEOUT_MS ?? '5000', 10),
+      queryTimeoutMs: parseInt(process.env.DB_QUERY_TIMEOUT_MS ?? '10000', 10),
     },
     logLevel: process.env.LOG_LEVEL ?? 'info',
   };

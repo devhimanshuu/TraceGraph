@@ -7,9 +7,10 @@ explore software relationships and understand the potential impact of changing a
 file, class, function, or service. It stores a software repository as a property
 graph in **CognoDB** and exposes it through a NestJS REST API and a Next.js web app.
 
-**Current phase:** Phase 2 — project foundation (monorepo, both apps running,
-frontend↔backend↔CognoDB connectivity verified). Graph schema, seed data, and
-product features arrive in Phases 3+ (see [docs/PHASE-1-TECHNICAL-DESIGN.md](docs/PHASE-1-TECHNICAL-DESIGN.md)).
+**Current phase:** Phase 3 — CognoDB integration & database layer (driver
+lifecycle, sessions, read/write/transaction abstractions, typed error taxonomy,
+timeouts, health). Graph schema, seed data, and product features arrive in
+Phases 4+ (see [docs/PHASE-1-TECHNICAL-DESIGN.md](docs/PHASE-1-TECHNICAL-DESIGN.md)).
 
 ## Overview
 
@@ -33,13 +34,13 @@ NestJS API.
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | Next.js (App Router), TypeScript, Tailwind CSS, shadcn/ui |
-| Backend | NestJS, TypeScript, class-validator, class-transformer, `@nestjs/config` |
-| Database | CognoDB (openCypher, Bolt protocol) via the official `neo4j-driver` |
-| Workspace | npm workspaces (single repo, two apps + one shared package) |
-| Quality | TypeScript strict mode, ESLint, Prettier, Jest |
+| Layer     | Technology                                                               |
+| --------- | ------------------------------------------------------------------------ |
+| Frontend  | Next.js (App Router), TypeScript, Tailwind CSS, shadcn/ui                |
+| Backend   | NestJS, TypeScript, class-validator, class-transformer, `@nestjs/config` |
+| Database  | CognoDB (openCypher, Bolt protocol) via the official `neo4j-driver`      |
+| Workspace | npm workspaces (single repo, two apps + one shared package)              |
+| Quality   | TypeScript strict mode, ESLint, Prettier, Jest                           |
 
 ## Repository Structure
 
@@ -87,18 +88,39 @@ cp apps/api/.env.example apps/api/.env      # then fill in COGNODB_* values
 cp apps/web/.env.example apps/web/.env.local
 ```
 
-| Variable | Where | Required | Purpose |
-|---|---|---|---|
-| `COGNODB_URI` | apps/api | ✅ | Bolt URI, e.g. `bolt+s://<host>.databases.cognodb.com:7687` |
-| `COGNODB_USERNAME` | apps/api | ✅ | CognoDB username |
-| `COGNODB_PASSWORD` | apps/api | ✅ | CognoDB password (never committed) |
-| `CORS_ORIGIN` | apps/api | ✅ | Comma-separated allowed browser origins (no wildcards) |
-| `PORT` | apps/api | no | API port (default `4000`) |
-| `NODE_ENV` | apps/api | no | `development` \| `test` \| `production` |
-| `NEXT_PUBLIC_API_URL` | apps/web | ✅ | Backend base URL, e.g. `http://localhost:4000/api` |
+| Variable              | Where    | Required | Purpose                                                     |
+| --------------------- | -------- | -------- | ----------------------------------------------------------- |
+| `COGNODB_URI`         | apps/api | ✅       | Bolt URI, e.g. `bolt+s://<host>.databases.cognodb.com:7687` |
+| `COGNODB_USERNAME`    | apps/api | ✅       | CognoDB username                                            |
+| `COGNODB_PASSWORD`    | apps/api | ✅       | CognoDB password (never committed)                          |
+| `CORS_ORIGIN`         | apps/api | ✅       | Comma-separated allowed browser origins (no wildcards)      |
+| `PORT`                | apps/api | no       | API port (default `4000`)                                   |
+| `NODE_ENV`            | apps/api | no       | `development` \| `test` \| `production`                     |
+| `NEXT_PUBLIC_API_URL` | apps/web | ✅       | Backend base URL, e.g. `http://localhost:4000/api`          |
 
 Missing or invalid required values cause the API to **fail fast at boot** with a
 readable message (Joi validation). The backend never logs credentials.
+
+## CognoDB Development Setup
+
+1. **Create a CognoDB instance** (hosted at cognodb.com, or run locally).
+2. **Retrieve the connection URI** — a Bolt endpoint such as
+   `bolt+s://<host>.databases.cognodb.com:7687`.
+3. **Save the password securely.** The CognoDB password is shown **once** at
+   creation time — store it in a password manager immediately. It belongs only
+   in your local `apps/api/.env` (gitignored) or your hosting platform's secret
+   store; it must never be committed to the repository.
+4. **Set the required environment variables** in `apps/api/.env`:
+   `COGNODB_URI`, `COGNODB_USERNAME`, `COGNODB_PASSWORD` (see the table above
+   and `.env.example`).
+5. **Verify connectivity** with the bundled check (no data is created):
+
+   ```bash
+   npm run db:check
+   # → { "status": "up", "latencyMs": … }
+   ```
+
+   Or browse to `http://localhost:4000/api/health/database` while the API runs.
 
 ## Local Development
 
@@ -128,14 +150,14 @@ running — no crash, no leaked connection details.
 
 ## Scripts
 
-| Command | Description |
-|---|---|
-| `npm run dev` / `dev:api` / `dev:web` | Run both apps / API only / web only |
-| `npm run build` / `build:api` / `build:web` | Production builds |
-| `npm run lint` | ESLint (api + web) |
-| `npm run typecheck` | `tsc --noEmit` (api + web + shared) |
-| `npm run test` | Jest (api: unit + e2e) |
-| `npm run format` / `format:check` | Prettier write / verify |
+| Command                                     | Description                         |
+| ------------------------------------------- | ----------------------------------- |
+| `npm run dev` / `dev:api` / `dev:web`       | Run both apps / API only / web only |
+| `npm run build` / `build:api` / `build:web` | Production builds                   |
+| `npm run lint`                              | ESLint (api + web)                  |
+| `npm run typecheck`                         | `tsc --noEmit` (api + web + shared) |
+| `npm run test`                              | Jest (api: unit + e2e)              |
+| `npm run format` / `format:check`           | Prettier write / verify             |
 
 ## API Conventions
 
@@ -149,15 +171,24 @@ running — no crash, no leaked connection details.
 
 ## Current Development Phase
 
-**Phase 2 (this milestone) — Foundation.** Established the monorepo, both
-applications, environment/configuration management, global validation, error
-handling, CORS, health endpoints, the CognoDB database abstraction, shared
-types, tooling, and tests. Verified end-to-end:
+**Phase 2 — Foundation.** Monorepo, both applications, configuration
+management, validation, CORS, error handling, health endpoints, shared types.
 
-- `GET /api/health` → `{"status":"ok","service":"tracegraph-api",…}`
-- `GET /api/health/database` → `{"status":"up","latencyMs":…}` against a live
-  CognoDB instance
-- `/dashboard` renders Frontend / API / CognoDB statuses from the API
+**Phase 3 (this milestone) — CognoDB Integration & Database Layer.**
 
-**Next (Phase 3+):** CognoDB schema, deterministic seed script, graph queries,
-and the first product features — per [docs/PHASE-1-TECHNICAL-DESIGN.md](docs/PHASE-1-TECHNICAL-DESIGN.md).
+- Official `neo4j-driver` (v6) integrated; the driver is a DI singleton
+  (created once, reused, closed on shutdown).
+- `DatabaseService` exposes `verifyConnection()`, `executeRead()/executeWrite()`
+  (driver-managed transactions), `executeTransaction()` (explicit BEGIN/COMMIT/
+  ROLLBACK), and `close()` — sessions are always released, even on errors.
+- Typed error taxonomy (`DatabaseError` kinds: configuration, connection,
+  query, transaction, timeout) translated to safe API responses — no driver
+  detail ever reaches the browser.
+- Safety-net query/connect timeouts (no infinite waits); no application retry
+  layer (the driver's own safe transient retries remain available).
+- Verified live: `npm run db:check` → `{ "status": "up", … }` against a real
+  CognoDB instance; degraded mode keeps the app running when the DB is down.
+- 35 backend tests (unit + e2e), including mocked-driver health up/down tests.
+
+**Next (Phase 4):** CognoDB graph schema + deterministic seed script — per
+[docs/PHASE-1-TECHNICAL-DESIGN.md](docs/PHASE-1-TECHNICAL-DESIGN.md).

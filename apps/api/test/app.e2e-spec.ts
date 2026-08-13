@@ -18,6 +18,9 @@ process.env.COGNODB_USERNAME = 'test-user';
 process.env.COGNODB_PASSWORD = 'test-password';
 process.env.DB_CONNECT_RETRIES = '1';
 process.env.DB_CONNECT_RETRY_DELAY_MS = '10';
+// Short connection/query timeouts so tests never wait on real network timeouts.
+process.env.DB_CONNECT_TIMEOUT_MS = '100';
+process.env.DB_QUERY_TIMEOUT_MS = '1000';
 
 describe('AppModule (e2e)', () => {
   let app: INestApplication;
@@ -30,7 +33,7 @@ describe('AppModule (e2e)', () => {
     configureApp(app, config);
     await app.init();
     server = app.getHttpServer();
-  });
+  }, 15_000);
 
   afterAll(async () => {
     await app.close();

@@ -31,6 +31,32 @@ describe('env.validation', () => {
     expect(() => validateEnv(withoutUri)).toThrow(/COGNODB_URI/);
   });
 
+  it('rejects a missing COGNODB_USERNAME', () => {
+    const { COGNODB_USERNAME: _username, ...withoutUsername } = validEnv;
+    expect(() => validateEnv(withoutUsername)).toThrow(/COGNODB_USERNAME/);
+  });
+
+  it('rejects a missing CORS_ORIGIN', () => {
+    const { CORS_ORIGIN: _corsOrigin, ...withoutCors } = validEnv;
+    expect(() => validateEnv(withoutCors)).toThrow(/CORS_ORIGIN/);
+  });
+
+  it('accepts the new database timeout variables', () => {
+    expect(() =>
+      validateEnv({
+        ...validEnv,
+        DB_CONNECT_TIMEOUT_MS: '5000',
+        DB_QUERY_TIMEOUT_MS: '0',
+      }),
+    ).not.toThrow();
+  });
+
+  it('rejects a negative query timeout', () => {
+    expect(() => validateEnv({ ...validEnv, DB_QUERY_TIMEOUT_MS: '-1' })).toThrow(
+      /DB_QUERY_TIMEOUT_MS/,
+    );
+  });
+
   it('rejects a wildcard CORS origin', () => {
     expect(() => validateEnv({ ...validEnv, CORS_ORIGIN: '*' })).toThrow(/CORS/);
   });

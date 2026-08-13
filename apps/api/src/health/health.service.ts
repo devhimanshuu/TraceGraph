@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { AppHealth, DatabaseHealth } from '@tracegraph/shared';
-import { DatabaseService } from '../database/database.service';
+import { DatabaseService } from '../database';
 
 @Injectable()
 export class HealthService {
@@ -8,6 +8,7 @@ export class HealthService {
 
   constructor(private readonly databaseService: DatabaseService) {}
 
+  /** GET /api/health — liveness of the backend application itself. */
   getAppHealth(): AppHealth {
     return {
       status: 'ok',
@@ -18,22 +19,16 @@ export class HealthService {
   }
 
   /**
-   * Verifies connectivity to CognoDB. Never exposes the connection string,
-   * credentials, or stack traces — on failure the response carries only a
-   * generic, human-readable reason.
+   * GET /api/health/database — real CognoDB connectivity probe.
+   * `verifyConnection` never throws and returns a sanitized, structured
+   * result, so a down database yields a safe degraded response (HTTP 200 with
+   * `status: "down"`) rather than an error or leaked driver detail.
    */
   async getDatabaseHealth(): Promise<DatabaseHealth> {
-    const started = performance.now();
-    try {
-      await this.databaseService.verifyConnectivity();
-      return { status: 'up', latencyMs: Math.round(performance.now() - started) };
-    } catch {
-      this.logger.warn('CognoDB health check failed');
-      return {
-        status: 'down',
-        latencyMs: Math.round(performance.now() - started),
-        error: 'CognoDB is unreachable',
-      };
+    const health = await this.databaseService.verifyConnection();
+    if (health.status === 'down') {
+      this.logger.warn('CognoDB health check: down');
     }
+    return health;
   }
 }

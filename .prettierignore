@@ -6,3 +6,5 @@ package-lock.json
 # Spec/review documents keep their hand-formatted content
 PHASE-1-TECHNICAL-DESIGN.md
 docs/**
+**/.next/next-env.d.ts
+next-env.d.ts

@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import type { ApiError } from '@tracegraph/shared';
-import { DatabaseUnavailableException } from '../../database/database.types';
+import { DatabaseError, DatabaseErrorKind, databaseErrorMessage } from '../../database';
 
 /**
  * Centralized exception filter.
@@ -16,8 +16,10 @@ import { DatabaseUnavailableException } from '../../database/database.types';
  * Guarantees:
  * - Consistent error shape: { statusCode, message, code, timestamp, path }
  * - HttpExceptions keep their intended status/message (e.g. validation errors).
- * - Database connectivity failures become a sanitized 503 — credentials,
- *   connection strings, and stack traces are never exposed to clients.
+ * - Database errors are translated by kind into safe, generic user-facing
+ *   messages — credentials, connection strings, operation names, driver
+ *   messages, and stack traces are never exposed to clients. Full details are
+ *   logged server-side by the database layer.
  * - Unexpected errors are logged in full server-side and returned as a generic
  *   500 with no internal detail.
  */
@@ -58,12 +60,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
       return { statusCode, code: statusCodeToCode(statusCode), message };
     }
 
-    if (exception instanceof DatabaseUnavailableException) {
-      return {
-        statusCode: HttpStatus.SERVICE_UNAVAILABLE,
-        code: 'DATABASE_UNAVAILABLE',
-        message: 'CognoDB is unavailable. Please try again later.',
-      };
+    if (exception instanceof DatabaseError) {
+      return resolveDatabaseError(exception);
     }
 
     // Unexpected error: log everything server-side, return nothing sensitive.
@@ -75,6 +73,42 @@ export class AllExceptionsFilter implements ExceptionFilter {
       code: 'INTERNAL_SERVER_ERROR',
       message: 'Internal server error',
     };
+  }
+}
+
+/** Maps the internal error taxonomy to HTTP semantics + safe messages. */
+function resolveDatabaseError(exception: DatabaseError): {
+  statusCode: number;
+  code: string;
+  message: string;
+} {
+  switch (exception.kind) {
+    case DatabaseErrorKind.CONNECTION:
+      return {
+        statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+        code: 'DATABASE_UNAVAILABLE',
+        message: databaseErrorMessage(DatabaseErrorKind.CONNECTION),
+      };
+    case DatabaseErrorKind.TIMEOUT:
+      return {
+        statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+        code: 'DATABASE_TIMEOUT',
+        message: databaseErrorMessage(DatabaseErrorKind.TIMEOUT),
+      };
+    case DatabaseErrorKind.CONFIGURATION:
+      return {
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        code: 'DATABASE_CONFIGURATION',
+        message: databaseErrorMessage(DatabaseErrorKind.CONFIGURATION),
+      };
+    case DatabaseErrorKind.QUERY:
+    case DatabaseErrorKind.TRANSACTION:
+    default:
+      return {
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        code: 'QUERY_FAILED',
+        message: databaseErrorMessage(exception.kind),
+      };
   }
 }
 
