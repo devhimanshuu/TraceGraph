@@ -1,4 +1,4 @@
-import type { ApiError, AppHealth, DatabaseHealth } from '@tracegraph/shared';
+import type { ApiError, AppHealth, DatabaseHealth, RepositoryOverview } from '@tracegraph/shared';
 
 /**
  * Central API client. All frontend → NestJS communication goes through here;
@@ -22,11 +22,14 @@ export class ApiRequestError extends Error {
   }
 }
 
-async function request<T>(path: string): Promise<T> {
+async function request<T>(path: string, token?: string | null): Promise<T> {
   let response: Response;
   try {
     response = await fetch(`${apiBaseUrl}${path}`, {
-      headers: { Accept: 'application/json' },
+      headers: {
+        Accept: 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       cache: 'no-store',
     });
   } catch {
@@ -53,4 +56,5 @@ async function request<T>(path: string): Promise<T> {
 export const apiClient = {
   getAppHealth: () => request<AppHealth>('/health'),
   getDatabaseHealth: () => request<DatabaseHealth>('/health/database'),
+  getRepositoryOverview: (token?: string | null) => request<RepositoryOverview>('/repository', token),
 };

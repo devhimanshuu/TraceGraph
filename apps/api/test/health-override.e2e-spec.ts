@@ -18,6 +18,7 @@ process.env.COGNODB_USERNAME = 'test-user';
 process.env.COGNODB_PASSWORD = 'test-password';
 process.env.DB_CONNECT_RETRIES = '1';
 process.env.DB_CONNECT_RETRY_DELAY_MS = '10';
+process.env.CLERK_SECRET_KEY = '';
 
 describe('Health endpoints with a mocked driver (no live CognoDB)', () => {
   describe('healthy database', () => {
