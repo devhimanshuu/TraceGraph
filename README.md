@@ -7,10 +7,11 @@ explore software relationships and understand the potential impact of changing a
 file, class, function, or service. It stores a software repository as a property
 graph in **CognoDB** and exposes it through a NestJS REST API and a Next.js web app.
 
-**Current phase:** Phase 3 — CognoDB integration & database layer (driver
-lifecycle, sessions, read/write/transaction abstractions, typed error taxonomy,
-timeouts, health). Graph schema, seed data, and product features arrive in
-Phases 4+ (see [docs/PHASE-1-TECHNICAL-DESIGN.md](docs/PHASE-1-TECHNICAL-DESIGN.md)).
+**Current phase:** Phase 4 — graph data model & deterministic seed (202 nodes /
+348 relationships across 10 labels, idempotent `MERGE`-based seeding, label-
+scoped clear, and a full verification script). Product features arrive in
+Phases 5+ (see [docs/PHASE-1-TECHNICAL-DESIGN.md](docs/PHASE-1-TECHNICAL-DESIGN.md)
+and [docs/graph-data-model.md](docs/graph-data-model.md)).
 
 ## Overview
 
@@ -150,14 +151,17 @@ running — no crash, no leaked connection details.
 
 ## Scripts
 
-| Command                                     | Description                         |
-| ------------------------------------------- | ----------------------------------- |
-| `npm run dev` / `dev:api` / `dev:web`       | Run both apps / API only / web only |
-| `npm run build` / `build:api` / `build:web` | Production builds                   |
-| `npm run lint`                              | ESLint (api + web)                  |
-| `npm run typecheck`                         | `tsc --noEmit` (api + web + shared) |
-| `npm run test`                              | Jest (api: unit + e2e)              |
-| `npm run format` / `format:check`           | Prettier write / verify             |
+| Command                                     | Description                           |
+| ------------------------------------------- | ------------------------------------- |
+| `npm run dev` / `dev:api` / `dev:web`       | Run both apps / API only / web only   |
+| `npm run build` / `build:api` / `build:web` | Production builds                     |
+| `npm run lint`                              | ESLint (api + web)                    |
+| `npm run typecheck`                         | `tsc --noEmit` (api + web + shared)   |
+| `npm run test`                              | Jest (api: unit + e2e)                |
+| `npm run format` / `format:check`           | Prettier write / verify               |
+| `npm run db:seed`                           | Load the deterministic demo graph     |
+| `npm run db:clear`                          | Remove TraceGraph data (label-scoped) |
+| `npm run db:verify`                         | Counts + critical paths + integrity   |
 
 ## API Conventions
 
@@ -190,5 +194,20 @@ management, validation, CORS, error handling, health endpoints, shared types.
   CognoDB instance; degraded mode keeps the app running when the DB is down.
 - 35 backend tests (unit + e2e), including mocked-driver health up/down tests.
 
-**Next (Phase 4):** CognoDB graph schema + deterministic seed script — per
+**Phase 4 (this milestone) — Graph Data Model & Deterministic Seed.**
+
+- 10 labels, 12 relationship types, named `tg_*` unique-id constraints
+  (Neo4j 5 syntax — verified against the live instance; legacy `ASSERT` and
+  `SHOW CONSTRAINTS` are unsupported on CognoDB).
+- commerce-platform demo dataset: 202 nodes / 348 relationships, including the
+  demo-critical multi-hop call chain `OrderService → CheckoutService →
+PaymentService → PaymentRepository → DatabaseService` and the history chain
+  `Issue #912 → PR #421 → Commit 8f21ac7 → payment.service.ts`.
+- `npm run db:seed` is deterministic and idempotent (parameterized `UNWIND` +
+  `MERGE` batches through `DatabaseService`; re-running never duplicates —
+  verified). `npm run db:clear` is label-scoped (safe on a shared instance).
+  `npm run db:verify` checks 41 assertions: counts vs the dataset definition,
+  critical entities, 2-hop/3-hop traversals, and integrity (0 orphans).
+
+**Next (Phase 5):** query layer + REST endpoints over the seeded graph — per
 [docs/PHASE-1-TECHNICAL-DESIGN.md](docs/PHASE-1-TECHNICAL-DESIGN.md).

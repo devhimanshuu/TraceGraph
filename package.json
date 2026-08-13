@@ -21,6 +21,9 @@
     "typecheck": "npm run typecheck --workspace @tracegraph/api && npm run typecheck --workspace @tracegraph/web && npm run typecheck --workspace @tracegraph/shared",
     "test": "npm run test --workspace @tracegraph/api",
     "db:check": "npm run db:check --workspace @tracegraph/api",
+    "db:seed": "npm run db:seed --workspace @tracegraph/api",
+    "db:clear": "npm run db:clear --workspace @tracegraph/api",
+    "db:verify": "npm run db:verify --workspace @tracegraph/api",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

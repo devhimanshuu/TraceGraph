@@ -10,7 +10,10 @@
     "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\"",
     "typecheck": "tsc --noEmit",
     "test": "jest --runInBand",
-    "db:check": "ts-node --transpile-only scripts/verify-db.ts"
+    "db:check": "ts-node --transpile-only scripts/verify-db.ts",
+    "db:seed": "ts-node --transpile-only scripts/seed.ts",
+    "db:clear": "ts-node --transpile-only scripts/clear.ts",
+    "db:verify": "ts-node --transpile-only scripts/verify.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.29",
