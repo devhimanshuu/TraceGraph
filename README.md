@@ -7,11 +7,13 @@ explore software relationships and understand the potential impact of changing a
 file, class, function, or service. It stores a software repository as a property
 graph in **CognoDB** and exposes it through a NestJS REST API and a Next.js web app.
 
-**Current phase:** Phase 4 — graph data model & deterministic seed (202 nodes /
-348 relationships across 10 labels, idempotent `MERGE`-based seeding, label-
-scoped clear, and a full verification script). Product features arrive in
-Phases 5+ (see [docs/PHASE-1-TECHNICAL-DESIGN.md](docs/PHASE-1-TECHNICAL-DESIGN.md)
-and [docs/graph-data-model.md](docs/graph-data-model.md)).
+**Current phase:** Phase 5 — Cypher query layer & graph repository API (node
+details, relationships, dependencies, callers/callees, tests, bounded multi-hop
+traversal with evidence paths, engineering history, repository overview, and
+search — all parameterized and mapped to typed DTOs). Product UI arrives in
+Phases 6+ (see [docs/PHASE-1-TECHNICAL-DESIGN.md](docs/PHASE-1-TECHNICAL-DESIGN.md),
+[docs/graph-data-model.md](docs/graph-data-model.md), and
+[docs/graph-query-strategy.md](docs/graph-query-strategy.md)).
 
 ## Overview
 
@@ -89,18 +91,48 @@ cp apps/api/.env.example apps/api/.env      # then fill in COGNODB_* values
 cp apps/web/.env.example apps/web/.env.local
 ```
 
-| Variable              | Where    | Required | Purpose                                                     |
-| --------------------- | -------- | -------- | ----------------------------------------------------------- |
-| `COGNODB_URI`         | apps/api | ✅       | Bolt URI, e.g. `bolt+s://<host>.databases.cognodb.com:7687` |
-| `COGNODB_USERNAME`    | apps/api | ✅       | CognoDB username                                            |
-| `COGNODB_PASSWORD`    | apps/api | ✅       | CognoDB password (never committed)                          |
-| `CORS_ORIGIN`         | apps/api | ✅       | Comma-separated allowed browser origins (no wildcards)      |
-| `PORT`                | apps/api | no       | API port (default `4000`)                                   |
-| `NODE_ENV`            | apps/api | no       | `development` \| `test` \| `production`                     |
-| `NEXT_PUBLIC_API_URL` | apps/web | ✅       | Backend base URL, e.g. `http://localhost:4000/api`          |
+| Variable                            | Where               | Required | Purpose                                                     |
+| ----------------------------------- | ------------------- | -------- | ----------------------------------------------------------- |
+| `COGNODB_URI`                       | apps/api            | ✅       | Bolt URI, e.g. `bolt+s://<host>.databases.cognodb.com:7687` |
+| `COGNODB_USERNAME`                  | apps/api            | ✅       | CognoDB username                                            |
+| `COGNODB_PASSWORD`                  | apps/api            | ✅       | CognoDB password (never committed)                          |
+| `CORS_ORIGIN`                       | apps/api            | ✅       | Comma-separated allowed browser origins (no wildcards)      |
+| `PORT`                              | apps/api            | no       | API port (default `4000`)                                   |
+| `NODE_ENV`                          | apps/api            | no       | `development` \| `test` \| `production`                     |
+| `NEXT_PUBLIC_API_URL`               | apps/web            | ✅       | Backend base URL, e.g. `http://localhost:4000/api`          |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | apps/web            | ✅       | Clerk publishable key (public, from the Clerk dashboard)    |
+| `CLERK_SECRET_KEY`                  | apps/api + apps/web | ✅       | Clerk secret key (server-only, never client code)           |
 
 Missing or invalid required values cause the API to **fail fast at boot** with a
 readable message (Joi validation). The backend never logs credentials.
+
+## Authentication (Clerk)
+
+TraceGraph uses [Clerk](https://clerk.com) for authentication:
+
+- **Web app** — `@clerk/nextjs` with a `ClerkProvider` in the root layout.
+  Signed-out visitors see the landing page with sign-in / sign-up controls;
+  `/dashboard` (and every other route) is protected by the `proxy.ts`
+  middleware and redirects to sign-in.
+- **API** — a global `ClerkAuthGuard` verifies the Bearer session token on
+  every route except `@Public()` health endpoints. Verification is fail-closed:
+  a missing header, invalid token, or unconfigured `CLERK_SECRET_KEY` all
+  return `401 Unauthorized`.
+- The frontend attaches the session token via `useAuth().getToken()` before
+  calling the NestJS API.
+
+Create a Clerk application, then copy its keys into the env files:
+
+```bash
+# Backend
+CLERK_SECRET_KEY=sk_test_...    # apps/api/.env
+# Frontend
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...   # apps/web/.env.local
+CLERK_SECRET_KEY=sk_test_...                    # apps/web/.env.local
+```
+
+> The web app's `CLERK_SECRET_KEY` is used server-side (middleware / `auth()`)
+> and is never shipped to the browser — only the publishable key is public.
 
 ## CognoDB Development Setup
 
@@ -167,11 +199,36 @@ running — no crash, no leaked connection details.
 
 - Global prefix: `/api`
 - Responses are **direct DTO JSON** (no envelope), documented per endpoint in
-  the Phase 1 spec (§15).
+  the Phase 1 spec (§15) and typed in `@tracegraph/shared`.
 - Errors follow one shape:
   `{ "statusCode": 400, "message": "…", "code": "VALIDATION_ERROR", "timestamp": "…", "path": "/api/…" }`
   — credentials, connection strings, and stack traces are never exposed.
-- All future Cypher is parameterized and confined to the repository layer.
+- All Cypher is parameterized, named, and confined to `apps/api/src/graph/queries/*`
+  (see [docs/graph-query-strategy.md](docs/graph-query-strategy.md)).
+
+## API Surface (Phase 5)
+
+```text
+GET /api/health                    application liveness
+GET /api/health/database           CognoDB reachability
+GET /api/repository                repository overview + label-scoped statistics
+GET /api/graph                     bounded graph neighborhood (rootId, depth, types)
+GET /api/nodes/:id                 node details (any of the 10 labels)
+GET /api/nodes/:id/relationships   incoming + outgoing relationships
+GET /api/nodes/:id/dependencies    what the entity depends on (IMPORTS/CALLS/EXTENDS)
+GET /api/nodes/:id/dependents      what depends on the entity (reverse traversal)
+GET /api/nodes/:id/callers         who calls this function
+GET /api/nodes/:id/callees         which functions this function calls
+GET /api/nodes/:id/tests           tests covering the entity
+GET /api/nodes/:id/commits         commits touching the entity's file
+GET /api/nodes/:id/pull-requests   PRs containing those commits
+GET /api/nodes/:id/issues          issues related to those PRs
+GET /api/traversal/:id             bounded multi-hop traversal with evidence paths
+GET /api/search?q=                 deterministic name/substring search
+```
+
+Node ids contain `/` and `:`, so clients must `encodeURIComponent` them in the
+URL (e.g. `encodeURIComponent('class:apps/api/services/payment.service.ts:PaymentService')`).
 
 ## Current Development Phase
 
@@ -209,5 +266,33 @@ PaymentService → PaymentRepository → DatabaseService` and the history chain
   `npm run db:verify` checks 41 assertions: counts vs the dataset definition,
   critical entities, 2-hop/3-hop traversals, and integrity (0 orphans).
 
-**Next (Phase 5):** query layer + REST endpoints over the seeded graph — per
+**Phase 5 (this milestone) — Cypher Query Layer & Graph Repository API.**
+
+- Named, documented query catalog in `src/graph/queries/*` — all parameterized
+  (the one sanctioned structural exception: literal hop-count bounds, since
+  openCypher cannot parameterize variable-length patterns).
+- `GraphRepository` is the single Cypher owner; `GraphService` owns mapping,
+  type-aware dependency semantics, and 404s; controllers are thin.
+- Bounded multi-hop traversal (`GET /api/traversal/:id`, depth 1..4) returns
+  deduplicated nodes/edges plus **evidence paths** — the lower-level capability
+  Impact Analysis (Phase 6) builds on.
+- Engineering history traverses the File → Commit → PR → Issue chain; the
+  repository overview is label-scoped (safe on a shared instance).
+- 83 backend tests (unit + e2e with an in-memory repository), verified live
+  against the seeded graph.
+
+**Current — SaaS product shell + Clerk authentication.**
+
+- Public SaaS landing page (hero, features, value props) replaces the
+  foundation-status view; sign-in / sign-up controls render from Clerk.
+- Product dashboard behind auth: repository overview, live graph statistics,
+  and upcoming-workspace cards (Graph Explorer, Impact Analysis).
+- `@clerk/nextjs` + `proxy.ts` middleware — every route except the landing
+  page and health checks requires a session.
+- API auth: global `ClerkAuthGuard` verifies the Bearer session token on every
+  route (fail-closed 401; `@Public()` only on health). The frontend attaches
+  the token via `useAuth().getToken()`.
+- 95 backend tests (incl. auth guard unit + fail-closed e2e).
+
+**Next (Phase 6):** Impact Analysis — per
 [docs/PHASE-1-TECHNICAL-DESIGN.md](docs/PHASE-1-TECHNICAL-DESIGN.md).

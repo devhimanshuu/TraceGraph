@@ -13,6 +13,7 @@ function createConfigService(overrides: Partial<AppConfig> = {}): ConfigService 
     cognodb: { uri: 'bolt://localhost:7687', username: 'test', password: 'test' },
     database: { retries: 1, retryDelayMs: 0, connectTimeoutMs: 5000, queryTimeoutMs: 10000 },
     logLevel: 'info',
+    clerkSecretKey: '',
     ...overrides,
   };
   return {

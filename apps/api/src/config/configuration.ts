@@ -20,6 +20,8 @@ export interface AppConfig {
     queryTimeoutMs: number;
   };
   logLevel: string;
+  /** Clerk session verification secret. Empty string disables authentication. */
+  clerkSecretKey: string;
 }
 
 /**
@@ -48,5 +50,6 @@ export default registerAs('app', (): AppConfig => {
       queryTimeoutMs: parseInt(process.env.DB_QUERY_TIMEOUT_MS ?? '10000', 10),
     },
     logLevel: process.env.LOG_LEVEL ?? 'info',
+    clerkSecretKey: process.env.CLERK_SECRET_KEY ?? '',
   };
 });

@@ -39,6 +39,8 @@ export const envValidationSchema = Joi.object({
   DB_CONNECT_TIMEOUT_MS: Joi.number().integer().min(0).max(60_000).default(5_000),
   DB_QUERY_TIMEOUT_MS: Joi.number().integer().min(0).max(120_000).default(10_000),
   LOG_LEVEL: Joi.string().valid('debug', 'info', 'warn', 'error').default('info'),
+  // Optional — when absent, every protected endpoint fails closed with 401.
+  CLERK_SECRET_KEY: Joi.string().allow('').optional(),
 }).options({ allowUnknown: true });
 
 /**
