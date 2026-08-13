@@ -1,0 +1,8 @@
+node_modules
+**/dist
+**/.next
+**/coverage
+package-lock.json
+# Spec/review documents keep their hand-formatted content
+PHASE-1-TECHNICAL-DESIGN.md
+docs/**

@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+.turbo/
+
+# Environment — NEVER commit real credentials
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Tests / coverage
+coverage/
+coverage-ts/
+
+# Logs & misc
+*.log
+.DS_Store
+*.tsbuildinfo
+.freebuff

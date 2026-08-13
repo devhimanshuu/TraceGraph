@@ -1,0 +1,30 @@
+{
+  "name": "tracegraph",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TraceGraph — Understand your codebase through relationships.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "npm run start:dev --workspace @tracegraph/api",
+    "dev:web": "npm run dev --workspace @tracegraph/web",
+    "build": "npm run build --workspace @tracegraph/api && npm run build --workspace @tracegraph/web",
+    "build:api": "npm run build --workspace @tracegraph/api",
+    "build:web": "npm run build --workspace @tracegraph/web",
+    "lint": "npm run lint --workspace @tracegraph/api && npm run lint --workspace @tracegraph/web",
+    "typecheck": "npm run typecheck --workspace @tracegraph/api && npm run typecheck --workspace @tracegraph/web && npm run typecheck --workspace @tracegraph/shared",
+    "test": "npm run test --workspace @tracegraph/api",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.4",
+    "prettier": "^3.9.6"
+  }
+}
