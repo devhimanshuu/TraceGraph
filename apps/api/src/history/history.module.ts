@@ -1,11 +1,15 @@
 import { Module } from '@nestjs/common';
+import { GraphModule } from '../graph/graph.module';
+import { HistoryController } from './history.controller';
+import { HistoryService } from './history.service';
 
 /**
- * HistoryModule — commits, pull requests, and issues touching an entity
- * (GET /api/nodes/:id/history, Phase 5+).
- *
- * Phase 2 establishes the module boundary only; no domain logic is
- * implemented yet.
+ * HistoryModule — engineering context (commits, pull requests, issues) for an
+ * entity. Imports the graph module for the shared repository/service.
  */
-@Module({})
+@Module({
+  imports: [GraphModule],
+  providers: [HistoryService],
+  controllers: [HistoryController],
+})
 export class HistoryModule {}
