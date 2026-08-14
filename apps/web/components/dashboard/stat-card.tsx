@@ -24,7 +24,7 @@ export function StatCard({
   accent = 'bg-primary/10 text-primary',
 }: StatCardProps) {
   const body = (
-    <Card className="h-full transition-colors hover:border-border">
+    <Card className="h-full transition-shadow hover:shadow-[0_10px_28px_-16px_rgba(2,6,23,0.28)]">
       <CardContent className="flex flex-col gap-3">
         <div className="flex items-center justify-between gap-2">
           <p className="text-2xl font-semibold tabular-nums leading-none">{value.toLocaleString()}</p>

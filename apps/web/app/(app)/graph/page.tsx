@@ -1,15 +1,31 @@
-import { Network } from 'lucide-react';
-import { ComingSoon } from '@/components/layout/coming-soon';
+import { Suspense } from 'react';
+import { ReactFlowProvider } from '@xyflow/react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { GraphExplorer } from '@/components/graph/graph-explorer';
 
-export const metadata = { title: 'Graph Explorer' };
+export const metadata = {
+  title: 'Graph Explorer — TraceGraph',
+  description: 'Interactive visualization of the codebase graph — explore neighborhood relationships and dependencies.',
+};
+
+function GraphFallback() {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-8 w-32" />
+      </div>
+      <Skeleton className="h-[620px] w-full rounded-2xl" />
+    </div>
+  );
+}
 
 export default function GraphPage() {
   return (
-    <ComingSoon
-      title="Graph Explorer"
-      icon={Network}
-      eta="Next module"
-      description="An interactive graph of the codebase — zoom, pan, and inspect how files, classes, and functions connect. You'll be able to select any entity and explore its neighborhood here."
-    />
+    <Suspense fallback={<GraphFallback />}>
+      <ReactFlowProvider>
+        <GraphExplorer />
+      </ReactFlowProvider>
+    </Suspense>
   );
 }

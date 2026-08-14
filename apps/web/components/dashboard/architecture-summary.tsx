@@ -19,7 +19,7 @@ export function ArchitectureSummary({ components }: { components: RepositoryComp
           {components.map((component) => (
             <li
               key={component.id}
-              className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-card/40 px-3 py-2.5"
+              className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-card/40 px-3 py-2.5 transition-colors hover:bg-muted/40"
             >
               <div className="flex min-w-0 items-center gap-2.5">
                 <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">

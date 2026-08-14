@@ -16,7 +16,7 @@ export function SectionError({ title, message, onRetry }: SectionErrorProps) {
   return (
     <Card>
       <CardContent className="flex flex-col items-start gap-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-red-400">
+        <div className="flex items-center gap-2 text-sm font-medium text-destructive">
           <TriangleAlert className="size-4" aria-hidden />
           {title}
         </div>

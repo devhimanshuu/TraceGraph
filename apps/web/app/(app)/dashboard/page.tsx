@@ -30,12 +30,12 @@ import { useComponents } from '@/hooks/use-components';
 import { formatDate } from '@/lib/format';
 
 const PRIMARY_STATS = [
-  { key: 'files', label: 'Files', icon: FileCode2, description: 'Source files', accent: 'bg-sky-500/10 text-sky-400' },
-  { key: 'functions', label: 'Functions', icon: Braces, description: 'Functions & methods', accent: 'bg-violet-500/10 text-violet-400' },
-  { key: 'classes', label: 'Classes', icon: Boxes, description: 'Classes & services', accent: 'bg-emerald-500/10 text-emerald-400' },
-  { key: 'tests', label: 'Tests', icon: FlaskConical, description: 'Automated tests', accent: 'bg-amber-500/10 text-amber-400' },
-  { key: 'commits', label: 'Commits', icon: GitCommitHorizontal, description: 'Commits in history', accent: 'bg-sky-500/10 text-sky-400' },
-  { key: 'pullRequests', label: 'Pull requests', icon: GitPullRequest, description: 'Merged & open', accent: 'bg-violet-500/10 text-violet-400' },
+  { key: 'files', label: 'Files', icon: FileCode2, description: 'Source files', accent: 'bg-sky-500/10 text-sky-600' },
+  { key: 'functions', label: 'Functions', icon: Braces, description: 'Functions & methods', accent: 'bg-violet-500/10 text-violet-600' },
+  { key: 'classes', label: 'Classes', icon: Boxes, description: 'Classes & services', accent: 'bg-emerald-500/10 text-emerald-600' },
+  { key: 'tests', label: 'Tests', icon: FlaskConical, description: 'Automated tests', accent: 'bg-amber-500/10 text-amber-600' },
+  { key: 'commits', label: 'Commits', icon: GitCommitHorizontal, description: 'Commits in history', accent: 'bg-sky-500/10 text-sky-600' },
+  { key: 'pullRequests', label: 'Pull requests', icon: GitPullRequest, description: 'Merged & open', accent: 'bg-violet-500/10 text-violet-600' },
 ] as const;
 
 function SectionTitle({ children }: { children: ReactNode }) {

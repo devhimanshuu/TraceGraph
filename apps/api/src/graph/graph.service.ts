@@ -16,6 +16,7 @@ import type {
   GraphResponse,
   NodeRelationships,
   NodeType,
+  RelationshipSummary,
   RelationshipType,
   SearchResultItem,
   TestCoverage,
@@ -195,6 +196,14 @@ export class GraphService {
     return this.repository.findTests(node, limit);
   }
 
+  // ── Relationship summary (Phase 8) ──────────────────────────────────────────
+
+  /** One-request category counts for the Dependency Explorer. */
+  async getRelationshipSummary(id: string): Promise<RelationshipSummary> {
+    const node = await this.getNode(id);
+    return this.repository.findRelationshipSummary(node);
+  }
+
   // ── Traversal ───────────────────────────────────────────────────────────────
 
   async traverse(id: string, query: TraversalQueryDto): Promise<TraversalResult> {
@@ -203,7 +212,12 @@ export class GraphService {
     const types = query.types?.length ? query.types : TRAVERSAL_TYPES;
     const pathLimit = query.limit ?? DEFAULT_TRAVERSAL_PATHS;
     const root: GraphNodeRef = { id: node.id, type: node.type, label: node.label };
-    return this.repository.traverseFromNode(root, depth, types, pathLimit);
+    // `direction=in` walks everything that REACHES the root — the dependents
+    // chain (OrderService → CheckoutService → PaymentService) that the
+    // Dependency Explorer's multi-hop preview needs.
+    return query.direction === 'in'
+      ? this.repository.traverseIntoNode(root, depth, types, pathLimit)
+      : this.repository.traverseFromNode(root, depth, types, pathLimit);
   }
 
   // ── Search ──────────────────────────────────────────────────────────────────
