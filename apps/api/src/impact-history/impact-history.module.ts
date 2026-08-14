@@ -9,7 +9,7 @@ import { ImpactHistoryService } from './impact-history.service';
  *
  * Reuses GraphModule's GraphRepository for default-repository resolution so
  * snapshots are tied to the repository; its own repository owns the snapshot
- * Cypher. The global Clerk guard (registered in AuthModule) protects every
+ * Cypher. The global GitHub session guard (registered in AuthModule) protects every
  * route here.
  */
 @Module({

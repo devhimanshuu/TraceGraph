@@ -69,7 +69,7 @@ export class RepositoryService {
     const repo = await this.graphRepository.findDefaultRepository();
     if (!repo) {
       throw new NotFoundException(
-        'No repository found — the graph is empty. Run `npm run db:seed`.',
+        'No repository found — the graph is empty. Import a GitHub repository to get started.',
       );
     }
     return repo;

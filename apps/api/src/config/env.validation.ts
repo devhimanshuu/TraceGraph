@@ -39,8 +39,26 @@ export const envValidationSchema = Joi.object({
   DB_CONNECT_TIMEOUT_MS: Joi.number().integer().min(0).max(60_000).default(5_000),
   DB_QUERY_TIMEOUT_MS: Joi.number().integer().min(0).max(120_000).default(10_000),
   LOG_LEVEL: Joi.string().valid('debug', 'info', 'warn', 'error').default('info'),
-  // Optional — when absent, every protected endpoint fails closed with 401.
-  CLERK_SECRET_KEY: Joi.string().allow('').optional(),
+  // GitHub OAuth App + own-session auth. Every credential is optional — an
+  // unconfigured instance fails closed with 401 (never open, never degraded).
+  GITHUB_CLIENT_ID: Joi.string().allow('').optional(),
+  GITHUB_CLIENT_SECRET: Joi.string().allow('').optional(),
+  GITHUB_OAUTH_REDIRECT_URI: Joi.string().uri().optional(),
+  SESSION_SECRET: Joi.string().allow('').optional(),
+  SESSION_TTL_DAYS: Joi.number().integer().min(1).max(30).default(7),
+  WEB_APP_URL: Joi.string().uri().default('http://localhost:3000'),
+  // AI explanation (Phase 10). Everything is optional so the deterministic
+  // product runs perfectly without any LLM configuration.
+  AI_ENABLED: Joi.boolean().default(false),
+  AI_PROVIDER: Joi.string().valid('groq').default('groq'),
+  AI_MODEL: Joi.string().default('llama-3.3-70b-versatile'),
+  // Either AI_API_KEY or the pre-existing GROQ_API_KEY may be used. Never
+  // required — an unconfigured provider degrades to a clean 503, not a crash.
+  AI_API_KEY: Joi.string().allow('').optional(),
+  GROQ_API_KEY: Joi.string().allow('').optional(),
+  AI_BASE_URL: Joi.string().uri().optional(),
+  AI_MAX_TOKENS: Joi.number().integer().min(1).max(8192).default(1024),
+  AI_TIMEOUT_MS: Joi.number().integer().min(100).max(120_000).default(20_000),
 }).options({ allowUnknown: true });
 
 /**

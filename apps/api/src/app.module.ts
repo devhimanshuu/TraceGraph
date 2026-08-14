@@ -6,6 +6,7 @@ import { RepositoryModule } from './repository/repository.module';
 import { GraphModule } from './graph/graph.module';
 import { ImpactModule } from './impact/impact.module';
 import { ImpactHistoryModule } from './impact-history/impact-history.module';
+import { AiModule } from './ai/ai.module';
 import { HistoryModule } from './history/history.module';
 import { AuthModule } from './auth/auth.module';
 
@@ -19,6 +20,7 @@ import { AuthModule } from './auth/auth.module';
     GraphModule,
     ImpactModule,
     ImpactHistoryModule,
+    AiModule,
     HistoryModule,
   ],
 })

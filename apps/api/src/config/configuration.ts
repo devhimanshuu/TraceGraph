@@ -20,8 +20,40 @@ export interface AppConfig {
     queryTimeoutMs: number;
   };
   logLevel: string;
-  /** Clerk session verification secret. Empty string disables authentication. */
-  clerkSecretKey: string;
+}
+
+/**
+ * GitHub OAuth App + own-session configuration, read under the `auth`
+ * namespace. Every credential is optional — an unconfigured instance fails
+ * closed with 401 (never open, never degraded).
+ */
+export interface AuthConfig {
+  githubClientId: string;
+  githubClientSecret: string;
+  /** Must match the registered GitHub OAuth App callback URL exactly. */
+  githubRedirectUri: string;
+  /** HMAC secret signing TraceGraph's own session tokens. */
+  sessionSecret: string;
+  sessionTtlDays: number;
+  /** Where the OAuth callback bounces the browser after signing in. */
+  webAppUrl: string;
+}
+
+/**
+ * AI configuration (Phase 10), read under the `ai` namespace. All fields are
+ * optional by design — the deterministic product runs perfectly with AI off.
+ */
+export interface AiConfig {
+  /** Master switch — when false the app runs fully without AI (503, not a crash). */
+  enabled: boolean;
+  provider: 'groq';
+  model: string;
+  /** Resolved API key (AI_API_KEY takes precedence over GROQ_API_KEY). */
+  apiKey: string;
+  /** OpenAI-compatible base URL (Groq's endpoint by default). */
+  baseUrl: string;
+  maxTokens: number;
+  timeoutMs: number;
 }
 
 /**
@@ -50,6 +82,41 @@ export default registerAs('app', (): AppConfig => {
       queryTimeoutMs: parseInt(process.env.DB_QUERY_TIMEOUT_MS ?? '10000', 10),
     },
     logLevel: process.env.LOG_LEVEL ?? 'info',
-    clerkSecretKey: process.env.CLERK_SECRET_KEY ?? '',
+  };
+});
+
+/**
+ * GitHub OAuth + session configuration (own auth), namespaced as `auth` so
+ * consumers use `getOrThrow<AuthConfig>('auth')`. All credentials are
+ * optional: the API fails closed with 401 until they are configured.
+ */
+export const authConfiguration = registerAs('auth', (): AuthConfig => {
+  return {
+    githubClientId: process.env.GITHUB_CLIENT_ID ?? '',
+    githubClientSecret: process.env.GITHUB_CLIENT_SECRET ?? '',
+    githubRedirectUri:
+      process.env.GITHUB_OAUTH_REDIRECT_URI ??
+      'http://localhost:4000/api/auth/github/callback',
+    sessionSecret: process.env.SESSION_SECRET ?? '',
+    sessionTtlDays: parseInt(process.env.SESSION_TTL_DAYS ?? '7', 10),
+    webAppUrl: process.env.WEB_APP_URL ?? 'http://localhost:3000',
+  };
+});
+
+/**
+ * AI configuration (Phase 10), namespaced as `ai` so consumers use
+ * `getOrThrow<AiConfig>('ai')`. All fields are optional by design — the
+ * deterministic product runs perfectly with AI disabled (AI_ENABLED=false).
+ */
+export const aiConfiguration = registerAs('ai', (): AiConfig => {
+  return {
+    enabled: process.env.AI_ENABLED === 'true',
+    provider: 'groq',
+    model: process.env.AI_MODEL ?? 'llama-3.3-70b-versatile',
+    // GROQ_API_KEY predates the AI phase; AI_API_KEY takes precedence when set.
+    apiKey: process.env.AI_API_KEY || process.env.GROQ_API_KEY || '',
+    baseUrl: process.env.AI_BASE_URL ?? 'https://api.groq.com/openai/v1',
+    maxTokens: parseInt(process.env.AI_MAX_TOKENS ?? '1024', 10),
+    timeoutMs: parseInt(process.env.AI_TIMEOUT_MS ?? '20000', 10),
   };
 });

@@ -31,7 +31,10 @@ type SessionClaims = Record<string, unknown>;
 function toAnalyst(user: unknown): ImpactSnapshot['analyzedBy'] {
   if (!user || typeof user !== 'object') return null;
   const claims = user as SessionClaims;
-  const username = String(claims.username ?? claims.sub ?? claims.userId ?? '');
+  // TraceGraph's own sessions attach { id, login, name, avatarUrl } (the
+  // GitHub identity). `login` is the analyst's handle; the legacy fallbacks
+  // keep older claim shapes working.
+  const username = String(claims.login ?? claims.username ?? claims.sub ?? claims.userId ?? '');
   if (!username) return null;
   return { username, name: String(claims.name ?? '') };
 }

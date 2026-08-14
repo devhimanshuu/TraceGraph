@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule as NestConfigModule } from '@nestjs/config';
-import configuration from './configuration';
+import configuration, { aiConfiguration, authConfiguration } from './configuration';
 import { envValidationSchema } from './env.validation';
 
 /**
@@ -12,7 +12,7 @@ import { envValidationSchema } from './env.validation';
     NestConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env'],
-      load: [configuration],
+      load: [configuration, aiConfiguration, authConfiguration],
       validationSchema: envValidationSchema,
       validationOptions: { abortEarly: false, allowUnknown: true },
     }),

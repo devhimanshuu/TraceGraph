@@ -57,7 +57,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
         typeof response === 'string'
           ? response
           : ((response as { message?: string | string[] }).message ?? exception.message);
-      return { statusCode, code: statusCodeToCode(statusCode), message };
+      // An HttpException body may carry an explicit code (e.g. AI_DISABLED)
+      // for domain-specific failure classes; otherwise derive it from status.
+      const body = typeof response === 'object' ? (response as { code?: unknown }) : null;
+      const code =
+        body && typeof body.code === 'string' && body.code.length > 0
+          ? body.code
+          : statusCodeToCode(statusCode);
+      return { statusCode, code, message };
     }
 
     if (exception instanceof DatabaseError) {
@@ -126,6 +133,8 @@ function statusCodeToCode(statusCode: number): string {
       return 'CONFLICT';
     case HttpStatus.SERVICE_UNAVAILABLE:
       return 'SERVICE_UNAVAILABLE';
+    case HttpStatus.BAD_GATEWAY:
+      return 'BAD_GATEWAY';
     default:
       return 'HTTP_ERROR';
   }
