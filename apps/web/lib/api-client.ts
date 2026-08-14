@@ -8,6 +8,9 @@ import type {
   HistoryCommit,
   HistoryIssue,
   HistoryPullRequest,
+  ImpactHistoryListResponse,
+  ImpactResponse,
+  ImpactSnapshot,
   NodeRelationships,
   RelationshipSummary,
   RepositoryActivity,
@@ -48,6 +51,49 @@ async function request<T>(path: string, token?: string | null): Promise<T> {
         Accept: 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
+      cache: 'no-store',
+    });
+  } catch {
+    throw new ApiRequestError('Network error while contacting the API', 0, 'NETWORK_ERROR');
+  }
+
+  if (!response.ok) {
+    let error: ApiError | undefined;
+    try {
+      error = (await response.json()) as ApiError;
+    } catch {
+      // Non-JSON error body — fall through to the generic message.
+    }
+    throw new ApiRequestError(
+      typeof error?.message === 'string' ? error.message : `Request failed (${response.status})`,
+      response.status,
+      error?.code ?? 'HTTP_ERROR',
+    );
+  }
+
+  return (await response.json()) as T;
+}
+
+/**
+ * Mutation helper (POST/DELETE). The CORS config allows Content-Type and
+ * Accept, so JSON bodies and bearer tokens flow without extra headers.
+ */
+async function mutate<T>(
+  path: string,
+  method: 'POST' | 'DELETE',
+  token: string | null | undefined,
+  body?: unknown,
+): Promise<T> {
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl}${path}`, {
+      method,
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
       cache: 'no-store',
     });
   } catch {
@@ -131,6 +177,28 @@ export const apiClient = {
   // Search
   searchNodes: (q: string, limit = 20, token?: string | null) =>
     request<SearchResultItem[]>(`/search?q=${encodeURIComponent(q)}&limit=${limit}`, token),
+
+  // Impact History (CognoDB-backed snapshots)
+  getImpactHistory: (limit = 50, token?: string | null) =>
+    request<ImpactHistoryListResponse>(`/impact-history?limit=${limit}`, token),
+  recordImpactSnapshot: (
+    snapshot: Omit<ImpactSnapshot, 'id' | 'timestamp' | 'repoId' | 'repoName' | 'analyzedBy'>,
+    token?: string | null,
+  ) => mutate<ImpactHistoryListResponse>('/impact-history', 'POST', token, snapshot),
+  clearImpactHistory: (token?: string | null) =>
+    mutate<{ deleted: number }>('/impact-history', 'DELETE', token),
+
+  // Impact Analysis
+  getImpact: (id: string, options?: { depth?: number; limit?: number }, token?: string | null) => {
+    const params = new URLSearchParams();
+    if (options?.depth) params.set('depth', String(options.depth));
+    if (options?.limit) params.set('limit', String(options.limit));
+    const qs = params.toString();
+    return request<ImpactResponse>(
+      `/impact/${encodeURIComponent(id)}${qs ? `?${qs}` : ''}`,
+      token,
+    );
+  },
 
   // Graph neighborhood
   getGraph: (

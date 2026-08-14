@@ -63,13 +63,13 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-dvh bg-background">
-      {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 border-r border-border/60 bg-card/30 lg:block">
+      {/* Desktop sidebar — hidden when printing the impact report */}
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 border-r border-border/60 bg-card/30 lg:block print:hidden">
         <SidebarContent />
       </aside>
 
       {/* Mobile top bar */}
-      <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border/60 bg-background/80 px-4 backdrop-blur lg:hidden">
+      <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border/60 bg-background/80 px-4 backdrop-blur lg:hidden print:hidden">
         <Dialog.Root open={open} onOpenChange={setOpen}>
           <Dialog.Trigger
             render={
@@ -109,8 +109,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       </header>
 
       {/* Main content */}
-      <div className="lg:pl-60">
-        <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:py-10">{children}</main>
+      <div className="lg:pl-60 print:pl-0">
+        <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:py-10 print:max-w-none print:px-0 print:py-0">
+          {children}
+        </main>
       </div>
     </div>
   );

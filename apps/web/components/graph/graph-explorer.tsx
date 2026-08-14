@@ -21,7 +21,7 @@ import {
   type NodeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { ArrowRight, GitFork, Network, Search, Workflow } from 'lucide-react';
+import { ArrowRight, GitFork, Network, Radar, Search, Workflow } from 'lucide-react';
 import { useAuth } from '@clerk/nextjs';
 import type { GraphNode, GraphResponse } from '@tracegraph/shared';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -402,14 +402,23 @@ export function GraphExplorer() {
             Search symbol
           </Button>
           {selectedNode ? (
-            <Link
-              href={`/dependencies?node=${encodeURIComponent(selectedNode.id)}`}
-              className={buttonVariants({ size: 'sm', className: 'h-8 text-xs gap-1.5' })}
-            >
-              <Workflow className="size-3.5" />
-              Explore Dependencies
-              <ArrowRight className="size-3" />
-            </Link>
+            <>
+              <Link
+                href={`/impact?node=${encodeURIComponent(selectedNode.id)}`}
+                className={buttonVariants({ size: 'sm', className: 'h-8 text-xs gap-1.5' })}
+              >
+                <Radar className="size-3.5" />
+                Analyze Impact
+              </Link>
+              <Link
+                href={`/dependencies?node=${encodeURIComponent(selectedNode.id)}`}
+                className={buttonVariants({ variant: 'outline', size: 'sm', className: 'h-8 text-xs gap-1.5' })}
+              >
+                <Workflow className="size-3.5" />
+                Explore Dependencies
+                <ArrowRight className="size-3" />
+              </Link>
+            </>
           ) : null}
         </div>
       </div>

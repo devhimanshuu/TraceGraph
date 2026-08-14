@@ -230,6 +230,115 @@ export interface GraphResponse {
 /** `GET /api/search?q=` */
 export interface SearchResultItem extends GraphNodeRef {}
 
+// ── Impact Analysis (Phase 9) ─────────────────────────────────────────────────
+// `GET /api/impact/:id` — deterministic, graph-driven change impact. See
+// apps/api/src/impact for the engine.
+
+export type ImpactType = 'DIRECT' | 'INDIRECT';
+
+/** One entity reached by the impact traversal, with its explanation. */
+export interface ImpactedEntity {
+  id: string;
+  type: NodeType;
+  label: string;
+  impactType: ImpactType;
+  /** Hop distance from the root (1 = direct). */
+  distance: number;
+  /** The first-hop relationship type connecting this entity to the chain. */
+  relationship: RelationshipType;
+  /** Deterministic explanation built from graph facts (never an LLM). */
+  reason: string;
+  /** The concrete function through which CALLS impact flows, when known. */
+  via?: GraphNodeRef;
+  /** Evidence chain ordered from this affected entity back to the root. */
+  path: ImpactPath;
+}
+
+/** An evidence path in the impact response: affected → … → root. */
+export interface ImpactPath {
+  /** Ordered entity refs from the affected entity to the root (inclusive). */
+  nodes: GraphNodeRef[];
+  /** Relationship types between consecutive nodes (length = nodes.length - 1). */
+  relTypes: RelationshipType[];
+}
+
+/**
+ * Deterministic, explainable severity indicator (Phase 9 §19). Computed
+ * server-side from graph facts (dependents, depth coverage, test exposure) —
+ * never a machine-learning risk prediction.
+ */
+export type ImpactScore = 'LOW' | 'MEDIUM' | 'HIGH';
+
+/** Server-computed impact counts — the frontend never derives these itself. */
+export interface ImpactSummary {
+  direct: number;
+  indirect: number;
+  tests: number;
+  commits: number;
+  pullRequests: number;
+  issues: number;
+  /** The traversal depth the analysis ran at. */
+  maxDepth: number;
+  /** Deterministic severity indicator derived from graph facts. */
+  score: ImpactScore;
+  /** Human-readable graph-fact explanations behind the score. */
+  scoreReasons: string[];
+}
+
+export interface ImpactHistory {
+  commits: HistoryCommit[];
+  pullRequests: HistoryPullRequest[];
+  issues: HistoryIssue[];
+}
+
+/**
+ * One recorded impact analysis (Phase 10 — CognoDB-backed history). Snapshot
+ * nodes live in the graph labeled `ImpactSnapshot`, tied to the repository via
+ * a `BELONGS_TO` relationship, so analyses are shared across devices/users.
+ * The `type` field is the analyzed ENTITY's type (Class/File/…), not the
+ * snapshot node's label.
+ */
+export interface ImpactSnapshot {
+  /** CognoDB node id of the snapshot itself. */
+  id: string;
+  nodeId: string;
+  label: string;
+  type: NodeType;
+  depth: number;
+  score: ImpactScore;
+  direct: number;
+  indirect: number;
+  tests: number;
+  /** Epoch milliseconds when the analysis completed. */
+  timestamp: number;
+  /** Repository this snapshot belongs to. */
+  repoId: string;
+  repoName: string;
+  /** The user who ran the analysis, when known from the session. */
+  analyzedBy: { username: string; name: string } | null;
+}
+
+/** `GET/POST /api/impact-history` — snapshot list newest first. */
+export interface ImpactHistoryListResponse {
+  repo: GraphNodeRef;
+  snapshots: ImpactSnapshot[];
+}
+
+/** `GET /api/impact/:id?depth=&limit=` */
+export interface ImpactResponse {
+  root: GraphNodeRef;
+  depth: number;
+  summary: ImpactSummary;
+  directImpact: ImpactedEntity[];
+  indirectImpact: ImpactedEntity[];
+  /** Potentially affected tests (root + impacted entities, deduplicated). */
+  tests: TestCoverage[];
+  /** Engineering history context for the selected entity. */
+  history: ImpactHistory;
+  /** Deduplicated entity-level evidence paths (affected → … → root). */
+  paths: ImpactPath[];
+}
+
 // ── Errors ────────────────────────────────────────────────────────────────────
 
 /** Standard error body returned by the API (see Phase 1 §18). */
