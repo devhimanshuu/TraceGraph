@@ -113,6 +113,25 @@ describe('DependencyExplorer', () => {
     expect(screen.getByText('StripeClient')).toBeInTheDocument();
   });
 
+  it('deep-links to the impact page with explain=1 from the quick actions', async () => {
+    mockUseSearchParams.mockReturnValue(
+      new URLSearchParams('node=class:apps/api/services/payment.service.ts:PaymentService'),
+    );
+    vi.mocked(nodeService.getNode).mockResolvedValue(mockNode);
+    vi.mocked(nodeService.getRelationshipSummary).mockResolvedValue(mockSummary);
+
+    render(<DependencyExplorer />);
+
+    await screen.findByRole('heading', { name: 'PaymentService' });
+
+    // The AI hand-off carries ?explain=1 so the impact page auto-expands the
+    // explanation instead of landing on the deterministic sections.
+    expect(screen.getByRole('link', { name: /Explain impact/i })).toHaveAttribute(
+      'href',
+      `/impact?node=${encodeURIComponent(mockNode.id)}&explain=1`,
+    );
+  });
+
   it('switches tabs to Dependents and loads dependent entities', async () => {
     mockUseSearchParams.mockReturnValue(
       new URLSearchParams('node=class:apps/api/services/payment.service.ts:PaymentService'),

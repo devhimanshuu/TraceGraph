@@ -1,18 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import type { ImpactResponse, TestCoverage } from '@tracegraph/shared';
+import type { ImpactExplanation, ImpactResponse, TestCoverage } from '@tracegraph/shared';
 import { impactService } from '@/lib/services/impact.service';
+import { aiService } from '@/lib/services/ai.service';
 import { ImpactReport } from './impact-report';
 
 const mockUseSearchParams = vi.fn();
+const mockPush = vi.fn();
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useRouter: () => ({ push: mockPush, replace: vi.fn() }),
   useSearchParams: () => mockUseSearchParams(),
 }));
 
 vi.mock('@/lib/services/impact.service', () => ({
   impactService: { getImpact: vi.fn() },
+}));
+
+vi.mock('@/lib/services/ai.service', () => ({
+  aiService: { explain: vi.fn() },
 }));
 
 const root = {
@@ -105,9 +111,34 @@ const mockResponse: ImpactResponse = {
   ],
 };
 
+/** Grounded explanation — the report document renders it between summary and components. */
+const mockExplanation: ImpactExplanation = {
+  summary: 'CheckoutService is directly affected because it calls PaymentService.',
+  keyFindings: ['CheckoutService is directly affected'],
+  directImpact: ['CheckoutService'],
+  indirectImpact: ['OrderService'],
+  evidenceReferences: ['E1'],
+  confidence: 'high',
+  evidence: [
+    {
+      id: 'E1',
+      kind: 'path',
+      direction: 'direct',
+      description: 'CheckoutService → CALLS → PaymentService',
+      label: 'CheckoutService',
+      nodes: [checkout.id, root.id],
+      relTypes: ['CALLS'],
+    },
+  ],
+  generatedAt: '2026-08-14T12:00:00.000Z',
+  model: 'llama-3.3-70b-versatile',
+  grounding: { source: 'cognodb-impact-analysis' },
+};
+
 describe('ImpactReport', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(aiService.explain).mockResolvedValue(mockExplanation);
   });
 
   it('shows guidance when no entity is selected', () => {
@@ -136,6 +167,18 @@ describe('ImpactReport', () => {
     expect(screen.getByText('Direct')).toBeInTheDocument();
     expect(screen.getByText('Why this score?')).toBeInTheDocument();
     expect(screen.getByText('1 direct and 1 indirect dependents')).toBeInTheDocument();
+
+    // AI explanation section — grounded narrative with clickable evidence.
+    expect(screen.getByTestId('report-ai-section')).toBeInTheDocument();
+    expect(
+      await screen.findByText('CheckoutService is directly affected because it calls PaymentService.'),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/high confidence/i)).toBeInTheDocument();
+    expect(screen.getByText('llama-3.3-70b-versatile')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Highlight evidence E1:/ }),
+    ).toBeInTheDocument();
+    expect(aiService.explain).toHaveBeenCalledWith(mockResponse.root.id, 2, 'test-token');
 
     // Affected components
     expect(screen.getByText('2 · Potentially affected components')).toBeInTheDocument();
@@ -268,6 +311,26 @@ describe('ImpactReport', () => {
 
     expect(createObjectURL).toHaveBeenCalledTimes(1);
     expect(click).toHaveBeenCalledTimes(1);
+  });
+
+  it('navigates to the interactive analysis when a path evidence chip is clicked', async () => {
+    mockUseSearchParams.mockReturnValue(
+      new URLSearchParams('node=class:apps/api/services/payment.service.ts:PaymentService&depth=2'),
+    );
+    vi.mocked(impactService.getImpact).mockResolvedValue(mockResponse);
+
+    render(<ImpactReport />);
+
+    await screen.findByRole('heading', { name: 'PaymentService' });
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Highlight evidence E1:/ }),
+    );
+
+    // The report has no graph viewer — the click hands off to the live
+    // analysis, which opens the entity and its path in the graph.
+    expect(mockPush).toHaveBeenCalledWith(
+      `/impact?node=${encodeURIComponent(checkout.id)}`,
+    );
   });
 
   it('copies the report link and confirms it', async () => {

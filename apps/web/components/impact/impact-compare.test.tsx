@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import type { ImpactResponse } from '@tracegraph/shared';
+import type { ImpactExplanation, ImpactResponse } from '@tracegraph/shared';
 import { impactService } from '@/lib/services/impact.service';
+import { aiService } from '@/lib/services/ai.service';
 import { ImpactCompare } from './impact-compare';
 
 const mockUseSearchParams = vi.fn();
@@ -14,6 +15,10 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/lib/services/impact.service', () => ({
   impactService: { getImpact: vi.fn() },
+}));
+
+vi.mock('@/lib/services/ai.service', () => ({
+  aiService: { explain: vi.fn() },
 }));
 
 const payment = {
@@ -98,9 +103,34 @@ function responseFor(root: typeof payment): ImpactResponse {
   };
 }
 
+/** Both documents carry their own grounded AI explanation. */
+const mockExplanation: ImpactExplanation = {
+  summary: 'CheckoutService is directly affected because it calls PaymentService.',
+  keyFindings: ['CheckoutService is directly affected'],
+  directImpact: ['CheckoutService'],
+  indirectImpact: [],
+  evidenceReferences: ['E1'],
+  confidence: 'high',
+  evidence: [
+    {
+      id: 'E1',
+      kind: 'path',
+      direction: 'direct',
+      description: 'CheckoutService → CALLS → PaymentService',
+      label: 'CheckoutService',
+      nodes: [checkout.id, payment.id],
+      relTypes: ['CALLS'],
+    },
+  ],
+  generatedAt: '2026-08-14T12:00:00.000Z',
+  model: 'llama-3.3-70b-versatile',
+  grounding: { source: 'cognodb-impact-analysis' },
+};
+
 describe('ImpactCompare', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(aiService.explain).mockResolvedValue(mockExplanation);
   });
 
   it('shows guidance when no entity A is selected', () => {
@@ -129,6 +159,13 @@ describe('ImpactCompare', () => {
     expect(screen.getByText('HIGH impact')).toBeInTheDocument();
     expect(screen.getByText('MEDIUM impact')).toBeInTheDocument();
     expect(impactService.getImpact).toHaveBeenCalledTimes(2);
+
+    // Each report carries its own grounded AI explanation.
+    expect(await screen.findAllByTestId('report-ai-section')).toHaveLength(2);
+    expect(
+      (await screen.findAllByText('CheckoutService is directly affected because it calls PaymentService.')).length,
+    ).toBeGreaterThanOrEqual(2);
+    expect(aiService.explain).toHaveBeenCalledTimes(2);
   });
 
   it('shows a placeholder slot until entity B is picked', async () => {

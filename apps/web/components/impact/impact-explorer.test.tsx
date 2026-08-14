@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import type { GraphNode, ImpactResponse, TestCoverage } from '@tracegraph/shared';
+import type { GraphNode, ImpactExplanation, ImpactResponse, TestCoverage } from '@tracegraph/shared';
 import { impactService } from '@/lib/services/impact.service';
+import { aiService } from '@/lib/services/ai.service';
+import { ApiRequestError } from '@/lib/api-client';
 import { useNode } from '@/hooks/use-node';
 import { ImpactExplorer } from './impact-explorer';
 
@@ -16,6 +18,10 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/lib/services/impact.service', () => ({
   impactService: { getImpact: vi.fn() },
+}));
+
+vi.mock('@/lib/services/ai.service', () => ({
+  aiService: { explain: vi.fn() },
 }));
 
 const { mockHistoryService } = vi.hoisted(() => ({
@@ -143,10 +149,35 @@ function mockNodeReady() {
   });
 }
 
+/** A canned grounded explanation for the AI panel. */
+const mockExplanation: ImpactExplanation = {
+  summary: 'CheckoutService is directly affected because it calls PaymentService.',
+  keyFindings: ['CheckoutService is directly affected'],
+  directImpact: ['CheckoutService'],
+  indirectImpact: ['OrderService'],
+  evidenceReferences: ['E1'],
+  confidence: 'high',
+  evidence: [
+    {
+      id: 'E1',
+      kind: 'path',
+      direction: 'direct',
+      description: 'CheckoutService → CALLS → PaymentService',
+      label: 'CheckoutService',
+      nodes: [checkout.id, root.id],
+      relTypes: ['CALLS'],
+    },
+  ],
+  generatedAt: '2026-08-14T12:00:00.000Z',
+  model: 'llama-3.3-70b-versatile',
+  grounding: { source: 'cognodb-impact-analysis' },
+};
+
 describe('ImpactExplorer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     defaultLedger();
+    vi.mocked(aiService.explain).mockResolvedValue(mockExplanation);
   });
 
   it('shows the welcome screen with featured entities when no node is selected', () => {
@@ -271,6 +302,141 @@ describe('ImpactExplorer', () => {
     expect(await screen.findByRole('heading', { name: 'PaymentService' })).toBeInTheDocument();
     expect(screen.getAllByText('CheckoutService').length).toBeGreaterThan(0);
     expect(impactService.getImpact).toHaveBeenCalledTimes(2);
+  });
+
+  it('renders the AI explanation panel alongside the deterministic results', async () => {
+    mockUseSearchParams.mockReturnValue(
+      new URLSearchParams('node=class:apps/api/services/payment.service.ts:PaymentService'),
+    );
+    mockNodeReady();
+    vi.mocked(impactService.getImpact).mockResolvedValue(mockResponse);
+
+    render(<ImpactExplorer />);
+
+    await screen.findByRole('heading', { name: 'PaymentService' });
+
+    // Deterministic results stay visible…
+    expect(screen.getByText('Impact summary')).toBeInTheDocument();
+    expect(screen.getByTestId('impact-graph')).toBeInTheDocument();
+    // …and the grounded AI explanation renders with its evidence.
+    expect(await screen.findByTestId('ai-explanation')).toBeInTheDocument();
+    expect(
+      screen.getByText('CheckoutService is directly affected because it calls PaymentService.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Highlight evidence E1:/ }),
+    ).toBeInTheDocument();
+    expect(aiService.explain).toHaveBeenCalledWith(mockNode.id, 2, 'test-token');
+  });
+
+  it('scrolls the graph into view and opens the full chain on an evidence chip click', async () => {
+    mockUseSearchParams.mockReturnValue(
+      new URLSearchParams('node=class:apps/api/services/payment.service.ts:PaymentService'),
+    );
+    mockNodeReady();
+    vi.mocked(impactService.getImpact).mockResolvedValue(mockResponse);
+
+    // jsdom lacks scrollIntoView entirely — install an observable one.
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      writable: true,
+      value: scrollIntoView,
+    });
+
+    render(<ImpactExplorer />);
+
+    await screen.findByRole('heading', { name: 'PaymentService' });
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Highlight evidence E1:/ }),
+    );
+
+    // The graph section is scrolled back into view…
+    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' });
+    // …and the anchor selection opens the full evidence chain (the AI chip's
+    // E1 is CheckoutService, a direct entity: CheckoutService → PaymentService).
+    expect(screen.getByText('Why is this impacted?')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'CheckoutService' })).toBeInTheDocument();
+    expect(screen.getByText('Root')).toBeInTheDocument();
+  });
+
+  it('auto-expands the AI explanation when deep-linked with ?explain=1', async () => {
+    mockUseSearchParams.mockReturnValue(
+      new URLSearchParams(
+        'node=class:apps/api/services/payment.service.ts:PaymentService&explain=1',
+      ),
+    );
+    mockNodeReady();
+    vi.mocked(impactService.getImpact).mockResolvedValue(mockResponse);
+
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      writable: true,
+      value: scrollIntoView,
+    });
+
+    render(<ImpactExplorer />);
+
+    await screen.findByRole('heading', { name: 'PaymentService' });
+
+    // The AI section is scrolled into view (it sits below the graph)…
+    await vi.waitFor(() =>
+      expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'center' }),
+    );
+    // …and gets a one-shot highlight ring so the narrative can't be missed.
+    await vi.waitFor(() =>
+      expect(screen.getByTestId('ai-section').className).toContain('ring-sky-500/60'),
+    );
+  });
+
+  it('keeps deterministic results intact when AI fails (AI_UNAVAILABLE)', async () => {
+    mockUseSearchParams.mockReturnValue(
+      new URLSearchParams('node=class:apps/api/services/payment.service.ts:PaymentService'),
+    );
+    mockNodeReady();
+    vi.mocked(impactService.getImpact).mockResolvedValue(mockResponse);
+    vi.mocked(aiService.explain).mockRejectedValue(
+      new ApiRequestError('AI provider is unreachable', 502, 'AI_UNAVAILABLE'),
+    );
+
+    render(<ImpactExplorer />);
+
+    await screen.findByRole('heading', { name: 'PaymentService' });
+
+    // Deterministic analysis is untouched…
+    expect(screen.getByText('Impact summary')).toBeInTheDocument();
+    expect(screen.getByTestId('impact-graph')).toBeInTheDocument();
+    expect(screen.getByText('Direct impact (1)')).toBeInTheDocument();
+    expect(screen.getByText('Indirect impact (1)')).toBeInTheDocument();
+    // …and the AI section shows its own failure state with a retry.
+    expect(await screen.findByTestId('ai-explanation-error')).toBeInTheDocument();
+    expect(
+      screen.getByText(/The deterministic impact analysis is still available/i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Retry explanation/i })).toBeInTheDocument();
+  });
+
+  it('keeps deterministic results intact when AI is disabled (AI_DISABLED)', async () => {
+    mockUseSearchParams.mockReturnValue(
+      new URLSearchParams('node=class:apps/api/services/payment.service.ts:PaymentService'),
+    );
+    mockNodeReady();
+    vi.mocked(impactService.getImpact).mockResolvedValue(mockResponse);
+    vi.mocked(aiService.explain).mockRejectedValue(
+      new ApiRequestError('AI explanation is disabled.', 503, 'AI_DISABLED'),
+    );
+
+    render(<ImpactExplorer />);
+
+    await screen.findByRole('heading', { name: 'PaymentService' });
+
+    expect(screen.getByText('Impact summary')).toBeInTheDocument();
+    expect(screen.getByTestId('impact-graph')).toBeInTheDocument();
+    expect(await screen.findByTestId('ai-explanation-disabled')).toBeInTheDocument();
+    expect(
+      screen.getByText('AI explanation is unavailable in this environment.'),
+    ).toBeInTheDocument();
   });
 
   it('records the completed analysis to history and revisits it from the list', async () => {
