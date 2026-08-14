@@ -20,9 +20,10 @@ export interface NodeDetailsPanelProps {
 export function NodeDetailsPanel({ node, onClose }: NodeDetailsPanelProps) {
   if (!node) return null;
 
+  // properties is optional on the shared GraphNode type — never assume it.
   const filePath =
-    (node.properties.filePath as string) ||
-    (node.properties.path as string) ||
+    (node.properties?.filePath as string | undefined) ||
+    (node.properties?.path as string | undefined) ||
     (node.type === 'File' ? node.label : undefined);
 
   return (

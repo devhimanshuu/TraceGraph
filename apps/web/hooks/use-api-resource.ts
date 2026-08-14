@@ -34,7 +34,12 @@ export function useApiResource<T>(loader: (token: string | null) => Promise<T>):
     getTokenRef.current = getToken;
   });
 
+  // StrictMode (on by default in Next dev) runs setup → cleanup → setup. The
+  // mount guard must be (re)set in the effect body so the re-setup restores
+  // it — a persistent ref would stay false after the simulated unmount and
+  // silently drop every later state update.
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
     };

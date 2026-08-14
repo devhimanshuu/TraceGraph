@@ -1,4 +1,8 @@
 import {
+  ArrowDown,
+  CheckCircle2,
+  ChevronDown,
+  GitBranch,
   GitPullRequestArrow,
   Network,
   Radar,
@@ -6,7 +10,9 @@ import {
   Workflow,
 } from 'lucide-react';
 import { LandingCta } from '@/components/auth/landing-cta';
+import { FadeIn } from '@/components/fade-in';
 import { LatticeBackground } from '@/components/ui/lattice-background';
+import { Wordmark } from '@/components/wordmark';
 
 const features = [
   {
@@ -81,6 +87,85 @@ function edgePath(x1: number, y1: number, x2: number, y2: number): string {
   return `M ${x1} ${y1} Q ${mx} ${my} ${x2} ${y2}`;
 }
 
+const IMPACT_ROWS = [
+  { name: 'CheckoutService', kind: 'direct', note: '' },
+  { name: 'RefundService', kind: 'direct', note: '' },
+  { name: 'PaymentController', kind: 'direct', note: '' },
+  { name: 'OrderService', kind: 'indirect', note: 'via CheckoutService' },
+  { name: 'PaymentServiceTest', kind: 'test', note: '' },
+] as const;
+
+/**
+ * Compact live impact-analysis preview for the hero: a glass panel showing
+ * PaymentService's direct/indirect impact with traveling data pulses on the
+ * connector lines. Purely presentational (aria-hidden internals, motion-safe
+ * — the pulse animation only runs under `prefers-reduced-motion: no-preference`).
+ */
+function ImpactPreviewCard() {
+  return (
+    <div className="pointer-events-none mt-10 w-full max-w-md text-left">
+      <div className="relative overflow-hidden rounded-2xl border border-sky-400/30 bg-white/75 p-4 shadow-[0_28px_60px_-28px_rgba(2,6,23,0.25)] backdrop-blur-md dark:border-sky-400/20 dark:bg-white/[0.04] dark:shadow-[0_28px_60px_-28px_rgba(2,6,23,0.8)]">
+        <div
+          aria-hidden
+          className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-sky-400/50 to-transparent"
+        />
+
+        {/* Header */}
+        <div className="flex items-center justify-between gap-3">
+          <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest text-slate-500 dark:text-slate-300">
+            <Radar className="size-4 text-sky-400" aria-hidden />
+            Impact analysis
+          </span>
+          <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-emerald-400">
+            <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-emerald-400" />
+            Live
+          </span>
+        </div>
+
+        {/* Root entity + risk */}
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <span className="font-mono text-sm font-bold text-slate-900 dark:text-white">PaymentService</span>
+          <span className="rounded-md border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-amber-300">
+            Medium risk
+          </span>
+        </div>
+
+        {/* Affected rows with traveling pulses */}
+        <ul className="mt-3 space-y-1.5">
+          {IMPACT_ROWS.map((row) => (
+            <li key={row.name} className="flex items-center gap-2">
+              <span className={NODE_KINDS[row.kind].dot} aria-hidden />
+              <svg aria-hidden className="h-4 w-7">
+                <line x1="0" y1="8" x2="28" y2="8" className={NODE_KINDS[row.kind].edge} strokeWidth="1.25" />
+                <line
+                  x1="0"
+                  y1="8"
+                  x2="28"
+                  y2="8"
+                  className={`tg-flow-line ${NODE_KINDS[row.kind].flow}`}
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeDasharray="2 9"
+                />
+              </svg>
+              <span className="truncate font-mono text-[11px] text-slate-700 dark:text-slate-200">{row.name}</span>
+              <span className="ml-auto shrink-0 font-mono text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                {row.note ? `${row.kind} · ${row.note}` : row.kind}
+              </span>
+            </li>
+          ))}
+        </ul>
+
+        {/* Footer stats */}
+        <div className="mt-3 flex items-center justify-between border-t border-slate-900/10 pt-2.5 font-mono text-[10px] uppercase tracking-wider text-slate-500 dark:border-white/5 dark:text-slate-400">
+          <span>3 direct · 2 indirect · 1 test</span>
+          <span>2 hops</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Decorative product preview — a static illustration of the graph explorer
  * concept (hub entity + neighborhood). Purely presentational: aria-hidden
@@ -100,10 +185,12 @@ function GraphPreview() {
 
   return (
     <div className="relative mx-auto mt-14 w-full max-w-3xl">
-      {/* Ambient glow behind the card */}
+      {/* Ambient glow behind the card — a soft white bloom in light theme so
+          the card emerges from the page (matching the hero fade); sky glow in
+          dark, where the card floats over the near-black page. */}
       <div
         aria-hidden
-        className="absolute -inset-6 rounded-[2.5rem] bg-[radial-gradient(ellipse_at_center,rgba(56,189,248,0.16),transparent_65%)] blur-2xl"
+        className="absolute -inset-6 rounded-[2.5rem] bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.9),transparent_65%)] blur-2xl dark:bg-[radial-gradient(ellipse_at_center,rgba(56,189,248,0.16),transparent_65%)]"
       />
 
       <div
@@ -147,7 +234,7 @@ function GraphPreview() {
               {[26, 46, 66].map((s) => (
                 <div
                   key={s}
-                  className="absolute rounded-full border border-white/5"
+                  className="absolute rounded-full border border-foreground/10"
                   style={{
                     left: `${hub.x - s / 2}%`,
                     top: `${hub.y - s / 2}%`,
@@ -243,7 +330,7 @@ function GraphPreview() {
             {/* Top highlight + vignette */}
             <div
               aria-hidden
-              className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"
+              className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-foreground/15 to-transparent"
             />
             <div
               aria-hidden
@@ -276,9 +363,11 @@ export default function Home() {
   return (
     <main className="flex flex-1 flex-col">
       {/* Hero — full-viewport lattice background (design reference) */}
-      <section className="relative h-screen min-h-[680px] w-full overflow-hidden">
+      <section className="relative h-screen min-h-[760px] w-full overflow-hidden">
         <div aria-hidden className="absolute inset-0">
-          {/* Pure background layer — the branded hero content overlays it */}
+          {/* Pure background layer — the branded hero content overlays it. The
+              lattice follows the active theme (dark canvas on dark, light on
+              light). */}
           <LatticeBackground title="" subtitle="" description="" />
         </div>
         <div
@@ -286,27 +375,76 @@ export default function Home() {
           className="pointer-events-none absolute inset-x-0 top-0 z-10 h-px bg-gradient-to-r from-transparent via-sky-500/40 to-transparent"
         />
         <div className="pointer-events-none relative z-10 mx-auto flex h-full w-full max-w-6xl flex-col items-center justify-center px-6 text-center">
-          <span className="font-mono text-xs uppercase tracking-widest text-sky-400/90">
-            Codebase intelligence · powered by a graph database
+          {/* Eyebrow badge */}
+          <span className="flex items-center gap-2.5 rounded-full border border-sky-400/40 bg-sky-400/10 px-4 py-1.5 font-mono text-[11px] uppercase tracking-widest text-sky-700 backdrop-blur-sm dark:border-sky-400/30 dark:text-sky-300">
+            <span aria-hidden className="relative flex size-2">
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-sky-400 opacity-75" />
+              <span className="relative inline-flex size-2 rounded-full bg-sky-400" />
+            </span>
+            Codebase intelligence · powered by CognoDB
           </span>
 
-          <h1 className="mt-6 font-mono text-6xl font-bold uppercase leading-none tracking-tighter text-white mix-blend-difference sm:text-8xl lg:text-9xl">
-            TraceGraph
+          {/* Headline — value-first; the brand lives in the nav and footer */}
+          <h1 className="mt-6 font-mono text-4xl font-bold uppercase leading-[0.95] tracking-tighter text-slate-900 dark:text-white sm:text-6xl lg:text-7xl">
+            Know what breaks
+            <span className="block bg-gradient-to-r from-sky-600 via-sky-500 to-indigo-600 bg-clip-text pb-1 text-transparent dark:from-sky-300 dark:via-sky-200 dark:to-indigo-300">
+              before you commit
+            </span>
           </h1>
 
-          <p className="mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground/90 sm:text-lg">
-            Understand your codebase through relationships — files, classes, functions, tests,
-            commits and issues, mapped as a graph so you can explore dependencies and predict the
-            impact of change before it happens.
+          <p className="mt-5 max-w-2xl text-base leading-relaxed text-slate-600 dark:text-slate-200/90 sm:text-lg">
+            TraceGraph maps your repository into a labeled property graph — files, functions, tests,
+            and change history — so impact analysis is a{' '}
+            <span className="font-semibold text-sky-600 dark:text-sky-300">traversal, not a guess</span>.
           </p>
 
-          <div className="pointer-events-auto mt-10 flex flex-wrap items-center justify-center gap-3">
+          <div className="pointer-events-auto mt-8 flex flex-wrap items-center justify-center gap-3">
             <LandingCta label="Get started free" size="lg" />
+            <a
+              href="#how-it-works"
+              className="group inline-flex h-11 items-center gap-2 rounded-md border border-slate-300 bg-white/70 px-6 text-sm font-medium text-slate-800 backdrop-blur-sm transition-colors hover:border-slate-400 hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-white/90 dark:hover:border-white/30 dark:hover:bg-white/10"
+            >
+              See how it works
+              <ArrowDown
+                className="size-4 text-sky-600 transition-transform duration-300 group-hover:translate-y-0.5 dark:text-sky-300"
+                aria-hidden
+              />
+            </a>
           </div>
 
-          <p className="mt-4 text-xs text-muted-foreground">
-            No credit card required · Demo workspace included
-          </p>
+          {/* Trust markers */}
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 font-mono text-[11px] uppercase tracking-widest text-slate-500 dark:text-slate-400">
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="size-3.5 text-emerald-500 dark:text-emerald-400" aria-hidden />
+              Free to start
+            </span>
+            <span aria-hidden className="text-slate-400 dark:text-slate-600">
+              •
+            </span>
+            <span className="flex items-center gap-1.5">
+              <GitBranch className="size-3.5 text-sky-500 dark:text-sky-400" aria-hidden />
+              Your GitHub repo, mapped in minutes
+            </span>
+          </div>
+
+          {/* Live impact-analysis preview */}
+          <ImpactPreviewCard />
+
+        </div>
+
+        {/* Soft bottom fade — the lattice melts into the page background instead
+            of ending at a hard line (token-based, so it works in both themes). */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-44 bg-gradient-to-b from-transparent to-background"
+        />
+
+        {/* Scroll cue — minimal chevron so it never collides with the card */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute bottom-4 left-1/2 z-10 -translate-x-1/2"
+        >
+          <ChevronDown className="size-4 animate-bounce text-slate-400 dark:text-slate-500" />
         </div>
       </section>
 
@@ -316,73 +454,137 @@ export default function Home() {
       </section>
 
       {/* Capability strip */}
-      <section className="border-y border-border/60 bg-muted/30">
-        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-center gap-x-8 gap-y-2 px-6 py-4 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
-          <span>Labeled property graph</span>
-          <span aria-hidden className="hidden text-border sm:inline">/</span>
-          <span>openCypher queries</span>
-          <span aria-hidden className="hidden text-border sm:inline">/</span>
-          <span>Multi-hop traversal</span>
-          <span aria-hidden className="hidden text-border sm:inline">/</span>
-          <span>Test-aware impact</span>
+      <section className="relative border-y border-border/60 bg-muted/30">
+        <div
+          aria-hidden
+          className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-sky-500/40 to-transparent"
+        />
+        <div
+          aria-hidden
+          className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-sky-500/20 to-transparent"
+        />
+        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-center gap-x-6 gap-y-2 px-6 py-4 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+          {['Labeled property graph', 'openCypher queries', 'Multi-hop traversal', 'Test-aware impact'].map(
+            (item, i) => (
+              <span
+                key={item}
+                className="flex cursor-default items-center gap-2 transition-colors duration-300 hover:text-sky-300"
+              >
+                {i > 0 && (
+                  <span aria-hidden className="mr-6 hidden text-border sm:inline">
+                    •
+                  </span>
+                )}
+                <span
+                  aria-hidden
+                  className="size-1.5 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 shadow-[0_0_8px_rgba(56,189,248,0.5)]"
+                />
+                {item}
+              </span>
+            ),
+          )}
         </div>
       </section>
 
       {/* How it works */}
       <section id="how-it-works" className="mx-auto w-full max-w-6xl scroll-mt-24 px-6 py-20">
-        <div className="flex flex-col items-center gap-3 text-center">
+        <FadeIn className="flex flex-col items-center gap-3 text-center">
           <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
             How it works
           </p>
-          <h2 className="max-w-xl text-2xl font-semibold tracking-tight sm:text-3xl">
+          <h2 className="max-w-xl font-heading text-2xl font-bold uppercase tracking-tight sm:text-3xl">
             From repository to risk in three steps
           </h2>
-        </div>
-        <ol className="mt-12 grid gap-4 sm:grid-cols-3">
-          {steps.map(({ number, title, body }) => (
-            <li
-              key={number}
-              className="relative flex flex-col gap-3 rounded-xl border border-border/60 bg-card/50 p-6"
-            >
-              <span className="font-mono text-sm font-semibold text-sky-600">{number}</span>
-              <h3 className="text-sm font-semibold">{title}</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">{body}</p>
-            </li>
+        </FadeIn>
+        <ol className="relative mt-12 grid gap-4 sm:grid-cols-3">
+          {/* Process rail — connects the step badges on desktop */}
+          <span
+            aria-hidden
+            className="absolute left-[16.66%] right-[16.66%] top-[44px] hidden h-px -translate-y-1/2 bg-gradient-to-r from-sky-400/0 via-sky-400/40 to-sky-400/0 sm:block"
+          />
+          {steps.map(({ number, title, body }, i) => (
+            <FadeIn key={number} delay={i * 80} className="h-full">
+              <li className="group relative flex h-full flex-col gap-4 overflow-hidden rounded-xl border border-border/60 bg-card/50 p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-sky-500/40 hover:bg-card hover:shadow-[0_16px_40px_-20px_rgba(2,6,23,0.28)]">
+                {/* Ghost number watermark */}
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute -right-2 -top-5 font-mono text-6xl font-bold leading-none text-foreground/[0.05] transition-colors duration-300 group-hover:text-sky-400/10"
+                >
+                  {number}
+                </span>
+                <span className="flex size-10 items-center justify-center rounded-full border border-sky-400/30 bg-sky-500/10 font-mono text-sm font-bold text-sky-300 transition-all duration-300 group-hover:border-sky-400/60 group-hover:bg-sky-500/20 group-hover:shadow-[0_0_18px_rgba(56,189,248,0.35)]">
+                  {number}
+                </span>
+                <h3 className="relative text-sm font-semibold">{title}</h3>
+                <p className="relative text-sm leading-relaxed text-muted-foreground">{body}</p>
+              </li>
+            </FadeIn>
           ))}
         </ol>
       </section>
 
       {/* Features */}
-      <section id="features" className="scroll-mt-24 border-t border-border/60 bg-card/30">
-        <div className="mx-auto w-full max-w-6xl px-6 py-20">
-          <h2 className="text-center text-2xl font-semibold tracking-tight sm:text-3xl">
-            Everything you need to change code with confidence
-          </h2>
-          <p className="mx-auto mt-3 max-w-xl text-center text-sm text-muted-foreground">
-            TraceGraph stores your repository as a labeled property graph, so relationship questions
-            are answered by traversal — not by joining tables.
-          </p>
+      <section id="features" className="relative scroll-mt-24 overflow-hidden border-t border-border/60 bg-card/30">
+        {/* Dot-grid texture — echoes the graph canvas */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-30"
+          style={{
+            backgroundImage: 'radial-gradient(circle, var(--border) 1px, transparent 1px)',
+            backgroundSize: '22px 22px',
+          }}
+        />
+        <div className="relative mx-auto w-full max-w-6xl px-6 py-20">
+          <FadeIn className="flex flex-col items-center gap-3 text-center">
+            <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+              Capabilities
+            </p>
+            <h2 className="max-w-2xl font-heading text-2xl font-bold uppercase tracking-tight sm:text-3xl">
+              Everything you need to change code with confidence
+            </h2>
+            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+              TraceGraph stores your repository as a labeled property graph, so relationship questions
+              are answered by traversal — not by joining tables.
+            </p>
+          </FadeIn>
 
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {features.map(({ icon: Icon, title, description }) => (
-              <div
-                key={title}
-                className="group flex flex-col gap-3 rounded-xl border border-border/60 bg-card/70 p-5 transition-colors hover:border-border"
-              >
-                <span className="flex size-9 items-center justify-center rounded-lg bg-sky-500/10 text-sky-600 transition-colors group-hover:bg-sky-500/15">
-                  <Icon className="size-4.5" />
-                </span>
-                <h3 className="text-sm font-semibold">{title}</h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
-              </div>
+            {features.map(({ icon: Icon, title, description }, i) => (
+              <FadeIn key={title} delay={(i % 4) * 80} className="h-full">
+                <div className="group relative flex h-full flex-col gap-3 overflow-hidden rounded-xl border border-border/60 bg-card/70 p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-sky-500/40 hover:shadow-[0_16px_40px_-20px_rgba(2,6,23,0.28)]">
+                  {/* Icon glow that blooms on hover */}
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 bg-[radial-gradient(140px_90px_at_28%_0%,rgba(56,189,248,0.14),transparent_70%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                  />
+                  <span className="relative flex size-9 items-center justify-center rounded-lg bg-sky-500/10 text-sky-400 ring-1 ring-inset ring-sky-400/20 transition-all duration-300 group-hover:bg-sky-500/20 group-hover:ring-sky-400/40 group-hover:shadow-[0_0_18px_rgba(56,189,248,0.3)]">
+                    <Icon className="size-4.5" />
+                  </span>
+                  <h3 className="relative text-sm font-semibold">{title}</h3>
+                  <p className="relative text-sm leading-relaxed text-muted-foreground">{description}</p>
+                </div>
+              </FadeIn>
             ))}
           </div>
         </div>
       </section>
 
       {/* Value proposition */}
-      <section className="mx-auto w-full max-w-6xl px-6 py-20">
-        <div className="grid gap-4 sm:grid-cols-3">
+      <section className="relative mx-auto w-full max-w-6xl px-6 py-20">
+        {/* Ambient glow behind the grid */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-1/3 mx-auto h-72 max-w-3xl rounded-full bg-[radial-gradient(ellipse_at_center,rgba(56,189,248,0.07),transparent_65%)] blur-2xl"
+        />
+        <FadeIn className="relative flex flex-col items-center gap-3 text-center">
+          <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+            Why a graph
+          </p>
+          <h2 className="max-w-2xl font-heading text-2xl font-bold uppercase tracking-tight sm:text-3xl">
+            Relationship questions, answered by traversal
+          </h2>
+        </FadeIn>
+        <div className="relative mt-12 grid gap-4 sm:grid-cols-3">
           {[
             {
               icon: Workflow,
@@ -399,52 +601,92 @@ export default function Home() {
               title: 'Change context',
               body: 'Commits, pull requests, and issues are first-class graph citizens, linked to the code they touched.',
             },
-          ].map(({ icon: Icon, title, body }) => (
-            <div
-              key={title}
-              className="flex flex-col gap-3 rounded-xl border border-border/60 bg-card/50 p-6"
-            >
-              <span className="flex size-9 items-center justify-center rounded-lg bg-sky-500/10 text-sky-600">
-                <Icon className="size-4.5" />
-              </span>
-              <h3 className="text-base font-semibold">{title}</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">{body}</p>
-            </div>
+          ].map(({ icon: Icon, title, body }, i) => (
+            <FadeIn key={title} delay={i * 80} className="h-full">
+              <div className="group relative flex h-full flex-col gap-3 overflow-hidden rounded-xl border border-border/60 bg-card/50 p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-sky-500/40 hover:bg-card hover:shadow-[0_16px_40px_-20px_rgba(2,6,23,0.28)]">
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 bg-[radial-gradient(140px_90px_at_28%_0%,rgba(56,189,248,0.14),transparent_70%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                />
+                <span className="relative flex size-9 items-center justify-center rounded-lg bg-sky-500/10 text-sky-400 ring-1 ring-inset ring-sky-400/20 transition-all duration-300 group-hover:bg-sky-500/20 group-hover:ring-sky-400/40 group-hover:shadow-[0_0_18px_rgba(56,189,248,0.3)]">
+                  <Icon className="size-4.5" />
+                </span>
+                <h3 className="relative text-base font-semibold">{title}</h3>
+                <p className="relative text-sm leading-relaxed text-muted-foreground">{body}</p>
+              </div>
+            </FadeIn>
           ))}
         </div>
       </section>
 
       {/* CTA band */}
       <section className="px-6 pb-20">
-        <div className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-br from-sky-500/10 via-background to-indigo-500/10 px-6 py-14 text-center sm:px-12">
+        <FadeIn className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-br from-sky-500/10 via-background to-indigo-500/10 px-6 py-14 text-center sm:px-12">
           <div
             aria-hidden
             className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(56,189,248,0.12),transparent_60%)]"
           />
-          <h2 className="relative text-2xl font-semibold tracking-tight sm:text-3xl">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 opacity-40"
+            style={{
+              backgroundImage: 'radial-gradient(circle, var(--border) 1px, transparent 1px)',
+              backgroundSize: '22px 22px',
+            }}
+          />
+          <h2 className="relative font-heading text-2xl font-bold uppercase tracking-tight sm:text-3xl">
             Change code with confidence
           </h2>
           <p className="relative mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
-            Start exploring a demo codebase today — no setup, no credit card, just the graph.
+            Sign in with GitHub and map your repository in minutes — see your codebase as a graph, then
+            predict the impact of every change before you make it.
           </p>
           <div className="relative mt-8 flex flex-wrap items-center justify-center gap-3">
             <LandingCta label="Get started free" size="lg" />
+            <a
+              href="#how-it-works"
+              className="inline-flex h-11 items-center justify-center rounded-md px-5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              See how it works
+            </a>
           </div>
-        </div>
+        </FadeIn>
       </section>
 
-      <footer className="border-t border-border/60 py-8">
-        <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-4 px-6 text-xs text-muted-foreground sm:flex-row">
-          <span>TraceGraph — Understand your codebase through relationships.</span>
-          <nav aria-label="Footer" className="flex items-center gap-5">
+      <footer className="border-t border-border/60 bg-card/30">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex max-w-sm flex-col gap-3">
+            {/* Same brand lockup as the header — one logo everywhere */}
+            <Wordmark href="/" />
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Understand your codebase through relationships — files, classes, functions, tests, and
+              change history, mapped as a labeled property graph.
+            </p>
+          </div>
+          <nav
+            aria-label="Footer"
+            className="flex flex-col items-start gap-2 text-xs text-muted-foreground sm:items-end"
+          >
             <a href="#how-it-works" className="transition-colors hover:text-foreground">
               How it works
             </a>
             <a href="#features" className="transition-colors hover:text-foreground">
               Features
             </a>
-            <span className="font-mono">Built on openCypher</span>
+            <a
+              href="https://opencypher.org"
+              target="_blank"
+              rel="noreferrer"
+              className="font-mono transition-colors hover:text-foreground"
+            >
+              Built on openCypher ↗
+            </a>
           </nav>
+        </div>
+        <div className="border-t border-border/40">
+          <p className="mx-auto w-full max-w-6xl px-6 py-4 text-center text-[11px] text-muted-foreground/70 sm:text-left">
+            © {new Date().getFullYear()} TraceGraph — Codebase intelligence, powered by CognoDB.
+          </p>
         </div>
       </footer>
     </main>

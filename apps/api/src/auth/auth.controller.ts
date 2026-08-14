@@ -60,7 +60,7 @@ export class AuthController {
     res.redirect(this.github.getAuthorizeUrl(state));
   }
 
-  /** GitHub redirects here after the user approves. Exchanges code → session. */
+  /** GitHub redirects here after the user approves. Exchanges code → session, then sends the user straight to the dashboard. */
   @Public()
   @Get('github/callback')
   async callback(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<void> {
@@ -90,7 +90,9 @@ export class AuthController {
         sameSite: 'lax',
         secure: process.env.NODE_ENV === 'production',
       });
-      res.redirect(`${this.authConfig.webAppUrl}/?auth=success`);
+      // Land the user directly in the app — the dashboard shows the repo
+      // chooser when the graph is empty or the overview once imported.
+      res.redirect(`${this.authConfig.webAppUrl}/dashboard?auth=success`);
     } catch (err) {
       this.logger.error(
         `GitHub OAuth callback failed: ${err instanceof Error ? err.message : 'unknown error'}`,

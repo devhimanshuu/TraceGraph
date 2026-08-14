@@ -19,10 +19,13 @@ export function Wordmark({ href = '/', className }: { href?: string; className?:
     >
       <Logo />
       <span className="flex flex-col leading-tight">
-        <span className="bg-gradient-to-r from-sky-400 via-sky-300 to-indigo-400 bg-clip-text text-[15px] font-bold tracking-wide text-transparent">
+        {/* Violet→fuchsia brand gradient — distinct from the sky UI accents
+            and theme-aware: rich 500s on light, bright 300s on dark, so the
+            wordmark keeps contrast on both. */}
+        <span className="bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 bg-clip-text text-[15px] font-bold tracking-wide text-transparent drop-shadow-[0_0_10px_rgba(167,139,250,0.35)] dark:from-violet-400 dark:via-purple-300 dark:to-fuchsia-300 dark:drop-shadow-[0_0_10px_rgba(196,181,253,0.4)]">
           TraceGraph
         </span>
-        <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
+        <span className="font-mono text-[9px] uppercase tracking-[0.22em] text-violet-600/80 dark:text-violet-300/70">
           codebase intelligence
         </span>
       </span>

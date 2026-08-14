@@ -13,7 +13,7 @@ export function Logo({ className }: { className?: string }) {
       aria-hidden
       className={cn(
         'relative flex size-7 shrink-0 items-center justify-center rounded-lg',
-        'bg-gradient-to-br from-sky-500 to-indigo-600',
+        'bg-gradient-to-br from-violet-500 to-fuchsia-600',
         'shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_1px_2px_rgba(0,0,0,0.3)]',
         className,
       )}

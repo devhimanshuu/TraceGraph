@@ -119,11 +119,11 @@ repos):
    private-repo prompt).
 2. **Callback** — `GET /api/auth/github/callback` exchanges the code, fetches
    your profile, and issues **TraceGraph's own signed session** (HS256 JWT
-   keyed by `SESSION_SECRET`) as an httpOnly `tg_session` cookie, then bounces
-   to `/?auth=success`.
+   keyed by `SESSION_SECRET`) as an httpOnly `tg_session` cookie, then
+   redirects straight to `/dashboard?auth=success`.
 3. **Bootstrap** — the web app reads the session back through
-   `GET /api/auth/session` and stores the bearer token; every data hook uses
-   `useGitHubSession().getToken()`.
+   `GET /api/auth/session`, stores the bearer token, and strips the query
+   parameter; every data hook uses `useGitHubSession().getToken()`.
 4. **Guard** — a global `GitHubAuthGuard` verifies the bearer token or session
    cookie on every route except `@Public()` (health + auth). Fail-closed: a
    missing header, invalid token, or unconfigured `SESSION_SECRET` returns

@@ -31,7 +31,7 @@ export function configureApp(app: INestApplication, config: AppConfig): void {
   app.enableCors({
     origin: config.corsOrigins,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Accept'],
+    allowedHeaders: ['Content-Type', 'Accept', 'Authorization'],
     // The OAuth callback sets an httpOnly session cookie that the browser
     // reads back on the bootstrap /auth/session call (same-site, cross-port
     // in dev) — so credentialed requests must be allowed.

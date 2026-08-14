@@ -1,6 +1,8 @@
 import { AlertCircle, RotateCcw } from 'lucide-react';
+import { SignInAgainLink } from '@/components/auth/sign-in-link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { isAuthErrorMessage } from '@/lib/api-client';
 
 export function CategoryErrorState({
   title = 'Unable to load relationships',
@@ -11,6 +13,7 @@ export function CategoryErrorState({
   message?: string;
   onRetry?: () => void;
 }) {
+  const authError = message ? isAuthErrorMessage(message) : false;
   return (
     <Card className="border-destructive/30 bg-destructive/5">
       <CardContent className="flex flex-col items-center justify-center gap-3 py-8 text-center sm:flex-row sm:justify-between sm:text-left">
@@ -25,7 +28,9 @@ export function CategoryErrorState({
             </p>
           </div>
         </div>
-        {onRetry ? (
+        {authError ? (
+          <SignInAgainLink />
+        ) : onRetry ? (
           <Button variant="outline" size="sm" onClick={onRetry} className="shrink-0 gap-1.5">
             <RotateCcw className="size-3.5" />
             Retry

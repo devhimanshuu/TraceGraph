@@ -130,6 +130,13 @@
   html {
     @apply font-sans;
   }
+  /* Native controls (scrollbars, form widgets) follow the active theme. */
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
   /* Keyboard focus: links get a visible ring (components have their own). */
   a:focus-visible {
     @apply outline-2 outline-offset-2;

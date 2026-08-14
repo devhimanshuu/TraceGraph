@@ -19,9 +19,9 @@ interface SessionResponse {
 /**
  * Owns the GitHub session on the client:
  *
- * - after the OAuth callback lands on `/?auth=success`, it reads the httpOnly
- *   `tg_session` cookie back through `GET /api/auth/session`, stores the
- *   bearer token, and strips the query parameter
+ * - after the OAuth callback lands on `/dashboard?auth=success`, it reads the
+ *   httpOnly `tg_session` cookie back through `GET /api/auth/session`, stores
+ *   the bearer token, and strips the query parameter
  * - on returning visits it validates the stored token (cookie as fallback)
  * - signed-out visits skip the network entirely (instant render)
  *
@@ -59,10 +59,9 @@ export function GitHubSessionProvider({ children }: { children: ReactNode }) {
           window.localStorage.setItem(TOKEN_KEY, data.token);
           setUser(data.user);
           if (hasAuthParam) {
-            // First sign-in handoff: the OAuth callback landed on the landing
-            // page with ?auth=success — send the user straight into the app
-            // (dashboard shows the onboarding repo chooser when the graph is
-            // empty, or the repository overview once something is imported).
+            // First sign-in handoff: the OAuth callback lands on
+            // /dashboard?auth=success — this replace just strips the query
+            // parameter (a no-op navigation when already on /dashboard).
             router.replace('/dashboard');
             return;
           }

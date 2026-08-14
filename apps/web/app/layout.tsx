@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { GitHubSessionProvider } from '@/components/auth/github-session-provider';
+import { ThemeProvider } from '@/components/theme-provider';
 import './globals.css';
 
 // Brand typefaces — Bitcount Prop Single (headings/display, variable 100–900)
@@ -18,9 +19,22 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className="dark h-full antialiased">
+    <html lang="en" className="dark h-full antialiased" suppressHydrationWarning>
+      <head>
+        {/* Apply the saved theme before first paint so there's no flash of the
+            wrong theme. Dark is the default (the app's designed look); light is
+            opt-in via the nav toggle and persisted in localStorage. */}
+        <script
+          id="theme-init"
+          dangerouslySetInnerHTML={{
+            __html: `try{if(localStorage.getItem('tg_theme')==='light'){document.documentElement.classList.remove('dark')}}catch(e){}`,
+          }}
+        />
+      </head>
       <body className="flex min-h-full flex-col">
-        <GitHubSessionProvider>{children}</GitHubSessionProvider>
+        <ThemeProvider>
+          <GitHubSessionProvider>{children}</GitHubSessionProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

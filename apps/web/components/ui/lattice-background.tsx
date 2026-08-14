@@ -11,11 +11,55 @@ interface Point {
   pulseSpeed: number;
 }
 
+/**
+ * Lattice theme palettes — one place to tune the two looks. Colors are kept
+ * as `r, g, b` strings (not template literals) so the per-frame rgba strings
+ * are cheap to build. `accent` drives the cursor field, near-mouse mesh,
+ * pulse rings, and nodes; the alpha knobs tune how strong each element reads.
+ */
+export const LATTICE_PALETTES = {
+  dark: {
+    /** Nearly-black canvas. */
+    fill: "#04060a",
+    /** Slate mesh edges + resting nodes. */
+    strokeRGB: "148, 163, 184",
+    /** Indigo cursor-field accent. */
+    accentRGB: "129, 140, 248",
+    /** Opacity of mesh cell fills. */
+    cellAlpha: 0.03,
+    /** Opacity of mesh strokes. */
+    edgeAlpha: 0.08,
+    /** Opacity of resting nodes. */
+    nodeAlpha: 0.4,
+    /** Cursor-field fill at the pointer (fades with distance). */
+    cursorAlpha: 0.25,
+  },
+  light: {
+    /** Pale violet-tinted canvas — a whisper of the brand. */
+    fill: "#f4f2fc",
+    /** Slate-600 mesh edges + nodes (readable on the pale bg). */
+    strokeRGB: "71, 85, 105",
+    /** Brand violet→fuchsia ramp accent (matches the wordmark). */
+    accentRGB: "168, 85, 247",
+    /** Slightly stronger mesh so it reads on the pale bg. */
+    cellAlpha: 0.055,
+    edgeAlpha: 0.14,
+    nodeAlpha: 0.55,
+    cursorAlpha: 0.15,
+  },
+} as const;
+
+export type LatticePalette = (typeof LATTICE_PALETTES)[keyof typeof LATTICE_PALETTES];
+
 export interface LatticeBackgroundProps {
   title?: string;
   subtitle?: string;
   description?: string;
   className?: string;
+  /** Force a dark canvas regardless of the app/OS theme. The landing hero is
+      a deliberate dark band, so it passes `dark` — even in light theme the
+      lattice stays dark while the rest of the page flips light. */
+  dark?: boolean;
 }
 
 export function LatticeBackground({
@@ -23,6 +67,7 @@ export function LatticeBackground({
   subtitle = "",
   description = "Dynamic Delaunay triangulation lattice with real-time cursor field deformation and vertex energy pulses.",
   className = "",
+  dark,
 }: LatticeBackgroundProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -43,16 +88,16 @@ export function LatticeBackground({
     let points: Point[] = [];
 
     // Pre-calculate theme colors to avoid string creation inside frame loop.
-    // TraceGraph forces dark via `html.dark`, so prefer the class and fall back
-    // to the OS media query.
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const isDarkClass = () => document.documentElement.classList.contains("dark");
-    let isDarkMode = isDarkClass() || mediaQuery.matches;
-
-    const updateTheme = () => {
-      isDarkMode = isDarkClass() || mediaQuery.matches;
-    };
-    mediaQuery.addEventListener("change", updateTheme);
+    // The app's theme is authoritative: `html.dark` is set for dark and removed
+    // for light (SSR default + pre-paint script), so the class alone decides.
+    // The `dark` prop (when provided) overrides it entirely.
+    const isDark = () => (dark !== undefined ? dark : document.documentElement.classList.contains("dark"));
+    let isDarkMode = isDark();
+    // React live to theme toggles (class changes on <html>).
+    const themeObserver = new MutationObserver(() => {
+      isDarkMode = isDark();
+    });
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
 
     // Respect the app's reduced-motion preference: draw a single static frame
     // instead of running the animation loop.
@@ -120,13 +165,13 @@ export function LatticeBackground({
       mouse.x += (mouse.targetX - mouse.x) * 0.1;
       mouse.y += (mouse.targetY - mouse.y) * 0.1;
 
-      // Clear Canvas
-      ctx.fillStyle = isDarkMode ? "#04060a" : "#f1f5f9";
-      ctx.fillRect(0, 0, width, height);
+      // Pick the theme palette once per frame, then reference its colors.
+      const palette = isDarkMode ? LATTICE_PALETTES.dark : LATTICE_PALETTES.light;
+      const { strokeRGB, accentRGB } = palette;
 
-      // Color Definitions
-      const strokeRGB = isDarkMode ? "148, 163, 184" : "51, 65, 85";
-      const accentRGB = isDarkMode ? "129, 140, 248" : "79, 70, 229";
+      // Clear Canvas
+      ctx.fillStyle = palette.fill;
+      ctx.fillRect(0, 0, width, height);
 
       // 1. Update Particle Physics
       const pCount = points.length;
@@ -238,8 +283,8 @@ export function LatticeBackground({
 
                 const isNearMouse = mouseDistSq < 48400; // 220px radius
                 const fillAlpha = isNearMouse
-                  ? (1 - Math.sqrt(mouseDistSq) / 220) * (isDarkMode ? 0.25 : 0.15)
-                  : 0.03;
+                  ? (1 - Math.sqrt(mouseDistSq) / 220) * palette.cursorAlpha
+                  : palette.cellAlpha
 
                 ctx.fillStyle = isNearMouse
                   ? `rgba(${accentRGB}, ${fillAlpha.toFixed(2)})`
@@ -247,7 +292,7 @@ export function LatticeBackground({
 
                 ctx.strokeStyle = isNearMouse
                   ? `rgba(${accentRGB}, ${(fillAlpha * 1.5).toFixed(2)})`
-                  : `rgba(${strokeRGB}, 0.08)`;
+                  : `rgba(${strokeRGB}, ${palette.edgeAlpha})`;
                 ctx.lineWidth = isNearMouse ? 0.8 : 0.4;
 
                 ctx.beginPath();
@@ -274,7 +319,7 @@ export function LatticeBackground({
 
         ctx.fillStyle = isNear
           ? `rgba(${accentRGB}, 0.9)`
-          : `rgba(${strokeRGB}, 0.4)`;
+          : `rgba(${strokeRGB}, ${palette.nodeAlpha})`;
 
         ctx.beginPath();
         ctx.arc(p.x, p.y, isNear ? 3.5 : pulseRadius, 0, Math.PI * 2);
@@ -304,11 +349,11 @@ export function LatticeBackground({
     return () => {
       cancelAnimationFrame(animationFrameId);
       resizeObserver.disconnect();
-      mediaQuery.removeEventListener("change", updateTheme);
+      themeObserver.disconnect();
       container.removeEventListener("mousemove", handleMouseMove);
       container.removeEventListener("mouseleave", handleMouseLeave);
     };
-  }, []);
+  }, [dark]);
 
   return (
     <div

@@ -53,6 +53,23 @@ export class ApiRequestError extends Error {
   }
 }
 
+/**
+ * Backend fail-closed guard messages (apps/api/src/auth). Error states match
+ * on these so they can offer a "Sign in again" recovery path without plumbing
+ * status codes through every hook. The messages are a stable contract: the
+ * guard fails closed with exactly these strings.
+ */
+const AUTH_ERROR_MARKERS = [
+  'a valid session is required',
+  'your session is invalid or has expired',
+  'authentication is not configured',
+] as const;
+
+export function isAuthErrorMessage(message: string): boolean {
+  const m = message.toLowerCase();
+  return AUTH_ERROR_MARKERS.some((marker) => m.includes(marker));
+}
+
 async function request<T>(path: string, token?: string | null): Promise<T> {
   let response: Response;
   try {
@@ -85,8 +102,9 @@ async function request<T>(path: string, token?: string | null): Promise<T> {
 }
 
 /**
- * Mutation helper (POST/DELETE). The CORS config allows Content-Type and
- * Accept, so JSON bodies and bearer tokens flow without extra headers.
+ * Mutation helper (POST/DELETE). The CORS config allows Content-Type, Accept
+ * and Authorization, so JSON bodies and bearer tokens flow without extra
+ * headers.
  */
 async function mutate<T>(
   path: string,

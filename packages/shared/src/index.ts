@@ -419,6 +419,136 @@ export interface GithubImportResult {
   durationMs: number;
 }
 
+// ── Intelligence (orphans, smells, test gaps, blast radius, knowledge) ─────────
+// Deterministic, graph-driven repository intelligence — dead-code candidates,
+// architecture smells, test coverage gaps, PR blast radius, and "who to ask"
+// knowledge maps. All served by `GET/POST /api/intelligence*` (Phase 11.5).
+
+/** One dead-code / orphan candidate: an entity nothing depends on. */
+export interface OrphanEntity {
+  id: string;
+  type: NodeType;
+  label: string;
+  /** Inbound dependency relationships — always 0 for an orphan by definition. */
+  incomingDependencies: number;
+  /** Whether any test covers this entity (context: covered orphans are safer). */
+  hasTests: boolean;
+  /** Commits touching the entity — recently-changed orphans are the risky kind. */
+  commits: number;
+}
+
+/** `GET /api/intelligence/orphans` */
+export interface OrphanListResponse {
+  repo: GraphNodeRef;
+  orphans: OrphanEntity[];
+}
+
+/** The three architecture-smell categories (Phase 11.5). */
+export type SmellKind = 'cycle' | 'god-module' | 'fragile';
+
+/** One detected architecture smell with its explainable graph facts. */
+export interface ArchitectureSmell {
+  kind: SmellKind;
+  /** Human title, e.g. "Circular import cycle". */
+  title: string;
+  /** One-sentence explanation of why this is a smell, from graph facts. */
+  reason: string;
+  /** Entities involved: cycle members, or the single offending module. */
+  entities: GraphNodeRef[];
+  /** Supporting metrics (cycleLength / fanIn / fanOut / commits / dependents). */
+  metrics: Record<string, number>;
+}
+
+/** `GET /api/intelligence/smells` */
+export interface SmellResponse {
+  repo: GraphNodeRef;
+  cycles: ArchitectureSmell[];
+  godModules: ArchitectureSmell[];
+  fragile: ArchitectureSmell[];
+}
+
+/** One entity with no test coverage (a test-blast-radius gap). */
+export interface TestGapEntity {
+  id: string;
+  type: NodeType;
+  label: string;
+  /** Functions in the file with no TESTS coverage (files only; 0 for classes). */
+  untestedFunctions: number;
+  /** Inbound dependents (severity context: widely-used untested code is riskier). */
+  dependents: number;
+  /** Commits touching the entity (change-frequency context). */
+  commits: number;
+}
+
+/** `GET /api/intelligence/test-gaps` */
+export interface TestGapResponse {
+  repo: GraphNodeRef;
+  gaps: TestGapEntity[];
+}
+
+/** One test to run for a change, ranked server-side by coverage weight. */
+export interface TestToRun {
+  id: string;
+  name: string;
+  framework: string;
+  filePath: string;
+  /** Distinct affected entities this test covers. */
+  covers: number;
+  /** Of those, how many are changed files directly. */
+  directlyCovers: number;
+  /** Server-computed rank = directlyCovers * 2 + indirect covers. */
+  risk: number;
+}
+
+/** `POST /api/intelligence/tests-for-change` */
+export interface TestsForChangeResponse {
+  /** Entities resolved from the requested ids (changed surface). */
+  changed: GraphNodeRef[];
+  /** Requested ids that don't exist in the graph. */
+  unresolved: string[];
+  /** Tests to run, ordered by risk (desc). */
+  tests: TestToRun[];
+}
+
+/** `POST /api/intelligence/blast-radius` — PR/diff blast radius. */
+export interface BlastRadiusResponse {
+  repo: GraphNodeRef;
+  depth: number;
+  /** Changed files resolved in the graph. */
+  changed: GraphNodeRef[];
+  /** Changed paths that don't exist in the graph (new files, ignored paths). */
+  unresolved: string[];
+  /** Dependents one hop from any changed file. */
+  directImpact: ImpactedEntity[];
+  /** Dependents reached transitively beyond one hop. */
+  indirectImpact: ImpactedEntity[];
+  /** Potentially affected tests across the changed surface. */
+  tests: TestCoverage[];
+  summary: {
+    changed: number;
+    direct: number;
+    indirect: number;
+    tests: number;
+    score: ImpactScore;
+    scoreReasons: string[];
+  };
+}
+
+/** One developer ranked by commit authorship on an entity or repo. */
+export interface KnowledgeOwner {
+  developer: GraphNodeRef;
+  commits: number;
+  lastCommit: string | null;
+}
+
+/** `GET /api/intelligence/knowledge?entityId=` */
+export interface KnowledgeResponse {
+  repo: GraphNodeRef;
+  /** The entity the map is scoped to, when requested. */
+  entity: GraphNodeRef | null;
+  owners: KnowledgeOwner[];
+}
+
 // ── Errors ────────────────────────────────────────────────────────────────────
 
 /** Standard error body returned by the API (see Phase 1 §18). */
