@@ -1,6 +1,6 @@
 # TraceGraph Graph Data Model
 
-The TraceGraph dataset models a single fictional repository — **commerce-platform** — as a labeled property graph in CognoDB. Everything below is deterministic demo data; it does not map to real GitHub history.
+This document is the **schema contract** for TraceGraph's labeled property graph in CognoDB: the node labels, relationship types, and id conventions every write path must follow. The original deterministic demo dataset was removed; real repositories arrive through the GitHub import pipeline (a clone → parse → write flow that must produce exactly these labels and relationships).
 
 ## Node labels
 
@@ -53,7 +53,7 @@ Issue       issue:912
 Developer   dev:alex
 ```
 
-Uniqueness is enforced at the database level with named constraints (`tg_<label>_id`, created with `CREATE CONSTRAINT ... IF NOT EXISTS ... REQUIRE n.id IS UNIQUE`, dropped by name in `db:clear`).
+Uniqueness is enforced at the database level with named constraints (`tg_<label>_id`, created idempotently with `CREATE CONSTRAINT ... IF NOT EXISTS ... REQUIRE n.id IS UNIQUE`).
 
 ## Example subgraphs
 
@@ -75,7 +75,7 @@ File
 Function
 ```
 
-### Engineering history — the demo-critical chain
+### Engineering history — example chain
 
 ```text
 Issue #912  "Checkout occasionally times out"
@@ -121,32 +121,11 @@ DatabaseService.query()
 
 Traversing `<-[:CALLS]-` from `PaymentService.processPayment()` answers the product's central question: *"what could be affected if I change PaymentService?"* — `CheckoutService` directly, `OrderService` two hops up, and their tests.
 
-## Dataset size
+## Data sources
 
-| Node type | Count | Relationship type | Count |
-| --- | --- | --- | --- |
-| Repository | 1 | CONTAINS | 157 |
-| Directory | 11 | IMPORTS | 59 |
-| File | 37 | CALLS | 50 |
-| Class | 21 | EXTENDS | 2 |
-| Function | 64 | TESTS | 19 |
-| Test | 19 | MODIFIES | 28 |
-| Commit | 24 | AUTHORED_BY | 24 |
-| PullRequest | 11 | RELATED_TO | 9 |
-| Issue | 9 | | |
-| Developer | 5 | | |
-| **Total** | **202** | **Total** | **348** |
-
-## Seed scripts
-
-| Command | What it does |
-| --- | --- |
-| `npm run db:seed` | Creates constraints and loads the full dataset. Idempotent — re-running never duplicates (`MERGE` on stable ids). |
-| `npm run db:clear` | Removes ONLY TraceGraph data: the 10 labels above + the `tg_*` constraints. Label-scoped on purpose — the hosted instance may be shared with other domains, and this script never touches them. |
-| `npm run db:verify` | Compares live node/relationship counts to the dataset definition, checks the critical entities and multi-hop paths, and runs integrity checks (no orphaned Files/Functions/Classes/Tests/Commits/PRs/Issues). |
-| `npm run db:check` | Connectivity check only (`RETURN 1` through the full stack). |
-
-The seed scripts reuse the application's own `DatabaseService` (via `scripts/bootstrap.ts`) — there is exactly one database connection strategy, and all Cypher is parameterized.
+- The original deterministic demo dataset and its `db:seed` / `db:clear` / `db:verify` scripts were **removed** — the product no longer ships a canned repository.
+- Repositories enter the graph through the GitHub import flow (auth → repo picker → clone/parse → write, forthcoming), which must satisfy this schema contract.
+- `npm run db:check` remains as a pure connectivity check (`RETURN 1` through the full stack, no data created).
 
 ## Why a graph database?
 

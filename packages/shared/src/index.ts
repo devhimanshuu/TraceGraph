@@ -8,8 +8,9 @@
  */
 
 // ── Graph model (Phase 1 §10) ─────────────────────────────────────────────────
-// The label/type lists below MUST match the schema implemented by the Phase 4
-// seed (scripts/seed/types.ts + dataset). Verified against the live graph.
+// The label/type lists below are the graph schema contract: the write path
+// (Phase 4 seed originally, later the GitHub import pipeline) must produce
+// exactly these labels and relationship types.
 
 export type NodeType =
   | 'Repository'
@@ -337,6 +338,85 @@ export interface ImpactResponse {
   history: ImpactHistory;
   /** Deduplicated entity-level evidence paths (affected → … → root). */
   paths: ImpactPath[];
+}
+
+// ── AI Explanation (Phase 10) ─────────────────────────────────────────────────
+// `POST /api/impact/:id/explain` — the LLM explains deterministic graph-derived
+// evidence. The graph remains the source of truth; the LLM never queries it.
+
+/** One piece of grounded evidence with a stable local id the LLM can cite. */
+export interface AiEvidenceItem {
+  /** Stable local id (E1, E2, …) that the explanation can reference. */
+  id: string;
+  kind: 'path' | 'test' | 'commit' | 'pullRequest' | 'issue';
+  /** Human-readable description, e.g. "CheckoutService → CALLS → PaymentService". */
+  description: string;
+  /** Ordered entity ids affected → … → root (path evidence only). */
+  nodes?: string[];
+  /** Relationship types between consecutive nodes (path evidence only). */
+  relTypes?: RelationshipType[];
+  /** Direct (distance 1) vs indirect path evidence. */
+  direction?: 'direct' | 'indirect';
+  /** Short label for chips, e.g. "PR #421" or the test file path. */
+  label: string;
+}
+
+/** Qualitative confidence — never a fabricated percentage. */
+export type AiConfidence = 'high' | 'medium' | 'insufficient';
+
+/**
+ * The validated AI explanation response. `evidence` is the bounded payload the
+ * explanation is grounded on; `evidenceReferences` are the ids the model cited.
+ */
+export interface ImpactExplanation {
+  summary: string;
+  keyFindings: string[];
+  directImpact: string[];
+  indirectImpact: string[];
+  /** Evidence ids the explanation cites (always a subset of `evidence`). */
+  evidenceReferences: string[];
+  confidence: AiConfidence;
+  /** The bounded evidence payload the explanation is grounded on. */
+  evidence: AiEvidenceItem[];
+  generatedAt: string;
+  /** The model that produced the explanation (provider-reported). */
+  model: string;
+  grounding: {
+    source: 'cognodb-impact-analysis';
+  };
+}
+
+// ── GitHub repo onboarding (repo picker + import) ─────────────────────────────
+// `GET /api/github/repos` lists the signed-in user's repositories; `POST
+// /api/github/import` clones + parses one into the Phase-4 graph schema.
+
+/** One repository the signed-in user can import. */
+export interface GithubRepo {
+  id: number;
+  fullName: string;
+  name: string;
+  description: string;
+  language: string;
+  defaultBranch: string;
+  private: boolean;
+  /** ISO timestamp of the last push. */
+  updatedAt: string;
+}
+
+/** Result of a completed import (server-computed counts). */
+export interface GithubImportResult {
+  fullName: string;
+  repositoryId: string;
+  nodesCreated: number;
+  relationshipsCreated: number;
+  files: number;
+  functions: number;
+  classes: number;
+  tests: number;
+  commits: number;
+  pullRequests: number;
+  issues: number;
+  durationMs: number;
 }
 
 // ── Errors ────────────────────────────────────────────────────────────────────

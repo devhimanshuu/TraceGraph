@@ -7,7 +7,7 @@ import type { ApiError } from '@tracegraph/shared';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
 import type { AppConfig } from '../src/config/configuration';
-import { CLERK_VERIFY_TOKEN } from '../src/auth/auth.constants';
+import { SessionService } from '../src/auth/session.service';
 import { GraphRepository } from '../src/graph/graph.repository';
 import { createFakeGraphRepository } from './helpers/fake-graph-repository';
 
@@ -20,9 +20,9 @@ process.env.DB_CONNECT_RETRIES = '1';
 process.env.DB_CONNECT_RETRY_DELAY_MS = '10';
 process.env.DB_CONNECT_TIMEOUT_MS = '100';
 process.env.DB_QUERY_TIMEOUT_MS = '1000';
-// No Clerk secret in tests — the guard would fail closed. The verifier is
+// No SESSION_SECRET in tests — the guard would fail closed. The verifier is
 // stubbed below so the API contract tests exercise the real endpoints.
-process.env.CLERK_SECRET_KEY = '';
+process.env.SESSION_SECRET = '';
 
 const PAYMENT_SERVICE_ID = 'class:apps/api/services/payment.service.ts:PaymentService';
 const ENCODED_PAYMENT_ID = encodeURIComponent(PAYMENT_SERVICE_ID);
@@ -39,8 +39,14 @@ describe('Graph API (e2e, in-memory repository)', () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(GraphRepository)
       .useValue(createFakeGraphRepository())
-      .overrideProvider(CLERK_VERIFY_TOKEN)
-      .useValue(async () => ({ sub: 'user_test', userId: 'user_test' }))
+      .overrideProvider(SessionService)
+      .useValue({
+        configured: true,
+        verify: async () => ({
+          user: { id: 'user_test', login: 'test-user', name: 'Test User', avatarUrl: '' },
+          ghToken: 'test-gh-token',
+        }),
+      })
       .compile();
 
     app = moduleRef.createNestApplication();

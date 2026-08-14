@@ -42,7 +42,9 @@ export class GitHubAuthGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest<Request>();
+    const request = context.switchToHttp().getRequest<
+      Request & { user?: unknown; githubToken?: string }
+    >();
     const token = extractSessionToken(request, SESSION_COOKIE);
 
     if (!token) {
@@ -60,8 +62,11 @@ export class GitHubAuthGuard implements CanActivate {
       throw new UnauthorizedException('Your session is invalid or has expired.');
     }
 
-    // Attach the verified identity for downstream handlers/services.
-    (request as Request & { user?: unknown }).user = session.user;
+    // Attach the verified identity + the backend-held GitHub access token for
+    // downstream handlers/services. Both are request-scoped and never
+    // serialized in responses — the token stays server-side by design.
+    request.user = session.user;
+    request.githubToken = session.ghToken;
     return true;
   }
 }

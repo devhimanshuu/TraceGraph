@@ -7,7 +7,7 @@ import type { ApiError, ImpactSnapshot } from '@tracegraph/shared';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
 import type { AppConfig } from '../src/config/configuration';
-import { CLERK_VERIFY_TOKEN } from '../src/auth/auth.constants';
+import { SessionService } from '../src/auth/session.service';
 import { GraphRepository } from '../src/graph/graph.repository';
 import { ImpactHistoryRepository } from '../src/impact-history/impact-history.repository';
 import { createFakeGraphRepository } from './helpers/fake-graph-repository';
@@ -21,7 +21,7 @@ process.env.DB_CONNECT_RETRIES = '1';
 process.env.DB_CONNECT_RETRY_DELAY_MS = '10';
 process.env.DB_CONNECT_TIMEOUT_MS = '100';
 process.env.DB_QUERY_TIMEOUT_MS = '1000';
-process.env.CLERK_SECRET_KEY = '';
+process.env.SESSION_SECRET = '';
 
 const REPO_ID = 'repo:commerce-platform';
 
@@ -102,8 +102,14 @@ describe('Impact History API (e2e, in-memory fakes)', () => {
       .useValue(createFakeGraphRepository())
       .overrideProvider(ImpactHistoryRepository)
       .useValue(fakeRepo)
-      .overrideProvider(CLERK_VERIFY_TOKEN)
-      .useValue(async () => ({ sub: 'user_test', userId: 'user_test' }))
+      .overrideProvider(SessionService)
+      .useValue({
+        configured: true,
+        verify: async () => ({
+          user: { id: 'user_test', login: 'test-user', name: 'Test User', avatarUrl: '' },
+          ghToken: 'test-gh-token',
+        }),
+      })
       .compile();
 
     app = moduleRef.createNestApplication();
@@ -153,7 +159,7 @@ describe('Impact History API (e2e, in-memory fakes)', () => {
         tests: 9,
         repoId: REPO_ID,
         repoName: 'commerce-platform',
-        analyzedBy: { username: 'user_test', name: '' },
+        analyzedBy: { username: 'test-user', name: 'Test User' },
       });
       expect(typeof snap.id).toBe('string');
       expect(snap.timestamp).toBeGreaterThan(0);

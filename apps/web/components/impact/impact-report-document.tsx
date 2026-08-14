@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   ArrowDown,
   ArrowRight,
@@ -10,10 +11,12 @@ import {
   Network,
   Radar,
   Share2,
+  Sparkles,
   Workflow,
 } from 'lucide-react';
 import type { ImpactResponse } from '@tracegraph/shared';
 import { buttonVariants } from '@/components/ui/button';
+import { AiExplanationPanel } from '@/components/impact/ai-explanation';
 import {
   getNodeTypeColor,
   NodeTypeBadge,
@@ -97,6 +100,7 @@ export function ImpactReportDocument({
   generatedAt?: string;
   showFooter?: boolean;
 }) {
+  const router = useRouter();
   const { root, summary, directImpact, indirectImpact, tests, history, paths } = analysis;
 
   const testsByFile = new Map<string, typeof tests>();
@@ -200,6 +204,33 @@ export function ImpactReportDocument({
             ))}
           </ul>
         </div>
+      </section>
+
+      {/* ── AI Engineering Explanation — grounded in the deterministic analysis.
+          Deliberately unnumbered: the narrative is an AI reading of the graph
+          facts above, not another deterministic section (Phase 10 §28). */}
+      <section className="flex flex-col gap-3" data-testid="report-ai-section">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="flex size-6 items-center justify-center rounded-md bg-gradient-to-br from-sky-500 to-indigo-600 text-white">
+            <Sparkles className="size-3" />
+          </span>
+          <h2 className="font-mono text-[10px] uppercase tracking-widest text-foreground">
+            AI Engineering Explanation
+          </h2>
+          <span className="rounded border border-border/70 bg-background/50 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-widest text-muted-foreground">
+            AI-generated
+          </span>
+        </div>
+        <AiExplanationPanel
+          nodeId={root.id}
+          depth={depth}
+          rootLabel={root.label}
+          onSelectPath={(entityId) =>
+            router.push(`/impact?node=${encodeURIComponent(entityId ?? root.id)}`)
+          }
+          hideHeader
+          evidenceHint="Click a path reference to open it in the interactive impact analysis."
+        />
       </section>
 
       {/* ── 2. Affected components ── */}

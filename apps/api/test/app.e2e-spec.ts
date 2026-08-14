@@ -21,7 +21,7 @@ process.env.DB_CONNECT_RETRY_DELAY_MS = '10';
 // Short connection/query timeouts so tests never wait on real network timeouts.
 process.env.DB_CONNECT_TIMEOUT_MS = '100';
 process.env.DB_QUERY_TIMEOUT_MS = '1000';
-process.env.CLERK_SECRET_KEY = '';
+process.env.SESSION_SECRET = '';
 
 describe('AppModule (e2e)', () => {
   let app: INestApplication;

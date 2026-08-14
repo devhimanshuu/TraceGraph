@@ -8,7 +8,7 @@ import { apiClient } from '@/lib/api-client';
 /**
  * Repository domain service — the dashboard's single access point for
  * repository intelligence. Components never call `fetch` directly; they call
- * these typed methods, which attach the Clerk session token automatically.
+ * these typed methods, which attach the GitHub session token automatically.
  */
 export interface RepositoryService {
   getOverview(token?: string | null): Promise<RepositoryOverview>;
