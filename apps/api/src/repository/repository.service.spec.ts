@@ -23,6 +23,8 @@ describe('RepositoryService', () => {
     countTraceGraphRelationships: jest.fn(),
     findRepositoryActivity: jest.fn(),
     findRepositoryComponents: jest.fn(),
+    findAllRepositories: jest.fn(),
+    setActiveRepository: jest.fn(),
   } as unknown as GraphRepository;
   const service = new RepositoryService(graphRepository);
 
@@ -110,6 +112,84 @@ describe('RepositoryService', () => {
         'repo:commerce-platform',
         8,
       );
+    });
+  });
+
+  describe('listRepositories', () => {
+    const repoNodes = [
+      repoNode,
+      {
+        id: 'repo:budget-buddy',
+        type: 'Repository' as const,
+        label: 'budget-buddy',
+        properties: {
+          id: 'repo:budget-buddy',
+          name: 'budget-buddy',
+          fullName: 'acme/budget-buddy',
+          description: 'A personal budget tracker',
+          language: 'TypeScript',
+          defaultBranch: 'main',
+          active: true,
+        },
+      },
+    ];
+
+    it('maps repo nodes to imported-repository summaries', async () => {
+      (graphRepository.findAllRepositories as jest.Mock).mockResolvedValue(repoNodes);
+
+      const result = await service.listRepositories();
+      expect(result).toEqual([
+        {
+          id: 'repo:commerce-platform',
+          name: 'commerce-platform',
+          fullName: 'acme/commerce-platform',
+          description: 'A modular commerce backend',
+          language: 'TypeScript',
+          active: false,
+        },
+        {
+          id: 'repo:budget-buddy',
+          name: 'budget-buddy',
+          fullName: 'acme/budget-buddy',
+          description: 'A personal budget tracker',
+          language: 'TypeScript',
+          active: true,
+        },
+      ]);
+    });
+  });
+
+  describe('setActiveRepository', () => {
+    const repos = [
+      repoNode,
+      {
+        id: 'repo:budget-buddy',
+        type: 'Repository' as const,
+        label: 'budget-buddy',
+        properties: {
+          id: 'repo:budget-buddy',
+          name: 'budget-buddy',
+          fullName: 'acme/budget-buddy',
+          active: false,
+        },
+      },
+    ];
+
+    it('marks the target repository active and returns it', async () => {
+      (graphRepository.findAllRepositories as jest.Mock).mockResolvedValue(repos);
+      (graphRepository.setActiveRepository as jest.Mock).mockResolvedValue(undefined);
+
+      const result = await service.setActiveRepository('repo:budget-buddy');
+      expect(graphRepository.setActiveRepository).toHaveBeenCalledWith('repo:budget-buddy');
+      expect(result).toMatchObject({ id: 'repo:budget-buddy', active: false });
+    });
+
+    it('404s for a repository that is not in the graph', async () => {
+      (graphRepository.findAllRepositories as jest.Mock).mockResolvedValue(repos);
+      await expect(service.setActiveRepository('repo:unknown')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(graphRepository.setActiveRepository).not.toHaveBeenCalled();
     });
   });
 });
