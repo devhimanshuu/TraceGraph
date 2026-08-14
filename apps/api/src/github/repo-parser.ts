@@ -34,6 +34,8 @@ export interface ParsedImport {
 }
 
 export interface ParsedCall {
+  /** Enclosing function/method full name (`foo`, `Bar.baz`) — the caller. */
+  caller?: string;
   /** Raw callee text: `foo`, `Bar.baz`, `ns.baz`, `this.baz`. */
   callee: string;
   line: number;
@@ -81,6 +83,10 @@ export function parseFile(path: string, source: string): ParsedFile | null {
   const tests: ParsedTest[] = [];
   const extendsClauses: ParsedExtends[] = [];
   const describeStack: string[] = [];
+  /** Enclosing function/method names (stack of full symbol names). */
+  const scopeStack: string[] = [];
+  /** Enclosing class names (for method scoping). */
+  const classStack: string[] = [];
 
   const lineOf = (node: ts.Node): number =>
     ts.getLineAndCharacterOfPosition(sourceFile, node.getStart(sourceFile)).line + 1;
@@ -135,9 +141,37 @@ export function parseFile(path: string, source: string): ParsedFile | null {
       imports.push(entry);
     }
 
+    // Function-like declarations push/pop the caller scope around their body.
+    let scopedName: string | null = null;
+    let pushScope = false;
+    if (ts.isFunctionDeclaration(node) && node.name) {
+      scopedName = node.name.text;
+      pushScope = true;
+    } else if (ts.isMethodDeclaration(node) && ts.isIdentifier(node.name)) {
+      const className = classStack[classStack.length - 1];
+      if (className) {
+        scopedName = `${className}.${node.name.text}`;
+        pushScope = true;
+      }
+    } else if (ts.isVariableStatement(node)) {
+      const declaration = node.declarationList.declarations.find(
+        (d) =>
+          ts.isIdentifier(d.name) &&
+          d.initializer &&
+          (ts.isArrowFunction(d.initializer) || ts.isFunctionExpression(d.initializer)),
+      );
+      if (declaration && ts.isIdentifier(declaration.name)) {
+        scopedName = declaration.name.text;
+        pushScope = true;
+      }
+    }
+
+    if (pushScope && scopedName) scopeStack.push(scopedName);
+
     // Classes + their methods
     if (ts.isClassDeclaration(node) && node.name) {
       const className = node.name.text;
+      classStack.push(className);
       symbols.push({
         name: className,
         shortName: className,
@@ -228,7 +262,11 @@ export function parseFile(path: string, source: string): ParsedFile | null {
         return;
       }
 
-      calls.push({ callee, line: lineOf(node) });
+      calls.push({
+        caller: scopeStack[scopeStack.length - 1],
+        callee,
+        line: lineOf(node),
+      });
 
       if (TEST_CALLEES.has(callee)) {
         const nameArg = node.arguments[0];
@@ -238,6 +276,8 @@ export function parseFile(path: string, source: string): ParsedFile | null {
     }
 
     ts.forEachChild(node, visit);
+    if (pushScope && scopedName) scopeStack.pop();
+    if (ts.isClassDeclaration(node) && node.name) classStack.pop();
   }
 
   visit(sourceFile);

@@ -9,6 +9,7 @@ import { ImpactHistoryModule } from './impact-history/impact-history.module';
 import { AiModule } from './ai/ai.module';
 import { HistoryModule } from './history/history.module';
 import { AuthModule } from './auth/auth.module';
+import { GithubModule } from './github/github.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { AuthModule } from './auth/auth.module';
     ImpactHistoryModule,
     AiModule,
     HistoryModule,
+    GithubModule,
   ],
 })
 export class AppModule {}

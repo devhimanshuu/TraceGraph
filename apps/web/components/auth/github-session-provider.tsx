@@ -58,6 +58,14 @@ export function GitHubSessionProvider({ children }: { children: ReactNode }) {
           const data = (await res.json()) as SessionResponse;
           window.localStorage.setItem(TOKEN_KEY, data.token);
           setUser(data.user);
+          if (hasAuthParam) {
+            // First sign-in handoff: the OAuth callback landed on the landing
+            // page with ?auth=success — send the user straight into the app
+            // (dashboard shows the onboarding repo chooser when the graph is
+            // empty, or the repository overview once something is imported).
+            router.replace('/dashboard');
+            return;
+          }
         } else if (stored) {
           // Expired / revoked — drop the stale token.
           window.localStorage.removeItem(TOKEN_KEY);
@@ -80,7 +88,7 @@ export function GitHubSessionProvider({ children }: { children: ReactNode }) {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [router]);
 
   const getToken = useCallback(async (): Promise<string | null> => {
     if (typeof window === 'undefined') {

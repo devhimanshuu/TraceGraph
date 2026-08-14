@@ -120,7 +120,10 @@ describe('DashboardPage', () => {
 
     expect(await screen.findByText('No repository yet')).toBeInTheDocument();
     expect(
-      screen.getByText(/Connect a GitHub repository to map it/),
+      screen.getByText(/Choose one of your GitHub repositories to map it/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Choose a repository' }),
     ).toBeInTheDocument();
   });
 

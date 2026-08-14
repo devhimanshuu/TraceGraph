@@ -1,22 +1,11 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { Geo, Tomorrow } from 'next/font/google';
 import { GitHubSessionProvider } from '@/components/auth/github-session-provider';
 import './globals.css';
 
-// Tomorrow — primary UI typeface (full weight range, geometric-tech look).
-const tomorrow = Tomorrow({
-  weight: ['400', '500', '600', '700'],
-  subsets: ['latin'],
-  variable: '--font-tomorrow',
-});
-
-// Geo — single-weight display/mono accent (code snippets, technical labels).
-const geo = Geo({
-  weight: '400',
-  subsets: ['latin'],
-  variable: '--font-geo',
-});
+// Brand typefaces — Bitcount Prop Single (headings/display, variable 100–900)
+// and Turret Road (UI/body). Loaded via the Google Fonts @import in globals.css
+// so the family names are available to the Tailwind theme tokens.
 
 export const metadata: Metadata = {
   title: {
@@ -29,10 +18,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html
-      lang="en"
-      className={`${tomorrow.variable} ${geo.variable} dark h-full antialiased`}
-    >
+    <html lang="en" className="dark h-full antialiased">
       <body className="flex min-h-full flex-col">
         <GitHubSessionProvider>{children}</GitHubSessionProvider>
       </body>

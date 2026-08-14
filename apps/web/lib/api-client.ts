@@ -3,6 +3,8 @@ import type {
   AppHealth,
   DatabaseHealth,
   DependencyTarget,
+  GithubImportResult,
+  GithubRepo,
   GraphNode,
   GraphResponse,
   HistoryCommit,
@@ -213,6 +215,12 @@ export const apiClient = {
     mutate<ImpactExplanation>(`/impact/${encodeURIComponent(id)}/explain`, 'POST', token, {
       depth,
     }),
+
+  // GitHub onboarding (repo picker + import)
+  listGithubRepos: (token?: string | null) =>
+    request<GithubRepo[]>('/github/repos', token),
+  importGithubRepo: (fullName: string, token?: string | null) =>
+    mutate<GithubImportResult>('/github/import', 'POST', token, { fullName }),
 
   // Graph neighborhood
   getGraph: (

@@ -4,10 +4,6 @@ import type { GithubRepo } from '@tracegraph/shared';
 const API_BASE = 'https://api.github.com';
 const REQUEST_TIMEOUT_MS = 30_000;
 
-interface GithubError {
-  message?: string;
-}
-
 /**
  * Minimal GitHub REST client for the repo picker + importer. Every call can
  * run with a token (the session's backend-held access token) or without it —
@@ -17,7 +13,7 @@ interface GithubError {
 @Injectable()
 export class GithubApiService {
   async listRepos(token: string): Promise<GithubRepo[]> {
-    const data = await this.getJson<any[]>(
+    const data = await this.getJson<Array<Record<string, unknown>>>(
       '/user/repos?per_page=100&sort=updated&affiliation=owner,collaborator',
       token,
     );

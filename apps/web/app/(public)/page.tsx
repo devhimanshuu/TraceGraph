@@ -5,7 +5,7 @@ import {
   ShieldCheck,
   Workflow,
 } from 'lucide-react';
-import { GitHubSignInButton } from '@/components/auth/github-sign-in-button';
+import { LandingCta } from '@/components/auth/landing-cta';
 import { LatticeBackground } from '@/components/ui/lattice-background';
 
 const features = [
@@ -301,7 +301,7 @@ export default function Home() {
           </p>
 
           <div className="pointer-events-auto mt-10 flex flex-wrap items-center justify-center gap-3">
-            <GitHubSignInButton label="Get started free" size="lg" />
+            <LandingCta label="Get started free" size="lg" />
           </div>
 
           <p className="mt-4 text-xs text-muted-foreground">
@@ -428,7 +428,7 @@ export default function Home() {
             Start exploring a demo codebase today — no setup, no credit card, just the graph.
           </p>
           <div className="relative mt-8 flex flex-wrap items-center justify-center gap-3">
-            <GitHubSignInButton label="Get started free" size="lg" />
+            <LandingCta label="Get started free" size="lg" />
           </div>
         </div>
       </section>

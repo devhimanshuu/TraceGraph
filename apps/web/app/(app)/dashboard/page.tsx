@@ -11,7 +11,6 @@ import {
   GitBranch,
   GitCommitHorizontal,
   GitPullRequest,
-  Sparkles,
 } from 'lucide-react';
 import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +23,7 @@ import {
 } from '@/components/dashboard/architecture-summary';
 import { RecentActivity } from '@/components/dashboard/recent-activity';
 import { SectionError } from '@/components/dashboard/section-error';
+import { RepoChooser } from '@/components/onboarding/repo-chooser';
 import { useRepositoryContext } from '@/components/layout/repository-provider';
 import { useActivity } from '@/hooks/use-activity';
 import { useComponents } from '@/hooks/use-components';
@@ -90,13 +90,14 @@ export default function DashboardPage() {
 
   if (repoError === 'empty') {
     return (
-      <div className="mx-auto flex max-w-lg flex-col items-center gap-3 py-16 text-center">
-        <Sparkles className="size-6 text-muted-foreground/60" aria-hidden />
-        <h1 className="text-xl font-semibold tracking-tight">No repository yet</h1>
-        <p className="text-sm text-muted-foreground">
-          The graph is empty. Connect a GitHub repository to map it and explore its
-          relationships, impact, and history.
-        </p>
+      <div className="flex flex-col gap-6 py-10">
+        <div className="mx-auto flex max-w-lg flex-col items-center gap-2 text-center">
+          <h1 className="text-xl font-semibold tracking-tight">No repository yet</h1>
+          <p className="text-sm text-muted-foreground">
+            The graph is empty. Choose one of your GitHub repositories to map it.
+          </p>
+        </div>
+        <RepoChooser />
       </div>
     );
   }
