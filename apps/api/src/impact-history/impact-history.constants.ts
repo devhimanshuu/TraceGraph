@@ -1,5 +1,5 @@
 /**
- * Impact history bounds (Phase 10 — CognoDB-backed snapshots).
+ * Impact history bounds (CognoDB-backed snapshots).
  *
  * Snapshot history is a lightweight, capped ledger: the newest
  * MAX_IMPACT_HISTORY snapshots per repository are kept, and the record

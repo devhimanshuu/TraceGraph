@@ -10,7 +10,7 @@ import {
 
 /**
  * Impact analysis history, backed by CognoDB snapshot nodes tied to the
- * repository — shared across devices and users (Phase 10). Loads the ledger
+ * repository — shared across devices and users. Loads the ledger
  * on mount, records each completed analysis, and supports clearing.
  *
  * Recording is best-effort: if the API is unreachable the analysis itself

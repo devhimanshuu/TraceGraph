@@ -396,6 +396,9 @@ export class GithubImportService {
       await this.ensureConstraints();
       await this.writeNodes(nodes);
       await this.writeEdges(edges);
+      // The imported repository becomes the active one — the app surfaces it
+      // everywhere (dashboard, graph root, history) until the user switches.
+      await this.graphRepository.markRepositoryActive(repoId);
     } finally {
       if (cleanup) await cleanup();
     }

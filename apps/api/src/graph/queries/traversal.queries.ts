@@ -1,9 +1,8 @@
 /**
- * Multi-hop traversal (Phase 5 §15–§16, §32).
+ * Multi-hop traversal.
  *
- * This is the query the assessment asks for: bounded, path-preserving
- * reachability across 1..N relationship hops — naturally awkward in a
- * relational schema (recursive CTEs, lost paths, depth-limited).
+ * This provides bounded, path-preserving
+ * reachability across 1..N relationship hops.
  *
  * Structural interpolation policy (the ONE sanctioned exception to
  * parameterization): openCypher requires literal bounds for variable-length

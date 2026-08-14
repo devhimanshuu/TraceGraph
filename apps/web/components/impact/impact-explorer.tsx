@@ -3,14 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { FlaskConical, GitCompare, GitFork, Network, Printer, Radar, Search, Sparkles, Workflow } from 'lucide-react';
+import { FlaskConical, GitCompare, GitFork, Network, Printer, Radar, Search, Workflow } from 'lucide-react';
 import type { ImpactResponse } from '@tracegraph/shared';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SectionError } from '@/components/dashboard/section-error';
 import { EntitySearchDialog } from '@/components/dependencies/entity-search-dialog';
-import { NodeTypeBadge, NodeTypeIcon } from '@/components/dependencies/relationship-badge';
+import { NodeTypeBadge } from '@/components/dependencies/relationship-badge';
 import { useNode } from '@/hooks/use-node';
 import { useImpactHistory } from '@/hooks/use-impact-history';
 import { useGitHubSession } from '@/hooks/use-github-session';
@@ -24,27 +24,8 @@ import { TestCoverageView } from '@/components/dependencies/test-coverage-view';
 import { PathExplorer } from '@/components/impact/path-explorer';
 import { ImpactHistoryList } from '@/components/impact/impact-history-list';
 import { AiExplanationPanel } from '@/components/impact/ai-explanation';
-
-const FEATURED_ENTITIES = [
-  {
-    id: 'class:apps/api/services/payment.service.ts:PaymentService',
-    label: 'PaymentService',
-    type: 'Class' as const,
-    description: 'Payment orchestration & Stripe integration',
-  },
-  {
-    id: 'class:apps/api/services/checkout.service.ts:CheckoutService',
-    label: 'CheckoutService',
-    type: 'Class' as const,
-    description: 'Checkout workflow & validation',
-  },
-  {
-    id: 'class:apps/api/services/order.service.ts:OrderService',
-    label: 'OrderService',
-    type: 'Class' as const,
-    description: 'Order lifecycle & persistence',
-  },
-];
+import { FeaturedEntities } from '@/components/dependencies/featured-entities';
+import { useFeaturedEntities } from '@/hooks/use-featured-entities';
 
 /** Staged loading copy — the analysis is a heavier traversal, so tell the user what's happening. */
 const LOADING_STEPS = [
@@ -112,6 +93,12 @@ export function ImpactExplorer() {
   const [activeTab, setActiveTab] = useState<ImpactTabKey>('all');
   const [selectedPathId, setSelectedPathId] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const {
+    entities: featured,
+    loading: featuredLoading,
+    error: featuredError,
+    refresh: refreshFeatured,
+  } = useFeaturedEntities(6);
   // Scroll target for AI evidence clicks — the summary + graph grid sits above
   // the AI panel, so the graph needs to be brought back into view.
   const graphSectionRef = useRef<HTMLDivElement | null>(null);
@@ -224,26 +211,15 @@ export function ImpactExplorer() {
         </div>
 
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-3">
-          <div className="flex items-center gap-2 px-1">
-            <Sparkles className="size-4 text-primary" />
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Or pick a featured component to analyze
-            </h2>
-          </div>
-          <div className="grid gap-2.5 sm:grid-cols-3">
-            {FEATURED_ENTITIES.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => router.push(`/impact?node=${encodeURIComponent(item.id)}&depth=2`)}
-                className="flex flex-col items-start gap-2 rounded-xl border border-border/60 bg-card/40 p-3.5 text-left transition-all hover:border-sky-500/40 hover:bg-card/80 hover:shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-sky-500/60"
-              >
-                <NodeTypeIcon type={item.type} className="size-4 text-sky-400" />
-                <span className="text-sm font-semibold text-foreground">{item.label}</span>
-                <span className="text-xs text-muted-foreground">{item.description}</span>
-              </button>
-            ))}
-          </div>
+          <FeaturedEntities
+            entities={featured}
+            loading={featuredLoading}
+            error={featuredError}
+            onRetry={() => void refreshFeatured()}
+            onPick={(id) => router.push(`/impact?node=${encodeURIComponent(id)}&depth=2`)}
+            columns={3}
+            label="Or pick a featured component to analyze"
+          />
         </div>
 
         <EntitySearchDialog open={searchOpen} onOpenChange={setSearchOpen} />

@@ -1,17 +1,41 @@
 /**
- * Repository-level queries (Phase 5 §5, §24).
+ * Repository-level queries.
  *
  * Counts are LABEL-SCOPED: the hosted CognoDB instance may be shared with
  * other domains, so overview statistics and search never touch nodes with
  * non-TraceGraph labels.
  */
 
-/** The (single) repository, oldest first — used as the default graph root. */
+/**
+ * The active repository (the one the user last imported / switched to),
+ * falling back to the oldest one when nothing is marked active yet.
+ * Used as the default graph root and repository overview anchor.
+ */
 export const FIND_DEFAULT_REPOSITORY = `
+MATCH (r:Repository)
+WITH r
+ORDER BY coalesce(r.active, false) DESC, r.createdAt
+LIMIT 1
+RETURN properties(r) AS n, labels(r)[0] AS nodeType
+`;
+
+/** All repositories in the graph, oldest first — for the repo switcher. */
+export const FIND_ALL_REPOSITORIES = `
 MATCH (r:Repository)
 RETURN properties(r) AS n, labels(r)[0] AS nodeType
 ORDER BY r.createdAt
-LIMIT 1
+`;
+
+/** Marks one repository active and every other one inactive (single write). */
+export const SET_ACTIVE_REPOSITORY = `
+MATCH (r:Repository)
+SET r.active = (r.id = $repoId)
+`;
+
+/** Marks the given repository active after an import (non-atomic, called after writes). */
+export const MARK_REPOSITORY_ACTIVE = `
+MATCH (r:Repository {id: $repoId})
+SET r.active = true
 `;
 
 /**

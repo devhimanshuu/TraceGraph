@@ -47,7 +47,7 @@ export const envValidationSchema = Joi.object({
   SESSION_SECRET: Joi.string().allow('').optional(),
   SESSION_TTL_DAYS: Joi.number().integer().min(1).max(30).default(7),
   WEB_APP_URL: Joi.string().uri().default('http://localhost:3000'),
-  // AI explanation (Phase 10). Everything is optional so the deterministic
+  // AI explanation. Everything is optional so the deterministic
   // product runs perfectly without any LLM configuration.
   AI_ENABLED: Joi.boolean().default(false),
   AI_PROVIDER: Joi.string().valid('groq').default('groq'),

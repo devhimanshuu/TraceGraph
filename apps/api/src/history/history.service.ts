@@ -4,7 +4,7 @@ import { GraphRepository } from '../graph/graph.repository';
 import { GraphService } from '../graph/graph.service';
 
 /**
- * HistoryService — engineering context for an entity (Phase 5 §18–§19).
+ * HistoryService — engineering context for an entity.
  *
  * Traverses the File → Commit → PullRequest → Issue chain for whatever the
  * entity is contained by. The existence gate (404 for unknown nodes) is

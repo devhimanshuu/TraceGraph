@@ -1,5 +1,5 @@
 /**
- * Bounds for the graph API (Phase 5 §16, §29).
+ * Bounds for the graph API.
  *
  * Every bound exists to protect the small CognoDB free-tier instance: the API
  * never exposes unbounded traversal or unlimited result sets. These values are
@@ -32,7 +32,7 @@ export const GRAPH_RELATIONSHIP_TYPES = [
   'TESTS',
 ] as const;
 
-/** Node label whitelist — the 10 TraceGraph labels (Phase 4). */
+/** Node label whitelist — the 10 TraceGraph labels. */
 export const GRAPH_NODE_TYPES = [
   'Repository',
   'Directory',

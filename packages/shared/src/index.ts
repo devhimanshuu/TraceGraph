@@ -7,10 +7,10 @@
  * ever needed here, add a build step (tsc → dist) before shipping them.
  */
 
-// ── Graph model (Phase 1 §10) ─────────────────────────────────────────────────
+// ── Graph model ─────────────────────────────────────────────────────────────
 // The label/type lists below are the graph schema contract: the write path
-// (Phase 4 seed originally, later the GitHub import pipeline) must produce
-// exactly these labels and relationship types.
+// (e.g. the GitHub import pipeline) must produce exactly these labels and
+// relationship types.
 
 export type NodeType =
   | 'Repository'
@@ -52,8 +52,8 @@ export interface DatabaseHealth {
   error?: string;
 }
 
-// ── Graph API (Phase 5 §7–§23) ────────────────────────────────────────────────
-// Response DTOs shared by the backend and the future React Flow frontend.
+// ── Graph API ─────────────────────────────────────────────────────────────────
+// Response DTOs shared by the backend and the React Flow frontend.
 // The frontend must never see Neo4j-specific structures (Records, Integers).
 
 /** A node as returned by the API. `properties` is the node's raw property map. */
@@ -200,6 +200,22 @@ export interface RepositoryComponent {
   dependents: number;
 }
 
+/** One imported repository in the graph — for the repo switcher. */
+export interface ImportedRepository {
+  id: string;
+  name: string;
+  fullName: string;
+  description: string;
+  language: string;
+  /** Whether this is the repository the app currently surfaces. */
+  active: boolean;
+}
+
+/** `POST /api/repository/active` — switch the active repository. */
+export interface SetActiveRepositoryResult {
+  active: ImportedRepository;
+}
+
 /** One evidence path in a traversal result: root → … → target. */
 export interface TraversalPath {
   /** Ordered node ids from root to target (inclusive). */
@@ -231,10 +247,6 @@ export interface GraphResponse {
 /** `GET /api/search?q=` */
 export interface SearchResultItem extends GraphNodeRef {}
 
-// ── Impact Analysis (Phase 9) ─────────────────────────────────────────────────
-// `GET /api/impact/:id` — deterministic, graph-driven change impact. See
-// apps/api/src/impact for the engine.
-
 export type ImpactType = 'DIRECT' | 'INDIRECT';
 
 /** One entity reached by the impact traversal, with its explanation. */
@@ -264,7 +276,7 @@ export interface ImpactPath {
 }
 
 /**
- * Deterministic, explainable severity indicator (Phase 9 §19). Computed
+ * Deterministic, explainable severity indicator. Computed
  * server-side from graph facts (dependents, depth coverage, test exposure) —
  * never a machine-learning risk prediction.
  */
@@ -293,7 +305,7 @@ export interface ImpactHistory {
 }
 
 /**
- * One recorded impact analysis (Phase 10 — CognoDB-backed history). Snapshot
+ * One recorded impact analysis (CognoDB-backed history). Snapshot
  * nodes live in the graph labeled `ImpactSnapshot`, tied to the repository via
  * a `BELONGS_TO` relationship, so analyses are shared across devices/users.
  * The `type` field is the analyzed ENTITY's type (Class/File/…), not the
@@ -340,10 +352,6 @@ export interface ImpactResponse {
   paths: ImpactPath[];
 }
 
-// ── AI Explanation (Phase 10) ─────────────────────────────────────────────────
-// `POST /api/impact/:id/explain` — the LLM explains deterministic graph-derived
-// evidence. The graph remains the source of truth; the LLM never queries it.
-
 /** One piece of grounded evidence with a stable local id the LLM can cite. */
 export interface AiEvidenceItem {
   /** Stable local id (E1, E2, …) that the explanation can reference. */
@@ -386,10 +394,6 @@ export interface ImpactExplanation {
   };
 }
 
-// ── GitHub repo onboarding (repo picker + import) ─────────────────────────────
-// `GET /api/github/repos` lists the signed-in user's repositories; `POST
-// /api/github/import` clones + parses one into the Phase-4 graph schema.
-
 /** One repository the signed-in user can import. */
 export interface GithubRepo {
   id: number;
@@ -419,11 +423,6 @@ export interface GithubImportResult {
   durationMs: number;
 }
 
-// ── Intelligence (orphans, smells, test gaps, blast radius, knowledge) ─────────
-// Deterministic, graph-driven repository intelligence — dead-code candidates,
-// architecture smells, test coverage gaps, PR blast radius, and "who to ask"
-// knowledge maps. All served by `GET/POST /api/intelligence*` (Phase 11.5).
-
 /** One dead-code / orphan candidate: an entity nothing depends on. */
 export interface OrphanEntity {
   id: string;
@@ -443,7 +442,7 @@ export interface OrphanListResponse {
   orphans: OrphanEntity[];
 }
 
-/** The three architecture-smell categories (Phase 11.5). */
+/** The three architecture-smell categories. */
 export type SmellKind = 'cycle' | 'god-module' | 'fragile';
 
 /** One detected architecture smell with its explainable graph facts. */
@@ -549,9 +548,7 @@ export interface KnowledgeResponse {
   owners: KnowledgeOwner[];
 }
 
-// ── Errors ────────────────────────────────────────────────────────────────────
-
-/** Standard error body returned by the API (see Phase 1 §18). */
+/** Standard error body returned by the API. */
 export interface ApiError {
   statusCode: number;
   message: string | string[];

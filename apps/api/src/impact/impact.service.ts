@@ -1,5 +1,5 @@
 /**
- * ImpactService — the flagship "Analyze Impact" use case (Phase 9 §38).
+ * ImpactService — the flagship "Analyze Impact" use case.
  *
  * Responsibilities (all deterministic, graph-driven — no AI):
  *   1. validate request + resolve the root node (404 for unknown ids)
@@ -72,7 +72,7 @@ export class ImpactService {
 
     // 3. Classify + 4. deduplicate: one entry per entity, minimum distance wins.
     // The root itself can never be "affected" by its own change — cyclic CALLS
-    // chains must not surface the root as an impacted entity (Phase 9 §41).
+    // chains must not surface the root as an impacted entity.
     const { direct, indirect } = this.classify(rows, root.id);
 
     // 5. Tests: the root's own coverage plus coverage of directly-affected
@@ -111,7 +111,7 @@ export class ImpactService {
   }
 
   /**
-   * Classification + deduplication (Phase 9 §14, §15).
+   * Classification + deduplication.
    *
    * - distance 1 → DIRECT; distance > 1 → INDIRECT. Relationship semantics are
    *   already enforced by the traversal policy: only CALLS/IMPORTS/EXTENDS are
@@ -148,7 +148,7 @@ export class ImpactService {
   }
 
   /**
-   * Deterministic severity indicator (Phase 9 §19) — never a numeric risk
+   * Deterministic severity indicator — never a numeric risk
    * prediction. Three explainable graph facts, each with its own reason:
    * dependents count, depth coverage vs the requested depth, and test
    * exposure. See `impact.constants.ts` for the thresholds.
@@ -222,7 +222,7 @@ export class ImpactService {
   }
 
   /**
-   * Deterministic explanation from graph facts — never an LLM (Phase 9 §11, §49).
+   * Deterministic explanation from graph facts — never an LLM.
    *   DIRECT:  "CheckoutService directly calls PaymentService."
    *   INDIRECT: "OrderService depends on CheckoutService, which calls PaymentService."
    */

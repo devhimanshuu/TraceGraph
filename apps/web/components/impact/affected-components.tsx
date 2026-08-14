@@ -138,7 +138,7 @@ interface AffectedComponentsProps {
  * The affected components list. Direct and indirect buckets are visually
  * distinct (badges + colored icons), every card explains WHY via a
  * graph-fact reason, and each entity links out to the graph + dependency
- * explorer (Phase 9 §25, §29–30).
+ * explorer.
  */
 export function AffectedComponents({ direct, indirect, selectedPathId, onSelectPath }: AffectedComponentsProps) {
   const all = [...direct, ...indirect];

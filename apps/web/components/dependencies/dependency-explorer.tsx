@@ -3,16 +3,8 @@
 import { useCallback, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import {
-  ArrowRight,
-  Boxes,
-  Network,
-  Search,
-  Sparkles,
-  Workflow,
-} from 'lucide-react';
+import { Network, Search, Workflow } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { getNodeTypeColor } from '@/components/dependencies/relationship-badge';
 import { useNode } from '@/hooks/use-node';
 import { useNodeCategory } from '@/hooks/use-node-category';
 import { nodeService } from '@/lib/services/node.service';
@@ -27,33 +19,8 @@ import {
   RelationshipTabs,
 } from '@/components/dependencies/relationship-tabs';
 import { TestCoverageView } from '@/components/dependencies/test-coverage-view';
-
-const FEATURED_ENTITIES = [
-  {
-    id: 'class:apps/api/services/payment.service.ts:PaymentService',
-    label: 'PaymentService',
-    type: 'Class',
-    description: 'Payment orchestration & Stripe integration',
-  },
-  {
-    id: 'class:apps/api/services/checkout.service.ts:CheckoutService',
-    label: 'CheckoutService',
-    type: 'Class',
-    description: 'Checkout workflow & validation',
-  },
-  {
-    id: 'class:apps/api/services/order.service.ts:OrderService',
-    label: 'OrderService',
-    type: 'Class',
-    description: 'Order lifecycle & persistence',
-  },
-  {
-    id: 'class:packages/database/database.service.ts:DatabaseService',
-    label: 'DatabaseService',
-    type: 'Class',
-    description: 'Database query & transaction service',
-  },
-] as const;
+import { FeaturedEntities } from '@/components/dependencies/featured-entities';
+import { useFeaturedEntities } from '@/hooks/use-featured-entities';
 
 export function DependencyExplorer() {
   const router = useRouter();
@@ -63,6 +30,12 @@ export function DependencyExplorer() {
   const [activeTab, setActiveTab] = useState<DependencyTabKey>('dependencies');
   const [traversalDir, setTraversalDir] = useState<'in' | 'out'>('in');
   const [searchOpen, setSearchOpen] = useState(false);
+  const {
+    entities: featured,
+    loading: featuredLoading,
+    error: featuredError,
+    refresh: refreshFeatured,
+  } = useFeaturedEntities(4);
 
   // 1. Core node & summary data
   const { node, summary, loading: nodeLoading, error: nodeError, refresh: refreshNode } = useNode(nodeId);
@@ -148,41 +121,16 @@ export function DependencyExplorer() {
           </div>
         </div>
 
-        {/* Featured Codebase Entities */}
+        {/* Featured Codebase Entities — real, from the live graph */}
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-3">
-          <div className="flex items-center gap-2 px-1">
-            <Sparkles className="size-4 text-primary" />
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Or pick a featured component to inspect
-            </h2>
-          </div>
-          <div className="grid gap-2.5 sm:grid-cols-2">
-            {FEATURED_ENTITIES.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => router.push(`/dependencies?node=${encodeURIComponent(item.id)}`)}
-                className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-card/40 p-3.5 text-left transition-all hover:border-primary/40 hover:bg-card/80 hover:shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <span
-                    className={`flex size-8 shrink-0 items-center justify-center rounded-lg border ${getNodeTypeColor(item.type)}`}
-                  >
-                    <Boxes className="size-4" />
-                  </span>
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-sm font-semibold text-foreground truncate">
-                      {item.label}
-                    </span>
-                    <span className="text-xs text-muted-foreground truncate">
-                      {item.description}
-                    </span>
-                  </div>
-                </div>
-                <ArrowRight className="size-4 shrink-0 text-muted-foreground/60" />
-              </button>
-            ))}
-          </div>
+          <FeaturedEntities
+            entities={featured}
+            loading={featuredLoading}
+            error={featuredError}
+            onRetry={() => void refreshFeatured()}
+            onPick={(id) => router.push(`/dependencies?node=${encodeURIComponent(id)}`)}
+            label="Or pick a featured component to inspect"
+          />
         </div>
 
         <EntitySearchDialog open={searchOpen} onOpenChange={setSearchOpen} />

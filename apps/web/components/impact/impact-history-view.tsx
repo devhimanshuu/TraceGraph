@@ -10,7 +10,7 @@ interface ImpactHistoryViewProps {
 /**
  * Engineering history context for the analyzed entity — the same commit /
  * PR / issue presentation as the Dependency Explorer, fed by the impact
- * response so the report stays self-contained (Phase 9 §17).
+ * response so the report stays self-contained.
  */
 export function ImpactHistoryView({ history }: ImpactHistoryViewProps) {
   return (

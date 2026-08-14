@@ -1,5 +1,5 @@
 /**
- * Node queries (Phase 5 §8–§9).
+ * Node queries.
  *
  * Every query returns a consistent shape: `n` = the node's PROPERTY MAP
  * (via `properties(n)`, never the raw driver Node object), `nodeType` = the

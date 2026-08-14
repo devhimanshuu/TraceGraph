@@ -1,5 +1,5 @@
 /**
- * Impact analysis queries (Phase 9 §40).
+ * Impact analysis queries.
  *
  * The impact engine is the dependency question in reverse: given an entity,
  * who REACHES it through dependency edges? Three bounded channels cover the

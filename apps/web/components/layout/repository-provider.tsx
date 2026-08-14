@@ -5,8 +5,7 @@ import { useRepository, type RepositoryState } from '@/hooks/use-repository';
 
 /**
  * Shares a single `GET /api/repository` fetch across every page in the app
- * shell (dashboard, graph, dependencies, impact). Later phases reuse the same
- * context instead of each page issuing its own overview request.
+ * shell (dashboard, graph, dependencies, impact), avoiding per-page overview requests.
  */
 const RepositoryContext = createContext<RepositoryState | null>(null);
 

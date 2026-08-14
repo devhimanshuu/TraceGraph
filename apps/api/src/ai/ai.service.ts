@@ -1,8 +1,8 @@
 /**
- * AiService (Phase 10 §7, §16, §18).
+ * AiService.
  *
  * Orchestrates the explain pipeline:
- *   1. validate request + run the deterministic impact analysis (Phase 9)
+ *   1. validate request + run the deterministic impact analysis
  *   2. build bounded, id-labeled evidence from that result
  *   3. call the provider with the constructed prompts
  *   4. validate the model's response (shape + evidence citations)

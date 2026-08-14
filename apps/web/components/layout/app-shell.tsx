@@ -6,6 +6,7 @@ import { Menu, X } from 'lucide-react';
 import { GitHubUserMenu } from '@/components/auth/github-user-menu';
 import { Wordmark } from '@/components/wordmark';
 import { SidebarNav } from '@/components/layout/sidebar-nav';
+import { RepositorySwitcher } from '@/components/layout/repository-switcher';
 import { SystemStatus } from '@/components/layout/system-status';
 import { useRepositoryContext } from '@/components/layout/repository-provider';
 import { Badge } from '@/components/ui/badge';
@@ -44,9 +45,12 @@ function SidebarContent() {
             <p className="text-xs text-muted-foreground">Loading repository…</p>
           )}
         </div>
-        <div className="flex items-center justify-between gap-2 px-1">
-          <SystemStatus />
+        <div className="flex flex-col gap-0.5 border-t border-border/60 pt-2">
+          <RepositorySwitcher />
           <GitHubUserMenu />
+        </div>
+        <div className="px-1">
+          <SystemStatus />
         </div>
       </div>
     </div>

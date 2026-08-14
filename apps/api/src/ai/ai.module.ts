@@ -8,7 +8,7 @@ import { AI_PROVIDER } from './ai.tokens';
 import { OpenAiCompatibleProvider } from './providers/openai-compatible.provider';
 
 /**
- * AiModule — evidence-backed AI explanation (Phase 10).
+ * AiModule — evidence-backed AI explanation.
  *
  * The rest of TraceGraph depends on the `AI_PROVIDER` token (an `AiProvider`
  * interface), never on a vendor. Swapping providers means providing a new
@@ -16,7 +16,7 @@ import { OpenAiCompatibleProvider } from './providers/openai-compatible.provider
  *
  * The module imports ImpactModule for the exported ImpactService: the explain
  * pipeline reuses the exact same deterministic analysis, never a second impact
- * engine (Phase 10 §4).
+ * engine.
  */
 @Module({
   imports: [ImpactModule],

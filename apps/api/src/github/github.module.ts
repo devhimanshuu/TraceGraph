@@ -7,7 +7,7 @@ import { GithubController } from './github.controller';
 
 /**
  * GitHub onboarding — lists the signed-in user's repositories (via the
- * backend-held session token) and imports one into the Phase-4 graph schema.
+ * backend-held session token) and imports one into the graph schema.
  */
 @Module({
   imports: [DatabaseModule, GraphModule],

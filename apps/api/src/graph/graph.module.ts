@@ -7,17 +7,15 @@ import { SearchController } from './search.controller';
 import { TraversalController } from './traversal.controller';
 
 /**
- * GraphModule — the code-graph read surface (Phase 5).
+ * GraphModule — the code-graph read surface.
  *
  * Owns every node-scoped graph operation: node details, relationships,
  * dependencies/dependents/callers/callees, test coverage, multi-hop
  * traversal, the graph neighborhood, and search.
  *
- * Design note (Phase 5 §3): the Phase 2 `dependency` placeholder module is
- * intentionally folded into this module — dependency queries are node-scoped
- * reads that share this module's single GraphRepository; a separate module
- * would only duplicate wiring. `repository` and `history` are separate
- * modules that import this one to reuse the repository/service.
+ * Design note: dependency queries are node-scoped reads that share this module's
+ * single GraphRepository. `repository` and `history` are separate modules that
+ * import this one to reuse the repository/service.
  */
 @Module({
   providers: [GraphRepository, GraphService],

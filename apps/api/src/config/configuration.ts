@@ -40,7 +40,7 @@ export interface AuthConfig {
 }
 
 /**
- * AI configuration (Phase 10), read under the `ai` namespace. All fields are
+ * AI configuration, read under the `ai` namespace. All fields are
  * optional by design — the deterministic product runs perfectly with AI off.
  */
 export interface AiConfig {
@@ -104,7 +104,7 @@ export const authConfiguration = registerAs('auth', (): AuthConfig => {
 });
 
 /**
- * AI configuration (Phase 10), namespaced as `ai` so consumers use
+ * AI configuration, namespaced as `ai` so consumers use
  * `getOrThrow<AiConfig>('ai')`. All fields are optional by design — the
  * deterministic product runs perfectly with AI disabled (AI_ENABLED=false).
  */
@@ -113,7 +113,7 @@ export const aiConfiguration = registerAs('ai', (): AiConfig => {
     enabled: process.env.AI_ENABLED === 'true',
     provider: 'groq',
     model: process.env.AI_MODEL ?? 'llama-3.3-70b-versatile',
-    // GROQ_API_KEY predates the AI phase; AI_API_KEY takes precedence when set.
+    // AI_API_KEY takes precedence when set.
     apiKey: process.env.AI_API_KEY || process.env.GROQ_API_KEY || '',
     baseUrl: process.env.AI_BASE_URL ?? 'https://api.groq.com/openai/v1',
     maxTokens: parseInt(process.env.AI_MAX_TOKENS ?? '1024', 10),

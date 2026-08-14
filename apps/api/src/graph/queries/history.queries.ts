@@ -1,5 +1,5 @@
 /**
- * Engineering history queries (Phase 5 §18–§19).
+ * Engineering history queries.
  *
  * All three traverse the same File → Commit → PullRequest → Issue chain:
  *
@@ -45,7 +45,7 @@ ORDER BY i.number DESC
 LIMIT $limit
 `;
 
-// ── History counts (Phase 8) — COUNT variants of the chain above, used by
+// ── History counts — COUNT variants of the chain above, used by
 // `GET /api/nodes/:id/relationship-summary` so the UI gets counts in one
 // request. Counts mirror the list semantics (DISTINCT entities).
 

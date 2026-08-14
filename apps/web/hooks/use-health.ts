@@ -21,8 +21,7 @@ async function fetchHealth(): Promise<{ api: AppHealth; database: DatabaseHealth
 
 /**
  * Fetches `GET /api/health` and `GET /api/health/database` together and
- * exposes loading / error / retry states. Temporary Phase 2 foundation hook —
- * later phases replace this with the real dashboard data layer.
+ * exposes loading / error / retry states.
  */
 export function useHealth() {
   const [state, setState] = useState<HealthState>({

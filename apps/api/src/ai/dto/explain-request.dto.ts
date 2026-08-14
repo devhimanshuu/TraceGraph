@@ -5,7 +5,7 @@ import { DEFAULT_IMPACT_DEPTH, MAX_IMPACT_DEPTH } from '../../impact/impact.cons
 /**
  * `POST /api/impact/:id/explain` — the backend validates the depth here and
  * re-runs the deterministic analysis itself. A client-supplied evidence
- * payload is never trusted (Phase 10 §16).
+ * payload is never trusted.
  */
 export class ExplainRequestDto {
   @IsOptional()

@@ -7,13 +7,14 @@ explore software relationships and understand the potential impact of changing a
 file, class, function, or service. It stores a software repository as a property
 graph in **CognoDB** and exposes it through a NestJS REST API and a Next.js web app.
 
-**Current phase:** Phase 5 — Cypher query layer & graph repository API (node
-details, relationships, dependencies, callers/callees, tests, bounded multi-hop
-traversal with evidence paths, engineering history, repository overview, and
-search — all parameterized and mapped to typed DTOs). Product UI arrives in
-Phases 6+ (see [docs/PHASE-1-TECHNICAL-DESIGN.md](docs/PHASE-1-TECHNICAL-DESIGN.md),
+TraceGraph provides a Cypher query layer and graph repository API (node details,
+relationships, dependencies, callers/callees, tests, bounded multi-hop traversal
+with evidence paths, engineering history, repository overview, and search — all
+parameterized and mapped to typed DTOs) alongside a modern web interface for
+graph exploration and change impact analysis. For in-depth technical documentation,
+see [docs/technical-design.md](docs/technical-design.md),
 [docs/graph-data-model.md](docs/graph-data-model.md), and
-[docs/graph-query-strategy.md](docs/graph-query-strategy.md)).
+[docs/graph-query-strategy.md](docs/graph-query-strategy.md).
 
 ## Overview
 
@@ -50,26 +51,27 @@ NestJS API.
 ```text
 tracegraph/
 ├── apps/
-│   ├── web/                     # Next.js frontend (dashboard, explorer — Phase 3+)
+│   ├── web/                     # Next.js frontend (dashboard, explorer, impact analysis)
 │   │   ├── app/                 # App Router pages
-│   │   ├── components/          # UI components (shadcn/ui primitives)
-│   │   ├── hooks/               # Client hooks (e.g. use-health)
-│   │   └── lib/                 # Central API client
+│   │   ├── components/          # UI components (shadcn/ui primitives, graph canvas, impact)
+│   │   ├── hooks/               # Client hooks (e.g. use-health, use-session)
+│   │   └── lib/                 # Central API client & utilities
 │   └── api/                     # NestJS backend
 │       └── src/
 │           ├── config/          # Env validation (Joi) + typed config
 │           ├── common/          # Global exception filter
 │           ├── database/        # Neo4j driver wrapper (DatabaseService)
 │           ├── health/          # /api/health + /api/health/database
-│           ├── repository/      # Placeholder module (Phase 3+)
-│           ├── graph/           # Placeholder module (Phase 4+)
-│           ├── dependency/      # Placeholder module (Phase 5+)
-│           ├── impact/          # Placeholder module (Phase 6+)
-│           └── history/         # Placeholder module (Phase 5+)
+│           ├── repository/      # Repository metadata & overview
+│           ├── graph/           # Graph queries, traversals, nodes & dependencies
+│           ├── impact/          # Blast radius & change impact engine
+│           ├── impact-history/  # Stored impact snapshot ledger
+│           ├── intelligence/    # Graph-derived architectural intelligence & smells
+│           └── history/         # Git / PR / Issue engineering context
 ├── packages/
 │   └── shared/                  # Shared contracts (types only): NodeType,
 │                                # RelationshipType, AppHealth, DatabaseHealth, ApiError
-├── docs/                        # Phase 1 technical design specification
+├── docs/                        # Technical design specification & query strategy
 ├── .env.example                 # Reference for all environment variables
 └── package.json                 # Workspace + root scripts
 ```
@@ -111,11 +113,10 @@ readable message (Joi validation). The backend never logs credentials.
 ## Authentication (GitHub)
 
 TraceGraph uses **GitHub-only authentication** — the identity provider is also
-the resource provider (the same flow that will later list and import your
-repos):
+the resource provider:
 
 1. **Sign-in** — `GET /api/auth/github/login` server-side redirects to a
-   GitHub OAuth App (read-only `read:user public_repo` scopes — no scary
+   GitHub OAuth App (read-only `read:user public_repo` scopes — no intrusive
    private-repo prompt).
 2. **Callback** — `GET /api/auth/github/callback` exchanges the code, fetches
    your profile, and issues **TraceGraph's own signed session** (HS256 JWT
@@ -191,7 +192,7 @@ Verify the stack:
 ```text
 GET http://localhost:4000/api/health            → application liveness
 GET http://localhost:4000/api/health/database   → CognoDB reachability
-http://localhost:3000/dashboard                 → foundation status UI
+http://localhost:3000/dashboard                 → product dashboard
 ```
 
 If CognoDB is unreachable the API **starts in degraded mode**: `/api/health/database`
@@ -213,15 +214,14 @@ running — no crash, no leaked connection details.
 ## API Conventions
 
 - Global prefix: `/api`
-- Responses are **direct DTO JSON** (no envelope), documented per endpoint in
-  the Phase 1 spec (§15) and typed in `@tracegraph/shared`.
+- Responses are **direct DTO JSON** (no envelope), typed in `@tracegraph/shared`.
 - Errors follow one shape:
   `{ "statusCode": 400, "message": "…", "code": "VALIDATION_ERROR", "timestamp": "…", "path": "/api/…" }`
   — credentials, connection strings, and stack traces are never exposed.
 - All Cypher is parameterized, named, and confined to `apps/api/src/graph/queries/*`
   (see [docs/graph-query-strategy.md](docs/graph-query-strategy.md)).
 
-## API Surface (Phase 5)
+## API Surface
 
 ```text
 GET /api/health                    application liveness
@@ -240,67 +240,48 @@ GET /api/nodes/:id/pull-requests   PRs containing those commits
 GET /api/nodes/:id/issues          issues related to those PRs
 GET /api/traversal/:id             bounded multi-hop traversal with evidence paths
 GET /api/search?q=                 deterministic name/substring search
+GET /api/impact                    blast radius analysis & affected components
+GET /api/impact-history            analysis snapshot history ledger
+GET /api/intelligence              deterministic graph architectural smells & metrics
 ```
 
 Node ids contain `/` and `:`, so clients must `encodeURIComponent` them in the
 URL (e.g. `encodeURIComponent('class:apps/api/services/payment.service.ts:PaymentService')`).
 
-## Current Development Phase
+## Architecture & Implementation Highlights
 
-**Phase 2 — Foundation.** Monorepo, both applications, configuration
-management, validation, CORS, error handling, health endpoints, shared types.
+### Core Foundation
+Monorepo workspace, configuration management with strict Joi validation, CORS,
+unified error handling, health endpoints, and shared types in `@tracegraph/shared`.
 
-**Phase 3 (this milestone) — CognoDB Integration & Database Layer.**
-
-- Official `neo4j-driver` (v6) integrated; the driver is a DI singleton
-  (created once, reused, closed on shutdown).
-- `DatabaseService` exposes `verifyConnection()`, `executeRead()/executeWrite()`
-  (driver-managed transactions), `executeTransaction()` (explicit BEGIN/COMMIT/
-  ROLLBACK), and `close()` — sessions are always released, even on errors.
+### CognoDB Database Layer
+- Official `neo4j-driver` (v6) integration with singleton connection lifecycle.
+- `DatabaseService` manages read/write transactions (`executeRead`/`executeWrite`),
+  explicit multi-statement transactions, and graceful connection release.
 - Typed error taxonomy (`DatabaseError` kinds: configuration, connection,
-  query, transaction, timeout) translated to safe API responses — no driver
-  detail ever reaches the browser.
-- Safety-net query/connect timeouts (no infinite waits); no application retry
-  layer (the driver's own safe transient retries remain available).
-- Verified live: `npm run db:check` → `{ "status": "up", … }` against a real
-  CognoDB instance; degraded mode keeps the app running when the DB is down.
-- 35 backend tests (unit + e2e), including mocked-driver health up/down tests.
+  query, transaction, timeout) mapped to safe REST responses.
+- Resilient degraded mode when CognoDB is temporarily unavailable.
 
-**Phase 4 (this milestone) — Graph Data Model & Schema Contract.**
+### Graph Data Model & Schema
+- 10 graph entity labels, 12 relationship types, and named unique ID constraints.
+- GitHub import pipeline that clones and parses repositories into a typed graph structure.
+- Schema documentation in [docs/graph-data-model.md](docs/graph-data-model.md).
 
-- 10 labels, 12 relationship types, named `tg_*` unique-id constraints
-  (Neo4j 5 syntax — verified against the live instance; legacy `ASSERT` and
-  `SHOW CONSTRAINTS` are unsupported on CognoDB).
-- The schema is the contract every write path must satisfy (the original
-  deterministic seed dataset was removed — the GitHub import pipeline is the
-  replacement data source). Schema details live in
-  [docs/graph-data-model.md](docs/graph-data-model.md); constraints are
-  created idempotently on import (`CREATE CONSTRAINT ... IF NOT EXISTS`).
+### Cypher Query Engine & Graph Repository API
+- Named, parameterized Cypher queries organized by domain in `src/graph/queries/*`.
+- `GraphRepository` owns database interaction; `GraphService` owns business logic,
+  type conversions, and data mapping.
+- Bounded multi-hop traversal with path evidence for explainable relationship tracing.
+- Git engineering history tracing (File → Commit → PR → Issue).
 
-**Phase 5 (this milestone) — Cypher Query Layer & Graph Repository API.**
+### Impact Analysis & Engineering Intelligence
+- Deterministic blast radius and severity calculation for code modifications.
+- Topological analysis of affected callers, callees, dependent files, and test coverage.
+- Graph-derived architecture smell detection (circular dependencies, god nodes, orphaned entities).
+- CognoDB-backed history ledger for impact snapshots and comparison.
 
-- Named, documented query catalog in `src/graph/queries/*` — all parameterized
-  (the one sanctioned structural exception: literal hop-count bounds, since
-  openCypher cannot parameterize variable-length patterns).
-- `GraphRepository` is the single Cypher owner; `GraphService` owns mapping,
-  type-aware dependency semantics, and 404s; controllers are thin.
-- Bounded multi-hop traversal (`GET /api/traversal/:id`, depth 1..4) returns
-  deduplicated nodes/edges plus **evidence paths** — the lower-level capability
-  Impact Analysis (Phase 6) builds on.
-- Engineering history traverses the File → Commit → PR → Issue chain; the
-  repository overview is label-scoped (safe on a shared instance).
-- 83 backend tests (unit + e2e with an in-memory repository), verified live
-  against the graph.
-
-**Current — SaaS product shell + GitHub-only authentication.**
-
-- Public SaaS landing page (hero, features, value props) with GitHub sign-in.
-- Product dashboard behind auth: repository overview, live graph statistics,
-  and workspace cards (Graph Explorer, Impact Analysis).
-- GitHub OAuth App + own signed sessions: `proxy.ts` middleware gates routes,
-  the global `GitHubAuthGuard` fails closed on the API, and
-  `useGitHubSession().getToken()` drives every data fetch.
-- 211 backend tests (incl. session/guard unit specs + fail-closed e2e).
-
-**Next (Phase 6):** Impact Analysis — per
-[docs/PHASE-1-TECHNICAL-DESIGN.md](docs/PHASE-1-TECHNICAL-DESIGN.md).
+### SaaS Web Application & Authentication
+- Next.js App Router frontend with interactive React Flow graph explorer.
+- Secure GitHub OAuth authentication with signed HTTP-only session tokens.
+- Dark/Light mode theme system with zero flash of unstyled content.
+- Responsive explorer panels, path inspections, and exportable impact reports.

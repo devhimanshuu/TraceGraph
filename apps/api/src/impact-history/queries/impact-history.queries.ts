@@ -1,5 +1,5 @@
 /**
- * Impact-history Cypher (Phase 10). All queries are parameterized and anchor
+ * Impact-history Cypher. All queries are parameterized and anchor
  * at the repository node — snapshot nodes live under `(s:ImpactSnapshot)
  * -[:BELONGS_TO]-> (repo:Repository)` so history is scoped to the repository
  * and shared across every device/user with access to it.

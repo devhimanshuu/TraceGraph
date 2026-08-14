@@ -3,7 +3,7 @@ import type { ImpactSnapshot } from '@tracegraph/shared';
 /**
  * Client-side impact history helpers.
  *
- * Persistence is server-side now (Phase 10): snapshots are stored in CognoDB
+ * Persistence is server-side: snapshots are stored in CognoDB
  * as nodes tied to the repository, shared across devices and users. This
  * module keeps only the presentation helpers; the ledger contract is the
  * shared `ImpactSnapshot` type.

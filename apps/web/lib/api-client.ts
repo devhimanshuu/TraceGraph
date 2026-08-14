@@ -1,6 +1,7 @@
 import type {
   ApiError,
   AppHealth,
+  BlastRadiusResponse,
   DatabaseHealth,
   DependencyTarget,
   GithubImportResult,
@@ -14,19 +15,26 @@ import type {
   ImpactHistoryListResponse,
   ImpactResponse,
   ImpactSnapshot,
+  ImportedRepository,
+  KnowledgeResponse,
   NodeRelationships,
+  OrphanListResponse,
   RelationshipSummary,
   RepositoryActivity,
   RepositoryComponent,
   RepositoryOverview,
   SearchResultItem,
+  SetActiveRepositoryResult,
+  SmellResponse,
   TestCoverage,
+  TestGapResponse,
+  TestsForChangeResponse,
   TraversalResult,
 } from '@tracegraph/shared';
 
 /**
  * Central API client. All frontend → NestJS communication goes through here;
- * the frontend never talks to CognoDB directly (Phase 1 architecture rule).
+ * the frontend never talks to CognoDB directly.
  *
  * Base URL comes from NEXT_PUBLIC_API_URL. The localhost default is a
  * development convenience only — production deployments must set the
@@ -153,8 +161,14 @@ export const apiClient = {
     request<RepositoryActivity>(`/repository/activity?limit=${limit}`, token),
   getRepositoryComponents: (limit: number, token?: string | null) =>
     request<RepositoryComponent[]>(`/repository/components?limit=${limit}`, token),
+  getFeaturedEntities: (limit: number, token?: string | null) =>
+    request<RepositoryComponent[]>(`/repository/featured?limit=${limit}`, token),
+  getImportedRepositories: (token?: string | null) =>
+    request<ImportedRepository[]>('/repository/list', token),
+  setActiveRepository: (repoId: string, token?: string | null) =>
+    mutate<SetActiveRepositoryResult>('/repository/active', 'POST', token, { repoId }),
 
-  // Node details & relationship summary (Phase 8)
+  // Node details & relationship summary
   getNode: (id: string, token?: string | null) =>
     request<GraphNode>(`/nodes/${encodeURIComponent(id)}`, token),
   getRelationshipSummary: (id: string, token?: string | null) =>
@@ -228,7 +242,7 @@ export const apiClient = {
     );
   },
 
-  // AI explanation (Phase 10) — evidence-backed explanation of the impact analysis.
+  // AI explanation — evidence-backed explanation of the impact analysis.
   explainImpact: (id: string, depth: number, token?: string | null) =>
     mutate<ImpactExplanation>(`/impact/${encodeURIComponent(id)}/explain`, 'POST', token, {
       depth,
@@ -239,6 +253,34 @@ export const apiClient = {
     request<GithubRepo[]>('/github/repos', token),
   importGithubRepo: (fullName: string, token?: string | null) =>
     mutate<GithubImportResult>('/github/import', 'POST', token, { fullName }),
+
+  // Codebase intelligence (orphans, smells, test gaps, blast radius, knowledge)
+  getOrphans: (limit = 50, token?: string | null) =>
+    request<OrphanListResponse>(`/intelligence/orphans?limit=${limit}`, token),
+  getSmells: (token?: string | null) => request<SmellResponse>('/intelligence/smells', token),
+  getTestGaps: (limit = 50, token?: string | null) =>
+    request<TestGapResponse>(`/intelligence/test-gaps?limit=${limit}`, token),
+  blastRadius: (files: string[], options?: { depth?: number }, token?: string | null) =>
+    mutate<BlastRadiusResponse>(
+      '/intelligence/blast-radius',
+      'POST',
+      token,
+      { files, depth: options?.depth },
+    ),
+  testsForChange: (entityIds: string[], options?: { depth?: number }, token?: string | null) =>
+    mutate<TestsForChangeResponse>(
+      '/intelligence/tests-for-change',
+      'POST',
+      token,
+      { entityIds, depth: options?.depth },
+    ),
+  getKnowledge: (options?: { entityId?: string; limit?: number }, token?: string | null) => {
+    const params = new URLSearchParams();
+    if (options?.entityId) params.set('entityId', options.entityId);
+    if (options?.limit) params.set('limit', String(options.limit));
+    const qs = params.toString();
+    return request<KnowledgeResponse>(`/intelligence/knowledge${qs ? `?${qs}` : ''}`, token);
+  },
 
   // Graph neighborhood
   getGraph: (

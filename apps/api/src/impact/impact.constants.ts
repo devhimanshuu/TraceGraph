@@ -1,11 +1,10 @@
 /**
- * Bounds for the Impact Analysis engine (Phase 9 §8, §19).
+ * Bounds for the Impact Analysis engine.
  *
  * The impact traversal is a bounded variable-length walk over inbound
- * dependency edges — the same class of traversal as Phase 5, with its own
- * caps so the small CognoDB free-tier instance is never exposed to an
- * unbounded fan-out. Values are enforced in the DTO (validation) and again in
- * the repository where structural Cypher interpolation happens.
+ * dependency edges, with its own caps so the CognoDB instance is never
+ * exposed to an unbounded fan-out. Values are enforced in the DTO (validation)
+ * and again in the repository where structural Cypher interpolation happens.
  */
 
 /** Traversal depth: 1..4, matching the graph module's hard ceiling. */
@@ -20,7 +19,7 @@ export const DEFAULT_IMPACT_LIMIT = 100;
 export const MAX_IMPACT_PATHS = 400;
 
 /**
- * Impact relationship policy (Phase 9 §7): ONLY these inbound edges carry
+ * Impact relationship policy: ONLY these inbound edges carry
  * impact in the dependency sense.
  *   - CALLS   — strong: a caller depends on the callee's behavior.
  *   - IMPORTS — strong: an importing file depends on the imported module.
@@ -28,7 +27,7 @@ export const MAX_IMPACT_PATHS = 400;
  * History edges (MODIFIES, AUTHORED_BY, RELATED_TO) and test edges (TESTS)
  * are deliberately NOT traversed as impact — they are collected as context
  * (tests + engineering history) instead, so a TESTS edge never shows up as a
- * direct dependency merely because its distance is 1 (Phase 9 §15).
+ * direct dependency merely because its distance is 1.
  */
 export const IMPACT_TRAVERSAL_TYPES = ['CALLS', 'IMPORTS', 'EXTENDS'] as const;
 
@@ -40,7 +39,7 @@ export const IMPACT_TESTS_PER_TARGET = 20;
 export const MAX_IMPACT_TESTS = 50;
 
 /**
- * Deterministic impact-score thresholds (Phase 9 §19) — an explainable
+ * Deterministic impact-score thresholds — an explainable
  * LOW / MEDIUM / HIGH indicator built from three graph facts:
  *
  *   dependents    0 → 0 · 1–2 → 1 · 3+ → 2

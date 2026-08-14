@@ -10,6 +10,7 @@ import { AiModule } from './ai/ai.module';
 import { HistoryModule } from './history/history.module';
 import { AuthModule } from './auth/auth.module';
 import { GithubModule } from './github/github.module';
+import { IntelligenceModule } from './intelligence/intelligence.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { GithubModule } from './github/github.module';
     AiModule,
     HistoryModule,
     GithubModule,
+    IntelligenceModule,
   ],
 })
 export class AppModule {}

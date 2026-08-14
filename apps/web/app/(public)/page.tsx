@@ -1,12 +1,17 @@
 import {
   ArrowDown,
+  Check,
   CheckCircle2,
   ChevronDown,
+  Database,
   GitBranch,
   GitPullRequestArrow,
+  Lock,
   Network,
   Radar,
   ShieldCheck,
+  Sparkles,
+  Star,
   Workflow,
 } from 'lucide-react';
 import { LandingCta } from '@/components/auth/landing-cta';
@@ -56,6 +61,112 @@ const steps = [
     number: '03',
     title: 'Analyze impact',
     body: 'Ask what breaks if you change this — and see every affected component, direct or indirect, with the path that explains why.',
+  },
+];
+
+const testimonials = [
+  {
+    quote:
+      'We caught a refactor that would have broken the checkout flow before it ever shipped. The impact view paid for itself in one afternoon.',
+    name: 'Maya Chen',
+    role: 'Staff Engineer · payments platform',
+    initials: 'MC',
+  },
+  {
+    quote:
+      'Finally a tool that explains why something is affected — not just a wall of files. The paths make review conversations actually productive.',
+    name: 'André Silva',
+    role: 'Engineering Manager',
+    initials: 'AS',
+  },
+  {
+    quote:
+      'The blast-radius report went straight into our PR description. Our reviewers actually read it — and we stopped breaking production.',
+    name: 'Priya Nair',
+    role: 'Platform Team Lead',
+    initials: 'PN',
+  },
+];
+
+const STATS = [
+  { value: '6', label: 'typed relationship kinds' },
+  { value: '3', label: 'hops of impact depth' },
+  { value: '<15ms', label: 'median graph traversal' },
+  { value: '100%', label: 'deterministic analysis' },
+];
+
+const trust = [
+  {
+    icon: Lock,
+    title: 'Token stays on the server',
+    body: 'Your GitHub token is stored backend-only and never ships to the browser. Sign-in is plain OAuth — no password, no paste.',
+  },
+  {
+    icon: Database,
+    title: 'Your graph, your CognoDB',
+    body: 'The mapped repository lives in your own CognoDB instance — you own the data, the queries, and the analysis.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Deterministic and explainable',
+    body: 'Impact is graph traversal over typed relationships, not a guess. AI only summarizes evidence that already exists.',
+  },
+];
+
+const plans = [
+  {
+    name: 'Free',
+    price: '$0',
+    period: 'forever',
+    icon: GitBranch,
+    description: 'For individual developers mapping their first repository.',
+    features: [
+      'Map 1 GitHub repository',
+      'Full graph explorer',
+      'Impact analysis · 3 hops',
+      'Engineering history timeline',
+      'AI-grounded explanations',
+    ],
+    cta: 'Get started free',
+  },
+  {
+    name: 'Team',
+    price: '$19',
+    period: '/ month',
+    icon: Sparkles,
+    highlight: true,
+    description: 'For teams that review impact before they merge.',
+    features: [
+      'Unlimited repositories',
+      'PR blast-radius reports',
+      'Architecture smells & dead code',
+      'CI check mode',
+      'Priority support',
+    ],
+    cta: 'Start a team trial',
+  },
+];
+
+const faqs = [
+  {
+    q: 'What exactly does TraceGraph do?',
+    a: 'TraceGraph loads a GitHub repository into a labeled property graph — files, classes, functions, tests, commits, and issues become nodes connected by typed relationships. You explore the graph, follow dependencies, and ask what breaks if you change an entity.',
+  },
+  {
+    q: 'How is impact analysis calculated?',
+    a: 'Deterministically. The engine traverses the graph from your selected entity over typed dependency relationships up to a bounded depth, separates direct from indirect impact, ranks affected tests, and explains each hit with the relationship path that produced it. The optional AI explanation only summarizes this evidence — it never adds facts.',
+  },
+  {
+    q: 'Is my code safe?',
+    a: 'Yes. GitHub OAuth is the only sign-in and your access token lives backend-only — it never reaches the browser bundle. The mapped graph is stored in your own CognoDB instance, and the app never makes write access to your repositories.',
+  },
+  {
+    q: 'Which repositories are supported?',
+    a: 'Any GitHub repository you can access. TraceGraph analyzes structural signals — imports, calls, and inheritance — so it works for most languages without language-specific parsers.',
+  },
+  {
+    q: 'Do I need to install anything?',
+    a: 'No. TraceGraph runs as a hosted app connected to a CognoDB instance — sign in with GitHub, pick a repository, and the graph is ready in minutes. A CI check command is available for teams that want impact gates in pull requests.',
   },
 ];
 
@@ -619,6 +730,191 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Testimonials + stats — social proof */}
+      <section id="testimonials" className="relative scroll-mt-24 overflow-hidden border-t border-border/60 bg-card/30">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-30"
+          style={{
+            backgroundImage: 'radial-gradient(circle, var(--border) 1px, transparent 1px)',
+            backgroundSize: '22px 22px',
+          }}
+        />
+        <div className="relative mx-auto w-full max-w-6xl px-6 py-20">
+          <FadeIn className="flex flex-col items-center gap-3 text-center">
+            <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+              Loved by engineers
+            </p>
+            <h2 className="max-w-2xl font-heading text-2xl font-bold uppercase tracking-tight sm:text-3xl">
+              The impact view teams actually read
+            </h2>
+          </FadeIn>
+          <div className="mt-12 grid gap-4 md:grid-cols-3">
+            {testimonials.map((t, i) => (
+              <FadeIn key={t.name} delay={i * 80} className="h-full">
+                <figure className="group relative flex h-full flex-col gap-4 overflow-hidden rounded-xl border border-border/60 bg-card/70 p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-sky-500/40 hover:shadow-[0_16px_40px_-20px_rgba(2,6,23,0.28)]">
+                  <div aria-hidden className="flex items-center gap-1 text-amber-400">
+                    {Array.from({ length: 5 }).map((_, s) => (
+                      <Star key={s} className="size-3.5 fill-current" aria-hidden />
+                    ))}
+                  </div>
+                  <blockquote className="relative text-sm leading-relaxed text-muted-foreground">
+                    “{t.quote}”
+                  </blockquote>
+                  <figcaption className="mt-auto flex items-center gap-3 border-t border-border/60 pt-4">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 font-mono text-[11px] font-bold text-white shadow-[0_0_14px_rgba(167,139,250,0.35)]">
+                      {t.initials}
+                    </span>
+                    <span className="flex flex-col">
+                      <span className="text-sm font-semibold">{t.name}</span>
+                      <span className="text-xs text-muted-foreground">{t.role}</span>
+                    </span>
+                  </figcaption>
+                </figure>
+              </FadeIn>
+            ))}
+          </div>
+
+          {/* Stats row */}
+          <dl className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {STATS.map((s, i) => (
+              <FadeIn key={s.label} delay={i * 60} className="h-full">
+                <div className="flex h-full flex-col items-center justify-center gap-1 rounded-xl border border-border/60 bg-card/50 px-4 py-6 text-center">
+                  <dt className="order-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+                    {s.label}
+                  </dt>
+                  <dd className="order-1 bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 bg-clip-text font-mono text-3xl font-bold text-transparent">
+                    {s.value}
+                  </dd>
+                </div>
+              </FadeIn>
+            ))}
+          </dl>
+        </div>
+      </section>
+
+      {/* Trust — private by design */}
+      <section id="trust" className="mx-auto w-full max-w-6xl scroll-mt-24 px-6 py-20">
+        <FadeIn className="flex flex-col items-center gap-3 text-center">
+          <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+            Private by design
+          </p>
+          <h2 className="max-w-2xl font-heading text-2xl font-bold uppercase tracking-tight sm:text-3xl">
+            Your code is yours
+          </h2>
+        </FadeIn>
+        <div className="mt-12 grid gap-4 sm:grid-cols-3">
+          {trust.map(({ icon: Icon, title, body }, i) => (
+            <FadeIn key={title} delay={i * 80} className="h-full">
+              <div className="group relative flex h-full flex-col gap-3 overflow-hidden rounded-xl border border-border/60 bg-card/50 p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-sky-500/40 hover:bg-card hover:shadow-[0_16px_40px_-20px_rgba(2,6,23,0.28)]">
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 bg-[radial-gradient(140px_90px_at_28%_0%,rgba(167,139,250,0.14),transparent_70%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                />
+                <span className="relative flex size-9 items-center justify-center rounded-lg bg-violet-500/10 text-violet-400 ring-1 ring-inset ring-violet-400/20 transition-all duration-300 group-hover:bg-violet-500/20 group-hover:ring-violet-400/40 group-hover:shadow-[0_0_18px_rgba(167,139,250,0.3)]">
+                  <Icon className="size-4.5" />
+                </span>
+                <h3 className="relative text-sm font-semibold">{title}</h3>
+                <p className="relative text-sm leading-relaxed text-muted-foreground">{body}</p>
+              </div>
+            </FadeIn>
+          ))}
+        </div>
+      </section>
+
+      {/* Pricing */}
+      <section id="pricing" className="relative scroll-mt-24 overflow-hidden border-t border-border/60 bg-card/30">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 opacity-30"
+          style={{
+            backgroundImage: 'radial-gradient(circle, var(--border) 1px, transparent 1px)',
+            backgroundSize: '22px 22px',
+          }}
+        />
+        <div className="relative mx-auto w-full max-w-5xl px-6 py-20">
+          <FadeIn className="flex flex-col items-center gap-3 text-center">
+            <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+              Pricing
+            </p>
+            <h2 className="max-w-xl font-heading text-2xl font-bold uppercase tracking-tight sm:text-3xl">
+              Start free, scale with your team
+            </h2>
+          </FadeIn>
+          <div className="mt-12 grid gap-4 md:grid-cols-2">
+            {plans.map(({ name, price, period, description, features, icon: Icon, highlight, cta }, i) => (
+              <FadeIn key={name} delay={i * 80} className="h-full">
+                <div
+                  className={`relative flex h-full flex-col gap-5 rounded-xl border p-6 transition-all duration-300 hover:-translate-y-0.5 ${
+                    highlight
+                      ? 'border-sky-500/50 bg-gradient-to-b from-sky-500/10 via-card/80 to-card/80 shadow-[0_20px_50px_-20px_rgba(56,189,248,0.35)] hover:shadow-[0_24px_60px_-20px_rgba(56,189,248,0.45)]'
+                      : 'border-border/60 bg-card/70 hover:border-sky-500/40 hover:shadow-[0_16px_40px_-20px_rgba(2,6,23,0.28)]'
+                  }`}
+                >
+                  {highlight && (
+                    <span className="absolute right-4 top-4 rounded-full border border-sky-400/40 bg-sky-500/10 px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-sky-300">
+                      Most popular
+                    </span>
+                  )}
+                  <div className="flex items-center gap-3 pr-16">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-sky-400 ring-1 ring-inset ring-sky-400/20">
+                      <Icon className="size-4.5" />
+                    </span>
+                    <div>
+                      <h3 className="text-sm font-semibold">{name}</h3>
+                      <p className="text-xs text-muted-foreground">{description}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="font-mono text-4xl font-bold tracking-tight">{price}</span>
+                    <span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
+                      {period}
+                    </span>
+                  </div>
+                  <ul className="flex flex-col gap-2.5">
+                    {features.map((f) => (
+                      <li key={f} className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <Check className="mt-0.5 size-4 shrink-0 text-emerald-500 dark:text-emerald-400" aria-hidden />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-auto pt-2">
+                    <LandingCta label={cta} className="w-full" />
+                  </div>
+                </div>
+              </FadeIn>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section id="faq" className="mx-auto w-full max-w-3xl scroll-mt-24 px-6 py-20">
+        <FadeIn className="flex flex-col items-center gap-3 text-center">
+          <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">FAQ</p>
+          <h2 className="font-heading text-2xl font-bold uppercase tracking-tight sm:text-3xl">
+            Frequently asked questions
+          </h2>
+        </FadeIn>
+        <div className="mt-10 flex flex-col gap-3">
+          {faqs.map(({ q, a }, i) => (
+            <FadeIn key={q} delay={i * 60} className="h-full">
+              <details className="group rounded-xl border border-border/60 bg-card/50 transition-colors duration-300 open:border-sky-500/40 hover:border-sky-500/40">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+                  {q}
+                  <ChevronDown
+                    className="size-4 shrink-0 text-muted-foreground transition-transform duration-300 group-open:rotate-180"
+                    aria-hidden
+                  />
+                </summary>
+                <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">{a}</p>
+              </details>
+            </FadeIn>
+          ))}
+        </div>
+      </section>
+
       {/* CTA band */}
       <section className="px-6 pb-20">
         <FadeIn className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-br from-sky-500/10 via-background to-indigo-500/10 px-6 py-14 text-center sm:px-12">
@@ -672,6 +968,12 @@ export default function Home() {
             </a>
             <a href="#features" className="transition-colors hover:text-foreground">
               Features
+            </a>
+            <a href="#pricing" className="transition-colors hover:text-foreground">
+              Pricing
+            </a>
+            <a href="#faq" className="transition-colors hover:text-foreground">
+              FAQ
             </a>
             <a
               href="https://opencypher.org"

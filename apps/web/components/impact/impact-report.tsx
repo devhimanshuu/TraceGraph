@@ -43,7 +43,7 @@ function ReportLoading() {
 }
 
 /**
- * Shareable, printable impact report (Phase 9 §52 follow-up). Renders the
+ * Shareable, printable impact report. Renders the
  * analysis as a static document: summary + score, affected components with
  * reasons, evidence paths, potentially affected tests, and engineering
  * history. Everything comes from one server-computed ImpactResponse — the

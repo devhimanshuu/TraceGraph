@@ -1,5 +1,5 @@
 /**
- * ImpactRepository — executes the impact analysis Cypher (Phase 9 §39).
+ * ImpactRepository — executes the impact analysis Cypher.
  *
  * Responsibilities:
  * - resolve the root's entry functions per node type

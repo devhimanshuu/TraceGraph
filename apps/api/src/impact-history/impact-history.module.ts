@@ -5,7 +5,7 @@ import { ImpactHistoryRepository } from './impact-history.repository';
 import { ImpactHistoryService } from './impact-history.service';
 
 /**
- * ImpactHistoryModule — CognoDB-backed analysis snapshots (Phase 10).
+ * ImpactHistoryModule — CognoDB-backed analysis snapshots.
  *
  * Reuses GraphModule's GraphRepository for default-repository resolution so
  * snapshots are tied to the repository; its own repository owns the snapshot

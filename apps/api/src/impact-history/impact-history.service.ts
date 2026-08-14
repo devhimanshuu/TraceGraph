@@ -1,8 +1,8 @@
 /**
- * ImpactHistoryService — the impact analysis ledger (Phase 10).
+ * ImpactHistoryService — the impact analysis ledger.
  *
- * Snapshot history now lives in CognoDB as `ImpactSnapshot` nodes tied to the
- * repository, replacing the previous localStorage-only history. Rules:
+ * Snapshot history lives in CognoDB as `ImpactSnapshot` nodes tied to the
+ * repository. Rules:
  *
  * - an unchanged re-run (same entity + depth + score + counts) refreshes the
  *   newest matching snapshot's timestamp instead of creating noise

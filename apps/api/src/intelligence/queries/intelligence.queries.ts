@@ -1,5 +1,5 @@
 /**
- * Intelligence queries (Phase 11.5) — deterministic, graph-driven repository
+ * Intelligence queries — deterministic, graph-driven repository
  * intelligence. Every query is anchored at the Repository node, bounded, and
  * parameterized (no string interpolation except the sanctioned label/type
  * whitelist patterns used elsewhere in the catalog).
@@ -17,27 +17,32 @@
  *   - direct edges into the node (IMPORTS into File, EXTENDS into Class)
  *   - CALLS into any function contained by the node (File→Function,
  *     File→Class→Function, Function→itself)
- * Callers INSIDE the entity's own containment are excluded — an isolated file
- * whose functions only call each other is still dead code.
+ * Calls WITHIN the entity's own containment count as usage — a private helper
+ * called by its siblings is not dead code. This is computed in one CALLS pass
+ * (a single repo-wide set of called function ids), then filtered per entity
+ * with list membership — no per-entity scan, so the query stays fast on real
+ * repositories.
  */
 export const FIND_ORPHANS = `
+MATCH (repo:Repository {id: $repoId})-[:CONTAINS*1..4]->(cf:File)-[:CONTAINS]->(caller:Function)-[:CALLS]->(fn:Function)
+WITH collect(DISTINCT fn.id) AS calledFnIds
 MATCH (repo:Repository {id: $repoId})-[:CONTAINS*1..4]->(n)
 WHERE n:File OR n:Class OR n:Function
-WITH n, labels(n)[0] AS nodeType
+WITH n, labels(n)[0] AS nodeType, calledFnIds
 OPTIONAL MATCH (n)-[:CONTAINS*0..2]->(m:Function)
-WITH n, nodeType, collect(DISTINCT m.id) AS memberIds
-OPTIONAL MATCH (repo:Repository {id: $repoId})-[:CONTAINS*1..4]->(cf:File)-[:CONTAINS]->(caller:Function)-[:CALLS]->(fn:Function)
-WHERE fn.id IN memberIds AND NOT caller.id IN memberIds
-WITH n, nodeType, memberIds, collect(DISTINCT caller.id) AS callerIds
-OPTIONAL MATCH (a)-[r:IMPORTS|EXTENDS]->(n)
-WITH n, nodeType, memberIds, callerIds, collect(DISTINCT a.id) AS directInIds
+WITH n, nodeType, calledFnIds, collect(DISTINCT m.id) AS memberIds
 WITH n, nodeType, memberIds,
-     size(callerIds) + size(directInIds) AS incoming
+     [x IN memberIds WHERE x IN calledFnIds] AS calledMembers
+OPTIONAL MATCH (a)-[r:IMPORTS|EXTENDS]->(n)
+WITH n, nodeType, memberIds, size(calledMembers) AS calledCount,
+     collect(DISTINCT a.id) AS directInIds
+WITH n, nodeType, memberIds, calledCount + size(directInIds) AS incoming
 WHERE incoming = 0
 OPTIONAL MATCH (t:Test)-[:TESTS]->(n)
 OPTIONAL MATCH (t2:Test)-[:TESTS]->(m2:Function)
 WHERE m2.id IN memberIds
-WITH n, nodeType, collect(DISTINCT t.id) AS tIds, collect(DISTINCT t2.id) AS t2Ids
+// memberIds must be carried through — WITH only forwards the listed variables.
+WITH n, nodeType, memberIds, collect(DISTINCT t.id) AS tIds, collect(DISTINCT t2.id) AS t2Ids
 OPTIONAL MATCH (c:Commit)-[:MODIFIES]->(n)
 OPTIONAL MATCH (c2:Commit)-[:MODIFIES]->(m3:Function)
 WHERE m3.id IN memberIds

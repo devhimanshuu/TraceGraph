@@ -1,14 +1,14 @@
 /**
- * EvidenceBuilder (Phase 10 §8, §9, §22).
+ * EvidenceBuilder.
  *
- * Converts the deterministic `ImpactResponse` (Phase 9) into a bounded,
+ * Converts the deterministic `ImpactResponse` into a bounded,
  * compact evidence payload with stable local ids (E1, E2, …) that the LLM can
  * cite and the frontend can render as clickable chips.
  *
  * The payload is deliberately bounded — caps for paths, tests, commits, PRs and
  * issues — so the model gets structured engineering facts, not the whole graph.
  * Long free-text fields are truncated. Nothing here is inferred: every item
- * comes from the Phase 9 analysis result.
+ * comes from the impact analysis result.
  */
 import { Injectable } from '@nestjs/common';
 import type { AiEvidenceItem, ImpactedEntity, ImpactResponse } from '@tracegraph/shared';

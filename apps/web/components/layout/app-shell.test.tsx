@@ -9,6 +9,9 @@ vi.mock('@/lib/services/repository.service', () => ({
     getOverview: vi.fn(),
     getActivity: vi.fn(),
     getComponents: vi.fn(),
+    getFeatured: vi.fn(),
+    getImportedRepositories: vi.fn().mockResolvedValue([]),
+    setActiveRepository: vi.fn(),
   },
 }));
 

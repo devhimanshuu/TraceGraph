@@ -19,7 +19,7 @@ interface PathExplorerProps {
 }
 
 /**
- * "Why is this impacted?" — the explainability panel (Phase 9 §28). The
+ * "Why is this impacted?" — the explainability panel. The
  * explanation is assembled from the graph evidence path returned by the API,
  * never from an LLM. For an indirect entity it shows the full chain
  * (affected → … → root) with the relationship types between hops.

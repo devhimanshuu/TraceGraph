@@ -6,7 +6,7 @@
  * (cycle canonicalization) done here so services stay thin.
  */
 import { Injectable } from '@nestjs/common';
-import type { GraphNodeRef, NodeType, TestCoverage } from '@tracegraph/shared';
+import type { NodeType } from '@tracegraph/shared';
 import { DatabaseService } from '../database/database.service';
 import { asProperties, humanLabel, toNodeRef, toNumber, toTestCoverage } from '../graph/mappers';
 import {
@@ -108,7 +108,7 @@ export class IntelligenceRepository {
       (tx) => tx.run(FIND_FILE_IMPORT_CYCLES, { limit: Math.max(limit, MAX_SMELL_CYCLES * 4) }),
       { name: 'intelligence-import-cycles' },
     );
-    return this.canonicalizeCycles(rows, 'File');
+    return this.canonicalizeCycles(rows);
   }
 
   /** Circular inheritance cycles among classes (canonicalized, capped). */
@@ -117,7 +117,7 @@ export class IntelligenceRepository {
       (tx) => tx.run(FIND_CLASS_EXTENDS_CYCLES, { limit: Math.max(limit, MAX_SMELL_CYCLES * 4) }),
       { name: 'intelligence-extends-cycles' },
     );
-    return this.canonicalizeCycles(rows, 'Class');
+    return this.canonicalizeCycles(rows);
   }
 
   /**
@@ -125,7 +125,7 @@ export class IntelligenceRepository {
    * rotations and twice as mirrored walks, so the canonical signature is the
    * sorted id list. Only SIMPLE cycles (no repeated members) survive.
    */
-  private canonicalizeCycles(rows: CycleRow[], fallbackType: NodeType): CycleFinding[] {
+  private canonicalizeCycles(rows: CycleRow[]): CycleFinding[] {
     const bySignature = new Map<string, CycleFinding>();
     for (const row of rows) {
       const ids = (row.ids ?? []).filter(Boolean);
@@ -238,20 +238,4 @@ export class IntelligenceRepository {
     };
   }
 
-  /** Builds a GraphNodeRef for a node id (used for change-surface resolution). */
-  async findNodeRef(id: string): Promise<GraphNodeRef | null> {
-    const rows = await this.db.executeRead<Array<{ n?: Record<string, unknown>; nodeType?: string }>>(
-      (tx) =>
-        tx.run(
-          `MATCH (n {id: $id}) RETURN properties(n) AS n, labels(n)[0] AS nodeType`,
-          { id },
-        ),
-      { name: 'intelligence-node-ref' },
-    );
-    if (!rows.length) return null;
-    const props = asProperties(rows[0].n);
-    return toNodeRef(String(props.id ?? ''), rows[0].nodeType ?? 'File', humanLabel(props));
-  }
 }
-
-export type { TestCoverage };

@@ -5,7 +5,7 @@ import { DEFAULT_IMPACT_DEPTH, DEFAULT_IMPACT_LIMIT, MAX_IMPACT_DEPTH, MAX_IMPAC
 /**
  * `GET /api/impact/:id?depth=&limit=` — bounded impact analysis.
  * Depth is validated/clamped to 1..MAX_IMPACT_DEPTH so the traversal is
- * never unbounded (Phase 9 §8). The limit caps the number of impacted
+ * never unbounded. The limit caps the number of impacted
  * entities in the response.
  */
 export class ImpactQueryDto {

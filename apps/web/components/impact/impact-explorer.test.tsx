@@ -24,6 +24,19 @@ vi.mock('@/lib/services/ai.service', () => ({
   aiService: { explain: vi.fn() },
 }));
 
+const { mockFeaturedEntities } = vi.hoisted(() => ({
+  mockFeaturedEntities: [
+    { id: 'file:src/workspaces.ts', type: 'File' as const, label: 'workspaces.ts', dependents: 29 },
+    { id: 'fn:src/app/page.tsx:GET', type: 'Function' as const, label: 'GET', dependents: 8 },
+  ],
+}));
+
+vi.mock('@/lib/services/repository.service', () => ({
+  repositoryService: {
+    getFeatured: vi.fn().mockResolvedValue(mockFeaturedEntities),
+  },
+}));
+
 const { mockHistoryService } = vi.hoisted(() => ({
   mockHistoryService: {
     list: vi.fn(),
@@ -180,7 +193,7 @@ describe('ImpactExplorer', () => {
     vi.mocked(aiService.explain).mockResolvedValue(mockExplanation);
   });
 
-  it('shows the welcome screen with featured entities when no node is selected', () => {
+  it('shows the welcome screen with featured entities when no node is selected', async () => {
     mockUseSearchParams.mockReturnValue(new URLSearchParams());
     mockNodeReady();
     render(<ImpactExplorer />);
@@ -188,8 +201,9 @@ describe('ImpactExplorer', () => {
     expect(screen.getByRole('heading', { name: 'Impact Analysis' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Search codebase symbols/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Open Graph Explorer/i })).toBeInTheDocument();
-    expect(screen.getByText('PaymentService')).toBeInTheDocument();
-    expect(screen.getByText('CheckoutService')).toBeInTheDocument();
+    expect(await screen.findByText('workspaces.ts')).toBeInTheDocument();
+    expect(screen.getByText('GET')).toBeInTheDocument();
+    expect(screen.getByText('File · 29 dependents')).toBeInTheDocument();
   });
 
   it('renders "Entity not found" when the node does not exist', () => {

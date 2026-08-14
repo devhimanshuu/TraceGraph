@@ -1,5 +1,5 @@
 /**
- * Record → API DTO mappers (Phase 5 §20).
+ * Record → API DTO mappers.
  *
  * The DatabaseService layer already normalizes driver Records to plain
  * objects; these mappers finish the job: they normalize Neo4j `Integer`

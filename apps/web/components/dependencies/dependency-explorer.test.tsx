@@ -29,6 +29,25 @@ vi.mock('@/lib/services/node.service', () => ({
   },
 }));
 
+vi.mock('@/lib/services/repository.service', () => ({
+  repositoryService: {
+    getFeatured: vi.fn().mockResolvedValue([
+      {
+        id: 'file:src/workspaces.ts',
+        type: 'File',
+        label: 'workspaces.ts',
+        dependents: 29,
+      },
+      {
+        id: 'fn:src/app/page.tsx:GET',
+        type: 'Function',
+        label: 'GET',
+        dependents: 8,
+      },
+    ]),
+  },
+}));
+
 const mockNode: GraphNode = {
   id: 'class:apps/api/services/payment.service.ts:PaymentService',
   type: 'Class',
@@ -85,16 +104,16 @@ describe('DependencyExplorer', () => {
     vi.clearAllMocks();
   });
 
-  it('renders welcome screen with featured components when no node is selected', () => {
+  it('renders welcome screen with featured components when no node is selected', async () => {
     mockUseSearchParams.mockReturnValue(new URLSearchParams());
     render(<DependencyExplorer />);
 
     expect(screen.getByRole('heading', { name: 'Dependency Explorer' })).toBeInTheDocument();
     expect(
-      screen.getByText('Or pick a featured component to inspect'),
+      await screen.findByText('Or pick a featured component to inspect'),
     ).toBeInTheDocument();
-    expect(screen.getByText('PaymentService')).toBeInTheDocument();
-    expect(screen.getByText('CheckoutService')).toBeInTheDocument();
+    expect(await screen.findByText('workspaces.ts')).toBeInTheDocument();
+    expect(screen.getByText('GET')).toBeInTheDocument();
   });
 
   it('renders selected node and its dependencies when node param is present', async () => {

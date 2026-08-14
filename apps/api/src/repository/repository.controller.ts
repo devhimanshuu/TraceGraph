@@ -1,11 +1,18 @@
-import { Controller, Get, Query } from '@nestjs/common';
-import type { RepositoryActivity, RepositoryComponent, RepositoryOverview } from '@tracegraph/shared';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query } from '@nestjs/common';
+import type {
+  ImportedRepository,
+  RepositoryActivity,
+  RepositoryComponent,
+  RepositoryOverview,
+  SetActiveRepositoryResult,
+} from '@tracegraph/shared';
 import { HistoryQueryDto } from '../graph/dto/history-query.dto';
+import { SetActiveRepositoryDto } from './dto/set-active-repository.dto';
 import { RepositoryService } from './repository.service';
 
 /**
  * `GET /api/repository*` — repository overview, statistics, recent activity
- * and core components. All data comes from the Phase 4 seed via GraphRepository.
+ * and core components.
  */
 @Controller('repository')
 export class RepositoryController {
@@ -24,5 +31,24 @@ export class RepositoryController {
   @Get('components')
   getComponents(@Query() query: HistoryQueryDto): Promise<RepositoryComponent[]> {
     return this.repositoryService.getComponents(query.limit ?? 8);
+  }
+
+  @Get('featured')
+  getFeatured(@Query() query: HistoryQueryDto): Promise<RepositoryComponent[]> {
+    return this.repositoryService.getFeatured(query.limit ?? 8);
+  }
+
+  /** All imported repositories — for the repo switcher. */
+  @Get('list')
+  listRepositories(): Promise<ImportedRepository[]> {
+    return this.repositoryService.listRepositories();
+  }
+
+  /** Switches the active repository (affects dashboard, graph root, history). */
+  @Post('active')
+  @HttpCode(HttpStatus.OK)
+  async setActive(@Body() dto: SetActiveRepositoryDto): Promise<SetActiveRepositoryResult> {
+    const active = await this.repositoryService.setActiveRepository(dto.repoId);
+    return { active };
   }
 }

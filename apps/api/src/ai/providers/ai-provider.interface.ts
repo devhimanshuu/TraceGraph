@@ -1,7 +1,7 @@
 /**
- * AiProvider abstraction (Phase 10 §5). The rest of TraceGraph depends on this
+ * AiProvider abstraction. The rest of TraceGraph depends on this
  * interface — never on a specific LLM vendor. One working provider (Groq via
- * the OpenAI-compatible API) is enough for the assessment; swapping vendors
+ * the OpenAI-compatible API) is provided; swapping vendors
  * means implementing this interface, not touching the service layer.
  */
 export interface GenerateExplanationParams {
@@ -12,7 +12,7 @@ export interface GenerateExplanationParams {
 }
 
 export interface AiProviderResult {
-  /** Raw model output (JSON text for this phase). */
+  /** Raw model output (JSON text). */
   content: string;
   /** Provider-reported model id, echoed into the response contract. */
   model: string;

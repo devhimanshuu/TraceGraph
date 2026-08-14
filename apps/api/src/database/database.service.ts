@@ -37,7 +37,7 @@ const CONNECTIVITY_CHECK_QUERY = 'RETURN 1 AS ok';
  * - read/write/transaction execution abstractions for graph repositories
  * - translation of driver errors into the typed `DatabaseError` taxonomy
  *
- * Design notes (Phase 3 §16):
+ * Design notes:
  * - No application retry framework. The driver itself retries retryable
  *   transient failures inside `executeRead`/`executeWrite` with server
  *   coordination (safe — the server marks which failures are retryable), and
@@ -152,7 +152,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Explicit transaction: BEGIN → work → COMMIT, or ROLLBACK on failure.
-   * Intended for the future seed phase, where many related writes must be
+   * Intended for bulk data operations / seeding, where many related writes must be
    * atomic. No driver-managed auto-retry (explicit control is the point).
    */
   executeTransaction<T>(
@@ -288,7 +288,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   private translateDriverError(
     err: unknown,
     operation: string,
-    phase: 'read' | 'write' | 'transaction' | 'query',
+    action: 'read' | 'write' | 'transaction' | 'query',
   ): DatabaseError {
     if (err instanceof DatabaseError) {
       return err;
@@ -307,7 +307,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         });
       }
       // Server-side errors (Neo.ClientError.* / Neo.TransientError.* / Neo.DatabaseError.*)
-      if (phase === 'transaction') {
+      if (action === 'transaction') {
         return new DatabaseTransactionError(`CognoDB transaction "${operation}" failed`, {
           operation,
           cause: err,

@@ -48,7 +48,7 @@ const SCORE_META: Record<
 
 /**
  * The explainable score chip: every point maps to a graph fact the API
- * returned — no hidden math, so the indicator is defensible (Phase 9 §19).
+ * returned — no hidden math, so the indicator is defensible.
  */
 function ImpactScoreCard({ score, reasons }: { score: ImpactScore; reasons: string[] }) {
   const [open, setOpen] = useState(false);
@@ -120,7 +120,7 @@ interface ImpactSummaryProps {
 }
 
 /**
- * Server-computed impact counts (Phase 9 §18) — the frontend never derives
+ * Server-computed impact counts — the frontend never derives
  * these. Clicking a metric filters the results below to that category.
  */
 export function ImpactSummary({ summary, activeTab, onSelect }: ImpactSummaryProps) {
@@ -133,7 +133,7 @@ export function ImpactSummary({ summary, activeTab, onSelect }: ImpactSummaryPro
         </span>
       </div>
 
-      {/* Deterministic, explainable severity indicator (Phase 9 §19) */}
+      {/* Deterministic, explainable severity indicator */}
       <ImpactScoreCard score={summary.score} reasons={summary.scoreReasons} />
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-1">

@@ -1,6 +1,5 @@
 /**
- * GraphService — use-case orchestration for every node-scoped graph read
- * (Phase 5 §2).
+ * GraphService — use-case orchestration for every node-scoped graph read.
  *
  * Owns the business rules the controllers must not contain:
  * - 404 semantics for unknown nodes
@@ -196,7 +195,7 @@ export class GraphService {
     return this.repository.findTests(node, limit);
   }
 
-  // ── Relationship summary (Phase 8) ──────────────────────────────────────────
+  // ── Relationship summary ───────────────────────────────────────────────────
 
   /** One-request category counts for the Dependency Explorer. */
   async getRelationshipSummary(id: string): Promise<RelationshipSummary> {

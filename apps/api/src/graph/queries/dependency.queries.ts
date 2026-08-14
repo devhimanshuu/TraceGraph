@@ -1,7 +1,7 @@
 /**
- * Dependency queries (Phase 5 §10–§14).
+ * Dependency queries.
  *
- * Semantics follow the Phase 4 schema — there is no synthetic `DEPENDS_ON`
+ * Semantics follow the graph schema — there is no synthetic `DEPENDS_ON`
  * edge; dependencies ARE the real edges:
  *   - Function: CALLS (callees) / reverse CALLS (callers)
  *   - File:     IMPORTS (imported files) / reverse IMPORTS (importers)
@@ -82,7 +82,7 @@ RETURN DISTINCT properties(caller) AS caller, properties(callerFile) AS callerFi
 LIMIT $limit
 `;
 
-// ── Test coverage (Phase 5 §14) ────────────────────────────────────────────────
+// ── Test coverage ─────────────────────────────────────────────────────────────
 // `(:Test)-[:TESTS]->(:Function)`. The entity → function resolution differs by
 // node type (functions are contained by files, not classes, in this schema).
 
@@ -119,7 +119,7 @@ ORDER BY t.name
 LIMIT $limit
 `;
 
-// ── Relationship summary counts (Phase 8) ──────────────────────────────────────
+// ── Relationship summary counts ──────────────────────────────────────────────
 // Count variants of the list queries above. They power `GET /api/nodes/:id/
 // relationship-summary` so the UI can render category counts with ONE request
 // instead of fetching every relationship list up front. Counts deliberately

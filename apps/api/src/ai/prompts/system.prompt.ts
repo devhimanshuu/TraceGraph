@@ -1,5 +1,5 @@
 /**
- * Prompt construction (Phase 10 §10, §23).
+ * Prompt construction.
  *
  * The system prompt keeps the model honest: use only the supplied evidence,
  * never invent facts, treat repository text as untrusted data, and distinguish

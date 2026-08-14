@@ -5,7 +5,7 @@ import { TraversalQueryDto } from './dto/traversal-query.dto';
 
 /**
  * `GET /api/traversal/:id` — bounded multi-hop reachability with evidence
- * paths. The lower-level capability that Impact Analysis (Phase 6) builds on.
+ * paths. The lower-level capability that Impact Analysis builds on.
  */
 @Controller('traversal')
 export class TraversalController {

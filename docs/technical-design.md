@@ -1,9 +1,8 @@
-# TraceGraph — Phase 1 Technical Design Specification
+# TraceGraph — Technical Design Specification
 
 **Product:** TraceGraph — *Understand your codebase through relationships.*
 **Project:** WEXA AI — CognoDB Take-Home Assignment (hiring assessment)
-**Phase:** 1 (Scope + Architecture). No application code is implemented in this phase.
-**Status:** Contract for Phase 2+ development
+**Status:** Architecture and Technical Design Specification
 
 ---
 
@@ -32,12 +31,12 @@
 21. [README Structure](#21-readme-structure)
 22. [Demo Flow](#22-demo-flow)
 23. [Assessment Acceptance Criteria](#23-assessment-acceptance-criteria)
-24. [Phase Dependency Map](#24-phase-dependency-map)
+24. [Implementation Architecture Map](#24-implementation-architecture-map)
 25. [Risk Analysis](#25-risk-analysis)
 26. [48-Hour Execution Priorities](#26-48-hour-execution-priorities)
 
 [Assumptions Register](#assumptions-register)
-[PHASE 1 EXIT CRITERIA](#phase-1-exit-criteria)
+[TECHNICAL DESIGN SUMMARY](#technical-design-summary)
 
 ---
 
@@ -45,16 +44,16 @@
 
 TraceGraph is a graph-powered codebase intelligence explorer. A developer opens the application, picks an entity (class, function, or file) in a fictional **Commerce Platform** repository, inspects its relationships, and runs **Analyze Impact** to see every component that could break — directly or indirectly — if that entity changes, along with the exact dependency path, the tests that would fail, and the PRs/issues that touched the same code.
 
-This document is the **complete technical blueprint** for the assessment. It fixes:
+This document is the **complete technical blueprint** for the system. It fixes:
 
 - The exact product scope (P0/P1/P2) and the explicit non-goals of the assessment.
 - A critical review of the proposed graph model, the final schema, and every node/relationship decision.
 - The seed-data design for a realistic fictional repository, including deliberately engineered "interesting" dependency chains for the demo.
 - The full parameterized Cypher query catalog, including the flagship **multi-hop impact traversal** and the query that is **awkward in a relational database**.
 - The Impact Analysis feature specification (the centerpiece of the product and of the demo).
-- The NestJS backend and Next.js frontend architecture, the REST API contract, error strategy, configuration, testing, README, demo script, acceptance criteria, phase map, risks, and a 48-hour execution budget.
+- The NestJS backend and Next.js frontend architecture, the REST API contract, error strategy, configuration, testing, README, demo script, acceptance criteria, architecture map, risks, and a 48-hour execution budget.
 
-**Design posture:** small, polished, graph-native, easy to explain, and finishable in 48 hours. Every major decision below includes a **Decision → Reason** note. Where a fact about CognoDB could not be confirmed from public sources, it is explicitly marked as an **assumption** in the [Assumptions Register](#assumptions-register) and has a Phase 2 verification step.
+**Design posture:** small, polished, graph-native, easy to explain, and finishable in 48 hours. Every major decision below includes a **Decision → Reason** note. Where a fact about CognoDB could not be confirmed from public sources, it is explicitly marked as an **assumption** in the [Assumptions Register](#assumptions-register) and has a verification step.
 
 ### Key decisions at a glance
 
@@ -101,11 +100,11 @@ From the assignment brief, the evaluators are looking for the following, each of
 
 ### 2.2 Scope rule (binding)
 
-This is the **assessment version only**. Explicitly **not** in scope (future portfolio phases, listed for traceability):
+This is the **assessment version only**. Explicitly **not** in scope (future milestones, listed for traceability):
 
 GitHub OAuth · real repository ingestion · cloning pipeline · AST parsing · embeddings/vector DB · RAG · Redis · BullMQ · multi-agent systems · Slack/Jira integrations · GitHub write actions · multi-tenancy · billing · complex auth · autonomous coding agents.
 
-> **Decision → Reason** — A realistic scope boundary is itself part of the evaluation. Building a "production platform" in 48 hours produces a broad, shallow result; the assessment rewards one deep, polished, graph-native vertical slice (impact analysis over a realistic seed). The architecture (§7) leaves clean seams for future phases without implementing them.
+> **Decision → Reason** — A realistic scope boundary is itself part of the evaluation. Building a "production platform" in 48 hours produces a broad, shallow result; the assessment rewards one deep, polished, graph-native vertical slice (impact analysis over a realistic seed). The architecture (§7) leaves clean seams for future extensions without implementing them.
 
 ### 2.3 Why a graph database? (canonical answer, reused in README and demo)
 
@@ -586,7 +585,7 @@ erDiagram
 | IDs | Stable, human-readable, namespaced: `<label>:<unique>` | `class:PaymentService`, `file:src/payments/payment.service.ts`, `function:PaymentService.charge`, `test:PaymentServiceTest.charge_returns_intent`, `commit:a1b2c3`, `pr:42`, `issue:12`, `developer:alice` |
 | Timestamps | ISO-8601 UTC strings | `2026-06-14T09:30:00Z` |
 | Names | Human-readable display names | `PaymentService`, `charge()` |
-| Constraint | Unique `id` per node (if CognoDB supports it) | Verify in Phase 2 (see Assumptions) |
+| Constraint | Unique `id` per node (if CognoDB supports it) | Verify against CognoDB (see Assumptions) |
 
 > **Decision → Reason** — Stable, namespaced, human-readable IDs make the seed script idempotent (MERGE on `id`), make deep links beautiful (`/explorer?node=class:PaymentService`), and make every query readable in logs. Random UUIDs were rejected: they add zero value here and destroy debuggability.
 
@@ -702,7 +701,7 @@ StripeWebhookController.handleStripeEvent()        (the webhook entry point)
 - **Idempotent:** every node/edge uses `MERGE` on the stable `id` (+ `MERGE ... ON CREATE SET` / `ON MATCH SET` for properties) → running twice yields identical state.
 - **Deterministic:** fixed fixture data, fixed timestamps. No randomness. Identical screenshots across runs.
 - **Transactional-ish:** wrapped in a single session; on failure, clear error message and nonzero exit.
-- **Verification pass:** after seeding, the script runs a few count assertions (e.g., `PaymentService` impact at depth 3 returns expected HIGH/MEDIUM/LOW counts) and prints a summary table — this doubles as the Phase 4 smoke test.
+- **Verification pass:** after seeding, the script runs a few count assertions (e.g., `PaymentService` impact at depth 3 returns expected HIGH/MEDIUM/LOW counts) and prints a summary table — this doubles as the database smoke test.
 - **Optional `--reset`:** `MATCH (n) DETACH DELETE n` before seeding (guarded, explicit flag only).
 
 ---
@@ -712,10 +711,10 @@ StripeWebhookController.handleStripeEvent()        (the webhook entry point)
 **Binding rules**
 1. Every query is **parameterized** — values always via `$param`.
 2. Labels, relationship types, and **variable-length hop bounds cannot be parameterized** in openCypher. Hop counts are therefore validated server-side against a whitelist (`1..5`) and interpolated as literal integers. This is the one sanctioned exception; it is implemented in the repository layer only.
-3. Queries target **openCypher-safe constructs** — no `CALL {}` subqueries, no `EXISTS{}`/`COUNT{}` subqueries (Neo4j-specific). Where aggregation needs multiple patterns, use `OPTIONAL MATCH` + `count(DISTINCT …)` or compose queries in the service. Verify remaining dialect gaps in Phase 2 (Assumptions A5/A6).
-4. Draft Cypher below is **reference design**, not final application code. It is intentionally close to runnable so Phase 2/5 has a starting point; final tuning happens against CognoDB.
+3. Queries target **openCypher-safe constructs** — no `CALL {}` subqueries, no `EXISTS{}`/`COUNT{}` subqueries (Neo4j-specific). Where aggregation needs multiple patterns, use `OPTIONAL MATCH` + `count(DISTINCT …)` or compose queries in the service. Verify remaining dialect gaps during integration (Assumptions A5/A6).
+4. Draft Cypher below is **reference design**, not final application code. It is intentionally close to runnable so implementation has a starting point; final tuning happens against CognoDB.
 
-> **Decision → Reason** — Writing reference Cypher in the spec converts Phase 5 from "design queries" to "verify and wire queries," which is the fastest safe path inside 48 hours. The "reference, not final" label preserves the architect's obligation to validate against the real engine.
+> **Decision → Reason** — Writing reference Cypher in the spec accelerates implementation from "design queries" to "verify and wire queries," which is the fastest safe path inside 48 hours. The "reference, not final" label preserves the architect's obligation to validate against the real engine.
 
 ### Q1 `getRepositoryOverview` — repository stats
 - **Purpose:** dashboard numbers (Journey A).
@@ -932,7 +931,7 @@ RETURN test {.id, .name, .testType, .status},
        targetFn.id IN srcFns AS direct
 ```
 
-> **Dialect note:** the `EXISTS { … WHERE … }` subquery form is Neo4j-specific. Phase 2 must verify the CognoDB-equivalent (e.g., `EXISTS((targetFn)-[:CALLS*1..3]->(:Function))` restricted via a second MATCH, or composing with the Q12 result set in the service). This is a documented verification item, not a blocker — the service can join Q12's affected functions with Q8's tests in-memory as a fallback.
+> **Dialect note:** the `EXISTS { … WHERE … }` subquery form is Neo4j-specific. Integration must verify the CognoDB-equivalent (e.g., `EXISTS((targetFn)-[:CALLS*1..3]->(:Function))` restricted via a second MATCH, or composing with the Q12 result set in the service). This is a documented verification item, not a blocker — the service can join Q12's affected functions with Q8's tests in-memory as a fallback.
 
 ### Q14 `getImpactHistory` — PRs/issues touching affected files
 - **Purpose:** "related changes" section of impact.
@@ -1227,7 +1226,7 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:3001/api
 
 - Graph canvas interactions (pan/zoom/expand/collapse/hover paths) — visual QA checklist.
 - Responsive layouts and the empty/error visual states — eyeballed + screenshotted.
-- Demo recording and screenshot capture (Phase 12).
+- Demo recording and screenshot capture.
 - CognoDB Cloud provisioning and the hosted deployment itself.
 
 > **Decision → Reason** — Integration tests against the real seeded database are the highest-value tests here because all real logic is Cypher; mocking the driver would test nothing. Unit-testing everything else is explicitly out of scope for 48 hours.
@@ -1319,8 +1318,8 @@ Every item is objective — **done** means verifiable by the stated check.
 - [ ] Seed script idempotency verified (run twice, identical counts).
 
 ### Documentation
-- [ ] README complete with all 18 sections, mermaid data-model diagram, main queries, setup, screenshots.
-- [ ] This Phase 1 spec exists in-repo and is linked from the README.
+- [ ] README complete with all sections, mermaid data-model diagram, main queries, setup, screenshots.
+- [ ] This technical design spec exists in-repo and is linked from the README.
 
 ### Deployment
 - [ ] Web and API hosted; `GET /api/health` reachable from the hosted web origin.
@@ -1333,47 +1332,36 @@ Every item is objective — **done** means verifiable by the stated check.
 
 ---
 
-## 24. Phase Dependency Map
+## 24. Implementation Architecture Map
 
 ```text
-Phase 1  Scope + Architecture (this doc)          [done — ~4h]
+Scope + Architecture (this specification)
    ↓
-Phase 2  Foundation (monorepo, workspaces,     [~4h]
-         Next + Nest scaffolds, Tailwind/shadcn,
-         TanStack Query, lint/format, CI-lite)
+Foundation (monorepo, workspaces, Next + Nest scaffolds,
+Tailwind/shadcn, TanStack Query, lint/format)
    ↓
-Phase 3  CognoDB (provision, driver wrapper,   [~3h]
-         DatabaseService, health, config, Joi)
+CognoDB Layer (driver wrapper, DatabaseService, health, config, Joi)
    ↓
-Phase 4  Graph + Seed (schema, deterministic   [~6h]
-         seed script, idempotency check, smoke)
+Graph & Ingestion (schema, import pipeline, constraints, idempotency)
    ↓
-Phase 5  Queries + Backend (catalog wiring,    [~6h]
-         DTOs, filters, e2e tests)
+Queries + Backend (catalog wiring, DTOs, filters, e2e tests)
    ↓
-Phase 6  Dashboard (stats, recent changes,     [~3h]
-         states)
+Dashboard (stats, recent changes, states)
    ↓
-Phase 7  Graph Explorer (React Flow canvas,    [~6h]
-         nodes/edges, select, expand, panels)
+Graph Explorer (React Flow canvas, nodes/edges, select, expand, panels)
    ↓
-Phase 8  Dependency Explorer (tabs: deps/      [~3h]
-         dependents/callers/tests/history)
+Dependency Explorer (tabs: deps/dependents/callers/tests/history)
    ↓
-Phase 9  Impact Analysis (traversal, grouping, [~5h]
-         paths, visualization, legend)
+Impact Analysis Engine (traversal, grouping, paths, visualization, legend)
    ↓
-Phase 10 Optional AI explanation (P1 gate)     [~3h]
+AI Explanation & Intelligence (findings, architectural smells, summaries)
    ↓
-Phase 11 Hardening (error states, degraded     [~3h]
-         mode, a11y, responsiveness)
+Hardening (error states, degraded mode, a11y, responsiveness)
    ↓
-Phase 12 Polish + Deployment + Submission      [~5h]
-         (README, screenshots, recording,
-         hosted demo)
+Polish & Deployment (README, documentation, screenshots, recording, hosting)
 ```
 
-**Dependencies:** 2→3→4→5 are strictly sequential (DB before queries, queries before API). 6, 7, 8, 9 are sequential in the codebase but each ends in a demo-able increment; 10 gates on 9; 11 and 12 are final hardening. Estimated total: ~48h including buffer.
+**Architecture Flow:** Database services and configuration form the core foundation; query modules and domain repositories power the REST API; domain explorers, graph canvas, and impact analysis assemble the frontend interface.
 
 ---
 
@@ -1381,16 +1369,16 @@ Phase 12 Polish + Deployment + Submission      [~5h]
 
 | # | Risk | L | I | Mitigation |
 |---|---|---|---|---|
-| R1 | openCypher dialect gaps in CognoDB (subqueries, path functions, constraint syntax) | M | H | Queries drafted openCypher-safe (§13); Q13 has an in-memory fallback; **Phase 2/3 spike** validates dialect before Phase 4/5 — earliest possible |
-| R2 | Neo4j JS driver version incompatibility with CognoDB's Bolt implementation | M | H | Phase 3 connectivity spike on day 1; pin driver version after verification; fall back to documented `bolt://` semantics |
-| R3 | CognoDB free-tier limits (dataset size, request rate) | L | M | Seed capped at ~150 nodes / ~280 edges; impact depth capped at 5; LIMIT guards on Q12 |
-| R4 | React Flow v12 API unfamiliarity burns time | M | M | Phase 7 is isolated; custom node is minimal; `toReactFlow` keeps layout logic pure/testable |
+| R1 | openCypher dialect gaps in CognoDB (subqueries, path functions, constraint syntax) | M | H | Queries drafted openCypher-safe (§13); Q13 has an in-memory fallback; early spike validates dialect before queries are finalized |
+| R2 | Neo4j JS driver version incompatibility with CognoDB's Bolt implementation | M | H | Connectivity spike on day 1; pin driver version after verification; fall back to documented `bolt://` semantics |
+| R3 | CognoDB free-tier limits (dataset size, request rate) | L | M | Dataset bounded; impact depth capped at 5; LIMIT guards on Q12 |
+| R4 | React Flow v12 API unfamiliarity | M | M | Explorer module is isolated; custom node is minimal; `toReactFlow` keeps layout logic pure/testable |
 | R5 | Next.js SSR/build accidentally hitting the backend | M | M | Client-side data fetching only; no server components call the API; `NEXT_PUBLIC_*` only |
-| R6 | Time overrun on polish (canvas, states) | M | M | P1 gate (Phase 10) is droppable; §6 cuttable table; two-day plan with hourly budget (§26) |
-| R7 | Seed realism drift (looks fake, undercuts demo) | L | M | Hand-authored fixtures with a consistent commit/PR/issue narrative; demo rehearsed against real data |
-| R8 | CORS/production deployment friction late | M | M | CORS from env; deploy web+api in Phase 12 with a half-day buffer; health endpoint as the canary |
-| R9 | Screenshot/recording tooling issues | L | L | Capture screenshots throughout Phases 6–9 (not at the end); recording in Phase 12 with buffer |
-| R10 | Scope creep (OAuth, AI, ingestion) | M | H | §2.2 scope rule is binding; P2 items explicitly refused in PR reviews and README "future work" |
+| R6 | Time overrun on polish (canvas, states) | M | M | Strict MVP gating; §6 cuttable table; two-day plan with hourly budget (§26) |
+| R7 | Data realism drift (looks fake, undercuts demo) | L | M | Hand-authored fixtures with a consistent commit/PR/issue narrative; demo rehearsed against real data |
+| R8 | CORS/production deployment friction late | M | M | CORS from env; deploy web+api with a buffer; health endpoint as the canary |
+| R9 | Screenshot/recording tooling issues | L | L | Capture screenshots incrementally (not at the end); recording buffer |
+| R10 | Scope creep (OAuth, AI, ingestion) | M | H | §2.2 scope rule is binding; P2 items explicitly deferred |
 
 ---
 
@@ -1400,52 +1388,50 @@ Phase 12 Polish + Deployment + Submission      [~5h]
 
 | Window | Work | Gate |
 |---|---|---|
-| H0–6 | Phase 2 foundation + **Phase 3 spike: driver ↔ CognoDB verified, dialect probe query runs** | `RETURN 1` over Bolt + sample variable-length query |
-| H6–12 | Phase 4 seed (schema + deterministic script) — validate Q12's core traversal by hand | Seed idempotent; PaymentService 3-hop result correct |
-| H12–18 | Phase 5 backend (all queries, DTOs, filters, e2e) | e2e green incl. 400/404/503 |
-| H18–24 | Phase 6 dashboard + Phase 7 graph explorer (first canvas) | Dashboard live; canvas renders + select works |
-| H24–33 | Finish Phase 7 (expand/panels) + Phase 8 dependency explorer | All 5 tabs functional |
-| H33–40 | Phase 9 impact analysis + visualization | Full impact flow demo-able |
-| H40–43 | Phase 10 **only if** P0 stable (AI explanation) — otherwise skip | — |
-| H43–46 | Phase 11 hardening (states, degraded mode, a11y) | Error/empty/loading QA checklist |
-| H46–52 | Phase 12 README, screenshots, recording, deploy | All §23 checkboxes done |
-| H52–55 | Buffer / fix-ups / re-record | — |
+| H0–6 | Core foundation + **Driver ↔ CognoDB verified, dialect probe query runs** | `RETURN 1` over Bolt + sample variable-length query |
+| H6–12 | Graph schema + data script — validate Q12's core traversal by hand | Schema idempotent; PaymentService 3-hop result correct |
+| H12–18 | Backend API (all queries, DTOs, filters, e2e) | e2e green incl. 400/404/503 |
+| H18–24 | Dashboard + Graph explorer (first canvas) | Dashboard live; canvas renders + select works |
+| H24–33 | Finish Graph Explorer (expand/panels) + Dependency explorer | All 5 tabs functional |
+| H33–40 | Impact analysis + visualization | Full impact flow demo-able |
+| H40–43 | AI explanation (if P0 stable) | Verified summary responses |
+| H43–46 | Hardening (states, degraded mode, a11y) | Error/empty/loading QA checklist |
+| H46–52 | README, screenshots, recording, deploy | All §23 checkboxes done |
+| H52–55 | Buffer / fix-ups / verification | — |
 
-> **Decision → Reason** — The critical-path unknown (CognoDB + dialect) is attacked in the first 6 hours so any fallback (e.g., adjusting query shape or driver version) lands early, not at hour 40. Every phase after Phase 3 produces something demo-able, so a schedule slip degrades gracefully.
+> **Decision → Reason** — The critical-path unknown (CognoDB + dialect) is attacked in the first 6 hours so any fallback (e.g., adjusting query shape or driver version) lands early, not at hour 40. Every module produces something demo-able, so schedule slips degrade gracefully.
 
 ---
 
 ## Assumptions Register
 
-Explicitly **assumptions** (to verify in Phase 2/3), not requirements:
+Explicitly **assumptions** (to verify during integration), not requirements:
 
 | # | Assumption | Verification step |
 |---|---|---|
-| A1 | CognoDB exposes a Bolt endpoint reachable via the official `neo4j-driver` JS package with URI scheme `bolt://` | Phase 3 connectivity spike |
-| A2 | CognoDB free tier comfortably holds ~150 nodes / ~280 edges with acceptable query latency | Phase 3/4 benchmark |
-| A3 | CognoDB supports unique constraints / `MERGE` semantics as in openCypher | Phase 4; if unsupported, seed stays idempotent via MERGE on `id` property alone (already the design) |
-| A4 | Variable-length path matching (`*1..3`), `collect(DISTINCT …)`, and `startNode()/endNode()` are supported | Phase 3 dialect probe; fallbacks documented for Q13 |
-| A5 | No `CALL {}` subqueries or `EXISTS{}`/`COUNT{}` subqueries (openCypher-safe assumption) | Phase 3 probe; service-level composition is the fallback |
-| A6 | Node/rel identity, labels, and properties behave per Neo4j 5.x semantics | Phase 3 probe |
-| A7 | Hosting: web on Vercel, API on Render/Fly.io, CognoDB Cloud — any equivalent combo acceptable | Phase 12 |
-| A8 | Next.js 15.x stable, Tailwind v4, React Flow `@xyflow/react` v12, TanStack Query v5, NestJS 10/11 | Phase 2 scaffold |
-| A9 | A single default database / no multi-database routing needed | Phase 3 probe (`COGNODB_DATABASE` optional var) |
-| A10 | Dark theme is an acceptable (preferred) aesthetic for the demo | — (cosmetic) |
+| A1 | CognoDB exposes a Bolt endpoint reachable via the official `neo4j-driver` JS package with URI scheme `bolt://` | Driver connectivity spike |
+| A2 | CognoDB free tier comfortably holds ~150 nodes / ~280 edges with acceptable query latency | Benchmark probe |
+| A3 | CognoDB supports unique constraints / `MERGE` semantics as in openCypher | Idempotent constraint and MERGE tests |
+| A4 | Variable-length path matching (`*1..3`), `collect(DISTINCT …)`, and `startNode()/endNode()` are supported | Dialect probe; fallbacks documented for Q13 |
+| A5 | No `CALL {}` subqueries or `EXISTS{}`/`COUNT{}` subqueries (openCypher-safe assumption) | Dialect probe; service-level composition is the fallback |
+| A6 | Node/rel identity, labels, and properties behave per Neo4j 5.x semantics | Query probe |
+| A7 | Hosting: web on Vercel, API on Render/Fly.io, CognoDB Cloud — any equivalent combo acceptable | Deployment smoke test |
+| A8 | Next.js 15.x stable, Tailwind v4, React Flow `@xyflow/react` v12, TanStack Query v5, NestJS 10/11 | Monorepo scaffold |
+| A9 | A single default database / no multi-database routing needed | Database probe (`COGNODB_DATABASE` optional var) |
+| A10 | Dark theme is an acceptable (preferred) aesthetic for the demo | Cosmetic evaluation |
 
 ---
 
-## PHASE 1 EXIT CRITERIA
+## TECHNICAL DESIGN SUMMARY
 
-A developer beginning Phase 2 must be able to proceed **without major architectural clarification**. Concretely, this document fixes:
+This document establishes the architecture contract for the TraceGraph application:
 
 1. **Product scope** — the exact P0/P1/P2 boundary and the binding non-goals (§2.2, §6).
 2. **Data model** — final labels, relationship types, directions, properties, naming conventions, and the redundant relationships to avoid (§10, §11).
-3. **Seed contract** — domain, node/edge inventory, dependency chains, demo scenarios, and the deterministic script contract (§12).
+3. **Seed & Ingestion contract** — domain, node/edge inventory, dependency chains, demo scenarios, and the deterministic script contract (§12).
 4. **Query contract** — 14 parameterized queries with inputs, shapes, hop counts, and reference Cypher; the two explicit showcase queries identified (§13).
 5. **Feature contract** — Impact Analysis is fully specified: inputs, traversal, depth, grouping, ranking, tests/history inclusion, display, and explanation format (§14).
 6. **API contract** — 14 routes with params, shapes, and error cases (§15).
 7. **Architecture contract** — module boundaries, responsibility rules (no Cypher outside repositories), request flow, error taxonomy, config schema (§7–§9, §18, §19).
 8. **UX contract** — pages, components, state ownership, graph behaviors, loading/empty/error patterns (§16, §17).
-9. **Execution contract** — testing scope, README outline, demo script, acceptance checklist, phase map, risk register, and the 48-hour budget (§20–§26).
-
-**Phase 2 begins by scaffolding the monorepo (Phase 2) and running the CognoDB connectivity/dialect spike (Phase 3) — with this document as the contract, no other decisions are blocking.**
+9. **Execution contract** — testing scope, README outline, demo script, acceptance checklist, architecture map, risk register, and the 48-hour budget (§20–§26).

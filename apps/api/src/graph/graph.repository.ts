@@ -1,6 +1,5 @@
 /**
- * GraphRepository — the ONLY place in the API that executes application
- * Cypher (Phase 5 §2, §26).
+ * GraphRepository — executes application Cypher.
  *
  * Responsibilities:
  * - execute catalogued queries against DatabaseService (parameterized only)
@@ -83,11 +82,16 @@ import {
 } from './queries/history.queries';
 import {
   COUNT_TRACEGRAPH_RELATIONSHIPS,
+  FIND_ALL_REPOSITORIES,
   FIND_DEFAULT_REPOSITORY,
+  MARK_REPOSITORY_ACTIVE,
   SEARCH_NODES,
+  SET_ACTIVE_REPOSITORY,
   countNodesByLabel,
 } from './queries/graph.queries';
 import {
+  FIND_FEATURED_CODE_ENTITIES,
+  FIND_FEATURED_FILES,
   FIND_REPOSITORY_ACTIVITY_COMMITS,
   FIND_REPOSITORY_ACTIVITY_ISSUES,
   FIND_REPOSITORY_ACTIVITY_PULL_REQUESTS,
@@ -257,7 +261,7 @@ export class GraphRepository {
     return rows.map(toTestCoverage);
   }
 
-  // ── Relationship summary (Phase 8) ──────────────────────────────────────────
+  // ── Relationship summary ───────────────────────────────────────────────────
 
   /**
    * One-request counts for every Dependency Explorer category. Runs the COUNT
@@ -549,6 +553,31 @@ export class GraphRepository {
     return rows.length ? toGraphNode(rows[0]) : null;
   }
 
+  /** All repositories in the graph, oldest first — for the repo switcher. */
+  async findAllRepositories(): Promise<GraphNode[]> {
+    const rows = await this.db.executeRead<NodeRow[]>(
+      (tx) => tx.run<NodeRow>(FIND_ALL_REPOSITORIES),
+      { name: 'find-all-repositories' },
+    );
+    return rows.map(toGraphNode);
+  }
+
+  /** Marks one repository active, every other one inactive (single write). */
+  async setActiveRepository(repoId: string): Promise<void> {
+    await this.db.executeWrite(
+      (tx) => tx.run(SET_ACTIVE_REPOSITORY, { repoId }),
+      { name: 'set-active-repository' },
+    );
+  }
+
+  /** Marks the given repository active after an import. */
+  async markRepositoryActive(repoId: string): Promise<void> {
+    await this.db.executeWrite(
+      (tx) => tx.run(MARK_REPOSITORY_ACTIVE, { repoId }),
+      { name: 'mark-repository-active' },
+    );
+  }
+
   /** Counts per TraceGraph label (10 lightweight queries, run in parallel). */
   async countNodesByLabel(): Promise<Record<string, number>> {
     const entries = await Promise.all(
@@ -583,7 +612,7 @@ export class GraphRepository {
       .map((n) => ({ id: n.id, type: n.type, label: n.label }));
   }
 
-  // ── Repository-level intelligence (Phase 6) ─────────────────────────────────
+  // ── Repository-level intelligence ───────────────────────────────────────────
 
   /** Recent commits / PRs / issues across the whole repository (3 parallel reads). */
   async findRepositoryActivity(repoId: string, limit: number): Promise<RepositoryActivity> {
@@ -625,6 +654,47 @@ export class GraphRepository {
         dependents: toNumber(row.dependents),
       };
     });
+  }
+
+  /**
+   * Featured quick-pick entities: the most-connected files + classes/functions
+   * in the repository, ranked by distinct inbound dependents. Two bounded
+   * queries (files by IMPORTS, code entities by CALLS/EXTENDS), merged and
+   * sorted so the explorers can offer real, working pick cards.
+   */
+  async findFeaturedEntities(repoId: string, limit: number): Promise<RepositoryComponent[]> {
+    const half = Math.ceil(limit / 2);
+    const [fileRows, codeRows] = await Promise.all([
+      this.db.executeRead<
+        Array<{ n?: Record<string, unknown>; nodeType?: string; dependents?: unknown }>
+      >((tx) => tx.run(FIND_FEATURED_FILES, { id: repoId, limit: half }), {
+        name: 'featured-files',
+      }),
+      this.db.executeRead<
+        Array<{ n?: Record<string, unknown>; nodeType?: string; dependents?: unknown }>
+      >((tx) => tx.run(FIND_FEATURED_CODE_ENTITIES, { id: repoId, limit: half }), {
+        name: 'featured-code-entities',
+      }),
+    ]);
+
+    const toComponent = (row: {
+      n?: Record<string, unknown>;
+      nodeType?: string;
+      dependents?: unknown;
+    }): RepositoryComponent => {
+      const props = asProperties(row.n);
+      return {
+        id: String(props.id ?? ''),
+        type: (row.nodeType ?? 'File') as NodeType,
+        label: humanLabel(props),
+        dependents: toNumber(row.dependents),
+      };
+    };
+
+    const merged = [...fileRows.map(toComponent), ...codeRows.map(toComponent)];
+    // Keep the most-connected entities first, stable for equal degrees.
+    merged.sort((a, b) => b.dependents - a.dependents || a.label.localeCompare(b.label));
+    return merged.slice(0, limit);
   }
 }
 

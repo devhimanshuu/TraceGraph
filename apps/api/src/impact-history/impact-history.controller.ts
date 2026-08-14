@@ -6,7 +6,7 @@ import { ImpactHistoryQueryDto } from './dto/impact-history-query.dto';
 import { RecordImpactSnapshotDto } from './dto/record-impact-snapshot.dto';
 
 /**
- * `/api/impact-history` — the CognoDB-backed analysis ledger (Phase 10).
+ * `/api/impact-history` — the CognoDB-backed analysis ledger.
  * Auth-gated like every other route (global GitHub session guard). Thin controller:
  * repo resolution, dedup, and retention live in ImpactHistoryService.
  */

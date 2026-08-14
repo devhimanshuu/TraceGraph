@@ -179,7 +179,7 @@ function ImpactGraphInner({ response, selectedPathId, onSelectPath }: ImpactGrap
 
     // Full-chain selection: when an entity is selected, every node and edge on
     // its evidence chain (affected → … → root) is emphasized, not just the
-    // anchor entity (Phase 10 §15).
+    // anchor entity.
     const pathNodes = selectedPathNodeIds(response, selectedPathId);
     const pathEdges = selectedPathEdgeKeys(response, selectedPathId);
 

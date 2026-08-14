@@ -208,7 +208,7 @@ export function ImpactReportDocument({
 
       {/* ── AI Engineering Explanation — grounded in the deterministic analysis.
           Deliberately unnumbered: the narrative is an AI reading of the graph
-          facts above, not another deterministic section (Phase 10 §28). */}
+          facts above, not another deterministic section. */}
       <section className="flex flex-col gap-3" data-testid="report-ai-section">
         <div className="flex flex-wrap items-center gap-2">
           <span className="flex size-6 items-center justify-center rounded-md bg-gradient-to-br from-sky-500 to-indigo-600 text-white">

@@ -1,5 +1,5 @@
 /**
- * ExplanationValidator (Phase 10 §24, §25).
+ * ExplanationValidator.
  *
  * The LLM response is untrusted input. Before it can be returned to the client
  * it must satisfy the schema (required fields, lengths, array caps, confidence

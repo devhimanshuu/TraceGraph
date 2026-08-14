@@ -1,12 +1,17 @@
 'use client';
 
 import { Menu } from '@base-ui/react/menu';
-import { ChevronDown, LogOut } from 'lucide-react';
+import { ChevronUp, LogOut } from 'lucide-react';
 import { useGitHubSession } from '@/hooks/use-github-session';
 
 /**
- * Replaces Clerk's `UserButton`: GitHub avatar + handle with a small menu
- * carrying the verified identity and sign-out. Signed-out renders nothing.
+ * Sidebar account control: a full-width row with the avatar, name and handle,
+ * plus a chevron. Clicking it opens a small menu carrying the verified identity
+ * and sign-out.
+ *
+ * The popup opens `side="top"` on purpose: the trigger lives at the bottom edge
+ * of the sidebar (and the mobile drawer), so opening downward would push the
+ * menu off-screen. Opening upward is always fully visible.
  */
 export function GitHubUserMenu() {
   const { user, signOut } = useGitHubSession();
@@ -24,7 +29,7 @@ export function GitHubUserMenu() {
           <button
             type="button"
             aria-label="Account menu"
-            className="flex items-center gap-1.5 rounded-full p-0.5 outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex w-full items-center gap-2.5 rounded-lg p-1.5 text-left outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
           >
             <span className="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 text-xs font-semibold text-white ring-1 ring-white/20">
               {user.avatarUrl ? (
@@ -35,12 +40,23 @@ export function GitHubUserMenu() {
                 initial
               )}
             </span>
-            <ChevronDown aria-hidden className="hidden size-3.5 text-muted-foreground sm:block" />
+            <span className="flex min-w-0 flex-1 flex-col leading-tight">
+              <span className="truncate text-sm font-medium text-foreground">
+                {user.name || user.login}
+              </span>
+              <span className="truncate font-mono text-[11px] text-muted-foreground">
+                @{user.login}
+              </span>
+            </span>
+            <ChevronUp
+              aria-hidden
+              className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-200 [.group:has([aria-expanded=true])_&]:rotate-180"
+            />
           </button>
         }
       />
       <Menu.Portal>
-        <Menu.Positioner side="bottom" align="end" sideOffset={8}>
+        <Menu.Positioner side="top" align="end" sideOffset={8}>
           <Menu.Popup className="z-50 min-w-52 rounded-lg border border-border/70 bg-popover p-1.5 shadow-xl outline-none">
             <div className="border-b border-border/60 px-3 py-2">
               <p className="truncate text-sm font-semibold leading-tight">

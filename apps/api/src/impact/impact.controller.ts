@@ -4,9 +4,9 @@ import { ImpactService } from './impact.service';
 import { ImpactQueryDto } from './dto/impact-query.dto';
 
 /**
- * `GET /api/impact/:id?depth=&limit=` — the flagship "Analyze Impact" endpoint
- * (Phase 9 §9, §38). Thin controller: everything (root resolution, traversal,
- * classification, tests/history context, summary) lives in ImpactService.
+ * `GET /api/impact/:id?depth=&limit=` — the flagship "Analyze Impact" endpoint.
+ * Thin controller: everything (root resolution, traversal, classification,
+ * tests/history context, summary) lives in ImpactService.
  */
 @Controller('impact')
 export class ImpactController {

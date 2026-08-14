@@ -1,6 +1,6 @@
 # TraceGraph Graph Query Strategy
 
-This document explains the Phase 5 query catalog: where the Cypher lives, the
+This document explains the graph query catalog: where the Cypher lives, the
 three canonical queries, and why at least one of them is naturally a graph
 query and awkward in a relational schema.
 
@@ -60,7 +60,7 @@ LIMIT 250
 ```
 
 Exposed as `GET /api/traversal/:id?depth=2&types=CALLS,IMPORTS`. The response
-keeps **evidence paths**, not just a reachable set: the impact-analysis phase
+keeps **evidence paths**, not just a reachable set: impact analysis
 can explain *why* `CheckoutService` is affected by a `PaymentService` change —
 because `processCheckout -[:CALLS]-> processPayment`.
 

@@ -1,6 +1,6 @@
 /**
  * ImpactHistoryRepository — persists impact analysis snapshots as
- * `ImpactSnapshot` nodes tied to the repository via `BELONGS_TO` (Phase 10).
+ * `ImpactSnapshot` nodes tied to the repository via `BELONGS_TO`.
  *
  * The repository knows nothing about HTTP, sessions, or dedup policy — it
  * executes the parameterized Cypher and maps records to the shared DTO. All

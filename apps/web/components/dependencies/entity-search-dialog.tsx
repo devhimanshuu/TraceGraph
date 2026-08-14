@@ -6,56 +6,12 @@ import { Dialog } from '@base-ui/react/dialog';
 import { Loader2, Search, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSearch } from '@/hooks/use-search';
+import { useFeaturedEntities } from '@/hooks/use-featured-entities';
 import {
   getNodeTypeColor,
   NodeTypeBadge,
   NodeTypeIcon,
 } from '@/components/dependencies/relationship-badge';
-
-const FEATURED_ENTITIES = [
-  {
-    id: 'class:apps/api/services/payment.service.ts:PaymentService',
-    label: 'PaymentService',
-    type: 'Class',
-    description: 'Payment orchestration & Stripe integration',
-  },
-  {
-    id: 'class:apps/api/services/checkout.service.ts:CheckoutService',
-    label: 'CheckoutService',
-    type: 'Class',
-    description: 'Checkout workflow & validation',
-  },
-  {
-    id: 'class:apps/api/services/order.service.ts:OrderService',
-    label: 'OrderService',
-    type: 'Class',
-    description: 'Order lifecycle & persistence',
-  },
-  {
-    id: 'fn:apps/api/services/payment.service.ts:processPayment',
-    label: 'processPayment',
-    type: 'Function',
-    description: 'PaymentService.processPayment() method',
-  },
-  {
-    id: 'class:packages/database/database.service.ts:DatabaseService',
-    label: 'DatabaseService',
-    type: 'Class',
-    description: 'CognoDB / database queries',
-  },
-  {
-    id: 'class:lib/stripe.client.ts:StripeClient',
-    label: 'StripeClient',
-    type: 'Class',
-    description: 'Stripe payment gateway client',
-  },
-  {
-    id: 'file:apps/api/services/payment.service.ts',
-    label: 'payment.service.ts',
-    type: 'File',
-    description: 'Payment service source file',
-  },
-] as const;
 
 export function EntitySearchDialog({
   open,
@@ -70,6 +26,12 @@ export function EntitySearchDialog({
   const router = useRouter();
   const [query, setQuery] = useState('');
   const { results, loading } = useSearch(query);
+  const {
+    entities: featured,
+    loading: featuredLoading,
+    error: featuredError,
+    refresh: refreshFeatured,
+  } = useFeaturedEntities(6);
 
   const handleSelect = (id: string) => {
     onOpenChange(false);
@@ -145,34 +107,60 @@ export function EntitySearchDialog({
                 </div>
               ) : null
             ) : (
-              <div className="flex flex-col gap-1">
-                <div className="flex items-center gap-1.5 px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+              <div className="flex flex-col gap-3 px-0.5 py-1">
+                <div className="flex items-center gap-1.5 px-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
                   <Sparkles className="size-3 text-primary" />
                   <span>Featured Codebase Entities</span>
                 </div>
-                {FEATURED_ENTITIES.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => handleSelect(item.id)}
-                    className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-xs transition-colors hover:bg-muted/60 focus:bg-muted/60 outline-none"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span
-                        className={`flex size-7 shrink-0 items-center justify-center rounded-md border ${getNodeTypeColor(item.type)}`}
+                {featuredLoading ? (
+                  <div className="flex flex-col gap-1">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="h-11 animate-pulse rounded-lg bg-muted/50"
+                        aria-hidden
+                      />
+                    ))}
+                  </div>
+                ) : featuredError ? (
+                  <div className="flex items-center justify-between gap-3 px-1">
+                    <p className="text-xs text-muted-foreground">Couldn&apos;t load featured components.</p>
+                    <Button size="sm" variant="outline" onClick={() => void refreshFeatured()}>
+                      Retry
+                    </Button>
+                  </div>
+                ) : featured && featured.length > 0 ? (
+                  <div className="flex flex-col gap-1">
+                    {featured.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => handleSelect(item.id)}
+                        className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-xs transition-colors hover:bg-muted/60 focus:bg-muted/60 outline-none"
                       >
-                        <NodeTypeIcon type={item.type} className="size-3.5" />
-                      </span>
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-medium text-foreground truncate">{item.label}</span>
-                        <span className="text-[11px] text-muted-foreground truncate">
-                          {item.description}
-                        </span>
-                      </div>
-                    </div>
-                    <NodeTypeBadge type={item.type} />
-                  </button>
-                ))}
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span
+                            className={`flex size-7 shrink-0 items-center justify-center rounded-md border ${getNodeTypeColor(item.type)}`}
+                          >
+                            <NodeTypeIcon type={item.type} className="size-3.5" />
+                          </span>
+                          <div className="flex min-w-0 flex-col">
+                            <span className="truncate font-medium text-foreground">{item.label}</span>
+                            <span className="truncate text-[11px] text-muted-foreground">
+                              {item.type}
+                              {item.dependents > 0 ? ` · ${item.dependents} dependents` : ''}
+                            </span>
+                          </div>
+                        </div>
+                        <NodeTypeBadge type={item.type} />
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="px-1 text-xs text-muted-foreground">
+                    No featured components found — search above to explore the graph.
+                  </p>
+                )}
               </div>
             )}
           </div>

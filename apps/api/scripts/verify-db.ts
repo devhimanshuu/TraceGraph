@@ -1,5 +1,5 @@
 /**
- * Live CognoDB connectivity verification (Phase 3, Task 20).
+ * Live CognoDB connectivity verification.
  *
  * Runs a harmless `RETURN 1` through the real database layer (config →
  * driver → session → query) and exits 0/1 based on the result.

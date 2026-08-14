@@ -1,5 +1,5 @@
 /**
- * Repository-level intelligence queries (Phase 6 §8, §13, §14).
+ * Repository-level intelligence queries.
  *
  * These anchor at the Repository node instead of a single file/class, so the
  * dashboard can summarize the whole codebase without N+1 per-entity calls.
@@ -52,5 +52,36 @@ MATCH (repo:Repository {id: $id})-[:CONTAINS*1..4]->(f:File)-[:CONTAINS]->(c:Cla
 MATCH (f)-[:CONTAINS]->(fn:Function)<-[:CALLS]-(caller:Function)
 RETURN properties(c) AS n, labels(c)[0] AS nodeType, count(DISTINCT caller) AS dependents
 ORDER BY dependents DESC, c.name
+LIMIT $limit
+`;
+
+/**
+ * Featured code entities for the dependency/impact explorers' quick-pick
+ * cards: the most-connected files and classes/functions in the repository,
+ * ranked by distinct inbound dependency edges (IMPORTS into files, CALLS /
+ * EXTENDS into classes and functions). Files and code entities are scored
+ * with the same unit (count of distinct dependents) so a single ranked list
+ * can feed both card styles. Bounded by $limit — never unbounded.
+ */
+export const FIND_FEATURED_FILES = `
+MATCH (repo:Repository {id: $id})-[:CONTAINS*1..4]->(f:File)
+OPTIONAL MATCH (f)<-[:IMPORTS]-(importer)
+WHERE (importer:File OR importer:Class OR importer:Function OR importer:Test)
+WITH f, count(DISTINCT importer) AS dependents
+WHERE dependents > 0
+RETURN properties(f) AS n, labels(f)[0] AS nodeType, dependents
+ORDER BY dependents DESC, f.name
+LIMIT $limit
+`;
+
+export const FIND_FEATURED_CODE_ENTITIES = `
+MATCH (repo:Repository {id: $id})-[:CONTAINS*1..4]->(f:File)-[:CONTAINS]->(n)
+WHERE (n:Class OR n:Function)
+OPTIONAL MATCH (n)<-[:CALLS|EXTENDS]-(dependent)
+WHERE (dependent:Class OR dependent:Function)
+WITH n, f, count(DISTINCT dependent) AS dependents
+WHERE dependents > 0
+RETURN properties(n) AS n, labels(n)[0] AS nodeType, dependents
+ORDER BY dependents DESC, n.name
 LIMIT $limit
 `;

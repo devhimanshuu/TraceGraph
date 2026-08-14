@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ApiRequestError } from '@/lib/api-client';
 import { aiService } from '@/lib/services/ai.service';
 
-/** Staged copy while the explanation is generated (Phase 10 §19). */
+/** Staged copy while the explanation is generated. */
 const LOADING_STEPS = [
   'Reviewing dependency paths',
   'Reviewing test coverage',

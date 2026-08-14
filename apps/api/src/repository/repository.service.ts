@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type {
   GraphNode,
+  ImportedRepository,
   RepositoryActivity,
   RepositoryComponent,
   RepositoryOverview,
@@ -9,11 +10,11 @@ import type {
 import { GraphRepository } from '../graph/graph.repository';
 
 /**
- * RepositoryService — `GET /api/repository*` (Phase 5 §5, Phase 6 §8–§14).
+ * RepositoryService — `GET /api/repository*`.
  *
  * Composes the repository node with label-scoped statistics. All counts are
  * scoped to TraceGraph labels so statistics never leak other domains' data on
- * a shared CognoDB instance. Phase 6 adds repo-wide recent activity and core
+ * a shared CognoDB instance. Includes repo-wide recent activity and core
  * components — same repository anchor, one look up, three parallel reads.
  */
 @Injectable()
@@ -62,6 +63,41 @@ export class RepositoryService {
   async getComponents(limit = 8): Promise<RepositoryComponent[]> {
     const repo = await this.requireRepository();
     return this.graphRepository.findRepositoryComponents(repo.id, limit);
+  }
+
+  /** Featured quick-pick entities — most-connected files/classes/functions. */
+  async getFeatured(limit = 8): Promise<RepositoryComponent[]> {
+    const repo = await this.requireRepository();
+    return this.graphRepository.findFeaturedEntities(repo.id, limit);
+  }
+
+  /** All imported repositories (for the repo switcher), oldest first. */
+  async listRepositories(): Promise<ImportedRepository[]> {
+    const repos = await this.graphRepository.findAllRepositories();
+    return repos.map((repo) => this.toImportedRepository(repo));
+  }
+
+  /** Marks one repository active and returns it (404 when it isn't in the graph). */
+  async setActiveRepository(repoId: string): Promise<ImportedRepository> {
+    const repos = await this.graphRepository.findAllRepositories();
+    const target = repos.find((repo) => repo.id === repoId);
+    if (!target) {
+      throw new NotFoundException(`Repository "${repoId}" is not in the graph.`);
+    }
+    await this.graphRepository.setActiveRepository(repoId);
+    return this.toImportedRepository(target);
+  }
+
+  private toImportedRepository(repo: GraphNode): ImportedRepository {
+    const props = repo.properties;
+    return {
+      id: repo.id,
+      name: String(props.name ?? repo.label),
+      fullName: String(props.fullName ?? repo.label),
+      description: String(props.description ?? ''),
+      language: String(props.language ?? ''),
+      active: props.active === true,
+    };
   }
 
   /** The seeded repository, or a 404 that explains why the graph is empty. */
