@@ -177,6 +177,54 @@
   }
 }
 
+/* ── Impact report — printable paper styling ────────────────────────────────
+   The on-screen report uses the app's dark theme; when printed (or saved as
+   PDF) it is flattened to a light, ink-friendly document. Colors are forced
+   via the scoped .tg-impact-report ancestor so the app shell and other pages
+   are never affected. */
+@media print {
+  @page {
+    margin: 1.4cm;
+  }
+  body {
+    background: #fff !important;
+  }
+  .tg-impact-report,
+  .tg-impact-report * {
+    color: #0f172a !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    border-color: #cbd5e1 !important;
+  }
+  /* Keep the accent hierarchy legible on paper (darker 600/700 tones). */
+  .tg-impact-report .text-sky-400 {
+    color: #0369a1 !important;
+  }
+  .tg-impact-report .text-violet-400 {
+    color: #6d28d9 !important;
+  }
+  .tg-impact-report .text-amber-400 {
+    color: #b45309 !important;
+  }
+  .tg-impact-report .text-emerald-400 {
+    color: #047857 !important;
+  }
+  .tg-impact-report .text-rose-400 {
+    color: #be123c !important;
+  }
+  .tg-impact-report .text-cyan-400 {
+    color: #0e7490 !important;
+  }
+  .tg-impact-report .text-purple-400 {
+    color: #7e22ce !important;
+  }
+  /* Comparison mode: both reports always land side by side on paper. */
+  .tg-compare-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
 /* Hide Clerk branding & Development Mode badge */
 .cl-userButtonPopoverFooter,
 .cl-footer,

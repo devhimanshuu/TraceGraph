@@ -9,13 +9,15 @@ afterEach(() => cleanup());
 
 // Global mocks so component tests don't hit Clerk's network or real router.
 
-vi.mock('@clerk/nextjs', () => ({
-  useAuth: () => ({
-    userId: 'user_test',
-    getToken: vi.fn().mockResolvedValue('test-token'),
-  }),
-  UserButton: () => null,
-}));
+vi.mock('@clerk/nextjs', () => {
+  // Stable identity across renders — mirrors real Clerk behavior. A fresh
+  // getToken per render would retrigger effects that depend on it.
+  const getToken = vi.fn().mockResolvedValue('test-token');
+  return {
+    useAuth: () => ({ userId: 'user_test', getToken }),
+    UserButton: () => null,
+  };
+});
 
 vi.mock('next/navigation', () => ({
   usePathname: () => '/dashboard',

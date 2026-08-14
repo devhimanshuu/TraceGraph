@@ -60,9 +60,12 @@ const FEATURED_ENTITIES = [
 export function EntitySearchDialog({
   open,
   onOpenChange,
+  onSelect,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** When provided, selection is handed back instead of navigating to /dependencies. */
+  onSelect?: (id: string) => void;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState('');
@@ -71,6 +74,10 @@ export function EntitySearchDialog({
   const handleSelect = (id: string) => {
     onOpenChange(false);
     setQuery('');
+    if (onSelect) {
+      onSelect(id);
+      return;
+    }
     router.push(`/dependencies?node=${encodeURIComponent(id)}`);
   };
 
