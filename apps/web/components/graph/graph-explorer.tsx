@@ -22,7 +22,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { ArrowRight, GitFork, Network, Radar, Search, Workflow } from 'lucide-react';
-import { useAuth } from '@clerk/nextjs';
+import { useGitHubSession } from '@/hooks/use-github-session';
 import type { GraphNode, GraphResponse } from '@tracegraph/shared';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -178,7 +178,7 @@ export function GraphExplorer() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nodeId = searchParams.get('node');
-  const { getToken } = useAuth();
+  const { getToken } = useGitHubSession();
   const { fitView } = useReactFlow();
 
   const [graphData, setGraphData] = useState<GraphResponse | null>(null);

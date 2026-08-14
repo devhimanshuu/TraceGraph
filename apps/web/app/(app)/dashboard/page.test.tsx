@@ -111,15 +111,17 @@ describe('DashboardPage', () => {
     expect(screen.getByTestId('stats-skeleton')).toBeInTheDocument();
   });
 
-  it('shows the empty state when the graph has not been seeded (404)', async () => {
+  it('shows the empty state when the graph has no repository (404)', async () => {
     vi.mocked(repositoryService.getOverview).mockRejectedValue(
       new ApiRequestError('Not found', 404, 'NOT_FOUND'),
     );
 
     renderPage();
 
-    expect(await screen.findByText('No workspace yet')).toBeInTheDocument();
-    expect(screen.getByText(/npm run db:seed/)).toBeInTheDocument();
+    expect(await screen.findByText('No repository yet')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Connect a GitHub repository to map it/),
+    ).toBeInTheDocument();
   });
 
   it('shows an error state and retries the request', async () => {

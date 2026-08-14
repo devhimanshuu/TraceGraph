@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAuth } from '@clerk/nextjs';
+import { useGitHubSession } from '@/hooks/use-github-session';
 
 export interface NodeCategoryState<T> {
   data: T | null;
@@ -15,7 +15,7 @@ export function useNodeCategory<T>(
   fetcher: (nodeId: string, token: string | null) => Promise<T>,
   enabled = true,
 ): NodeCategoryState<T> {
-  const { getToken } = useAuth();
+  const { getToken } = useGitHubSession();
   const getTokenRef = useRef(getToken);
   const fetcherRef = useRef(fetcher);
   const cacheRef = useRef<Map<string, T>>(new Map());

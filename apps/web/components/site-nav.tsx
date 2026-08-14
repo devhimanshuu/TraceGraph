@@ -1,8 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { Show, SignInButton, SignUpButton, UserButton } from '@clerk/nextjs';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button';
+import { GitHubSignInButton } from '@/components/auth/github-sign-in-button';
+import { GitHubUserMenu } from '@/components/auth/github-user-menu';
+import { useGitHubSession } from '@/hooks/use-github-session';
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -24,6 +26,7 @@ import { learnLinks, productLinks } from '@/lib/nav';
  * slide-in sheet with accordion groups.
  */
 export function SiteNav() {
+  const { isSignedIn, loading } = useGitHubSession();
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-6">
@@ -80,24 +83,18 @@ export function SiteNav() {
           </NavigationMenu>
         </div>
 
-        {/* Auth controls */}
+        {/* Auth controls — GitHub-only sign-in */}
         <div className="flex items-center gap-2">
-          <Show when="signed-in">
-            <Link className={buttonVariants({ variant: 'ghost', size: 'sm' })} href="/dashboard">
-              Dashboard
-            </Link>
-            <UserButton />
-          </Show>
-          <Show when="signed-out">
-            <SignInButton mode="modal" fallbackRedirectUrl="/dashboard">
-              <Button variant="ghost" size="sm" className="hidden sm:inline-flex">
-                Sign in
-              </Button>
-            </SignInButton>
-            <SignUpButton mode="modal" fallbackRedirectUrl="/dashboard">
-              <Button size="sm">Get started</Button>
-            </SignUpButton>
-          </Show>
+          {isSignedIn ? (
+            <>
+              <Link className={buttonVariants({ variant: 'ghost', size: 'sm' })} href="/dashboard">
+                Dashboard
+              </Link>
+              <GitHubUserMenu />
+            </>
+          ) : (
+            !loading && <GitHubSignInButton label="Get started" size="sm" />
+          )}
 
           <MobileSiteNav productLinks={productLinks} learnLinks={learnLinks} />
         </div>

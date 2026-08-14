@@ -1,13 +1,11 @@
-import { SignInButton, SignUpButton } from '@clerk/nextjs';
 import {
-  ArrowRight,
   GitPullRequestArrow,
   Network,
   Radar,
   ShieldCheck,
   Workflow,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { GitHubSignInButton } from '@/components/auth/github-sign-in-button';
 import { LatticeBackground } from '@/components/ui/lattice-background';
 
 const features = [
@@ -303,17 +301,7 @@ export default function Home() {
           </p>
 
           <div className="pointer-events-auto mt-10 flex flex-wrap items-center justify-center gap-3">
-            <SignUpButton mode="modal" fallbackRedirectUrl="/dashboard">
-              <Button size="lg">
-                Get started free
-                <ArrowRight className="size-4" />
-              </Button>
-            </SignUpButton>
-            <SignInButton mode="modal" fallbackRedirectUrl="/dashboard">
-              <Button size="lg" variant="outline">
-                Sign in
-              </Button>
-            </SignInButton>
+            <GitHubSignInButton label="Get started free" size="lg" />
           </div>
 
           <p className="mt-4 text-xs text-muted-foreground">
@@ -440,17 +428,7 @@ export default function Home() {
             Start exploring a demo codebase today — no setup, no credit card, just the graph.
           </p>
           <div className="relative mt-8 flex flex-wrap items-center justify-center gap-3">
-            <SignUpButton mode="modal" fallbackRedirectUrl="/dashboard">
-              <Button size="lg">
-                Get started free
-                <ArrowRight className="size-4" />
-              </Button>
-            </SignUpButton>
-            <SignInButton mode="modal" fallbackRedirectUrl="/dashboard">
-              <Button size="lg" variant="outline">
-                Sign in
-              </Button>
-            </SignInButton>
+            <GitHubSignInButton label="Get started free" size="lg" />
           </div>
         </div>
       </section>

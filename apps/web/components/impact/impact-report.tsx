@@ -12,7 +12,7 @@ import {
   Printer,
   Radar,
 } from 'lucide-react';
-import { useAuth } from '@clerk/nextjs';
+import { useGitHubSession } from '@/hooks/use-github-session';
 import type { ImpactResponse } from '@tracegraph/shared';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -55,7 +55,7 @@ export function ImpactReport() {
   const searchParams = useSearchParams();
   const nodeId = searchParams.get('node');
   const depthParam = searchParams.get('depth');
-  const { getToken } = useAuth();
+  const { getToken } = useGitHubSession();
 
   const depth = useMemo(() => {
     const n = Number(depthParam);

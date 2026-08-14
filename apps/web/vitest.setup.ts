@@ -7,15 +7,21 @@ import '@testing-library/jest-dom/vitest';
 // so testing-library cannot auto-register its own afterEach).
 afterEach(() => cleanup());
 
-// Global mocks so component tests don't hit Clerk's network or real router.
+// Global mocks so component tests don't hit the GitHub session bootstrap or
+// the real router.
 
-vi.mock('@clerk/nextjs', () => {
-  // Stable identity across renders — mirrors real Clerk behavior. A fresh
+vi.mock('@/hooks/use-github-session', () => {
+  // Stable identity across renders — mirrors the real provider. A fresh
   // getToken per render would retrigger effects that depend on it.
   const getToken = vi.fn().mockResolvedValue('test-token');
   return {
-    useAuth: () => ({ userId: 'user_test', getToken }),
-    UserButton: () => null,
+    useGitHubSession: () => ({
+      user: { id: 'user_test', login: 'test-user', name: 'Test User', avatarUrl: '' },
+      isSignedIn: true,
+      loading: false,
+      getToken,
+      signOut: vi.fn(),
+    }),
   };
 });
 

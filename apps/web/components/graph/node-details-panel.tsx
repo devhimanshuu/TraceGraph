@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, FileCode2, Radar, Workflow, X } from 'lucide-react';
+import { ArrowRight, FileCode2, Radar, Sparkles, Workflow, X } from 'lucide-react';
 import type { GraphNode } from '@tracegraph/shared';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -88,6 +88,17 @@ export function NodeDetailsPanel({ node, onClose }: NodeDetailsPanelProps) {
           >
             <Radar className="size-3.5" />
             Analyze Impact
+          </Link>
+
+          <Link
+            href={`/impact?node=${encodeURIComponent(node.id)}&explain=1`}
+            className={buttonVariants({
+              className: 'w-full gap-2 text-xs',
+              size: 'sm',
+            })}
+          >
+            <Sparkles className="size-3.5" />
+            Explain impact
           </Link>
         </div>
       </CardContent>

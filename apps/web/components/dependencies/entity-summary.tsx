@@ -12,6 +12,7 @@ import {
   Radar,
   Search,
   Share2,
+  Sparkles,
 } from 'lucide-react';
 import type { GraphNode, RelationshipSummary } from '@tracegraph/shared';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -149,6 +150,18 @@ export function EntitySummary({ node, summary, loading }: EntitySummaryProps) {
                 <Radar className="size-3.5" />
                 Analyze Impact
                 <ArrowRight className="size-3" />
+              </Link>
+              <Link
+                href={`/impact?node=${encodeURIComponent(node.id)}&explain=1`}
+                className={buttonVariants({
+                  variant: 'outline',
+                  size: 'sm',
+                  className:
+                    'h-8 text-xs gap-1.5 border-sky-500/40 text-sky-400 hover:border-sky-500/70 hover:bg-sky-500/10 hover:text-sky-300',
+                })}
+              >
+                <Sparkles className="size-3.5" />
+                Explain impact
               </Link>
             </div>
           </div>

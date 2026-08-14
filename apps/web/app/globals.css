@@ -225,7 +225,7 @@
   }
 }
 
-/* Hide Clerk branding & Development Mode badge */
+/* Auth chrome is fully custom (GitHub sign-in, no vendor badge). */
 .cl-userButtonPopoverFooter,
 .cl-footer,
 .cl-devModeBadge,

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAuth } from '@clerk/nextjs';
+import { useGitHubSession } from '@/hooks/use-github-session';
 import { ApiRequestError } from '@/lib/api-client';
 
 export interface ApiResourceState<T> {
@@ -17,13 +17,13 @@ type ResourceState<T> = { data: T | null; loading: boolean; error: string | null
 /**
  * Generic typed fetch-on-mount hook with loading / error / empty / retry
  * semantics, shared by every dashboard data hook so API logic lives in one
- * place. The Clerk session token is attached automatically.
+ * place. The GitHub session token is attached automatically.
  *
  * The loader and token getter are held in refs so the fetch runs exactly once
  * on mount regardless of whether `getToken` changes identity between renders.
  */
 export function useApiResource<T>(loader: (token: string | null) => Promise<T>): ApiResourceState<T> {
-  const { getToken } = useAuth();
+  const { getToken } = useGitHubSession();
 
   const loaderRef = useRef(loader);
   const getTokenRef = useRef(getToken);

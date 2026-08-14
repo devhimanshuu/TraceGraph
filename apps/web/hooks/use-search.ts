@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useAuth } from '@clerk/nextjs';
+import { useGitHubSession } from '@/hooks/use-github-session';
 import type { SearchResultItem } from '@tracegraph/shared';
 import { graphService } from '@/lib/services/graph.service';
 
 export function useSearch(query: string, debounceMs = 250) {
-  const { getToken } = useAuth();
+  const { getToken } = useGitHubSession();
   const getTokenRef = useRef(getToken);
   useEffect(() => {
     getTokenRef.current = getToken;

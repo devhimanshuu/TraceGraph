@@ -8,6 +8,7 @@ import type {
   HistoryCommit,
   HistoryIssue,
   HistoryPullRequest,
+  ImpactExplanation,
   ImpactHistoryListResponse,
   ImpactResponse,
   ImpactSnapshot,
@@ -30,6 +31,13 @@ import type {
  * environment variable.
  */
 export const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api';
+
+/**
+ * Where the GitHub OAuth flow starts. The web origin does NOT proxy /api to
+ * the NestJS backend (no rewrites in next.config), so anchors must target the
+ * API origin directly.
+ */
+export const githubLoginUrl = `${apiBaseUrl}/auth/github/login`;
 
 export class ApiRequestError extends Error {
   readonly status: number;
@@ -199,6 +207,12 @@ export const apiClient = {
       token,
     );
   },
+
+  // AI explanation (Phase 10) — evidence-backed explanation of the impact analysis.
+  explainImpact: (id: string, depth: number, token?: string | null) =>
+    mutate<ImpactExplanation>(`/impact/${encodeURIComponent(id)}/explain`, 'POST', token, {
+      depth,
+    }),
 
   // Graph neighborhood
   getGraph: (

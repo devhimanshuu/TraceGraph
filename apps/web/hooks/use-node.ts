@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAuth } from '@clerk/nextjs';
+import { useGitHubSession } from '@/hooks/use-github-session';
 import type { GraphNode, RelationshipSummary } from '@tracegraph/shared';
 import { ApiRequestError } from '@/lib/api-client';
 import { nodeService } from '@/lib/services/node.service';
@@ -15,7 +15,7 @@ export interface NodeState {
 }
 
 export function useNode(nodeId: string | null): NodeState {
-  const { getToken } = useAuth();
+  const { getToken } = useGitHubSession();
   const getTokenRef = useRef(getToken);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 

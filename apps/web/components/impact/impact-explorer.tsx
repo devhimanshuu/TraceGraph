@@ -6,13 +6,14 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { FlaskConical, GitCompare, GitFork, Network, Printer, Radar, Search, Sparkles, Workflow } from 'lucide-react';
 import type { ImpactResponse } from '@tracegraph/shared';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SectionError } from '@/components/dashboard/section-error';
 import { EntitySearchDialog } from '@/components/dependencies/entity-search-dialog';
 import { NodeTypeBadge, NodeTypeIcon } from '@/components/dependencies/relationship-badge';
 import { useNode } from '@/hooks/use-node';
 import { useImpactHistory } from '@/hooks/use-impact-history';
-import { useAuth } from '@clerk/nextjs';
+import { useGitHubSession } from '@/hooks/use-github-session';
 import { impactService } from '@/lib/services/impact.service';
 import { ImpactSummary } from '@/components/impact/impact-summary';
 import { ImpactGraph } from '@/components/impact/impact-graph';
@@ -22,6 +23,7 @@ import { ImpactHistoryView } from '@/components/impact/impact-history-view';
 import { TestCoverageView } from '@/components/dependencies/test-coverage-view';
 import { PathExplorer } from '@/components/impact/path-explorer';
 import { ImpactHistoryList } from '@/components/impact/impact-history-list';
+import { AiExplanationPanel } from '@/components/impact/ai-explanation';
 
 const FEATURED_ENTITIES = [
   {
@@ -90,7 +92,7 @@ export function ImpactExplorer() {
   const searchParams = useSearchParams();
   const nodeId = searchParams.get('node');
   const depthParam = searchParams.get('depth');
-  const { getToken } = useAuth();
+  const { getToken } = useGitHubSession();
   const getTokenRef = useRef(getToken);
   useEffect(() => {
     getTokenRef.current = getToken;
@@ -110,6 +112,16 @@ export function ImpactExplorer() {
   const [activeTab, setActiveTab] = useState<ImpactTabKey>('all');
   const [selectedPathId, setSelectedPathId] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  // Scroll target for AI evidence clicks — the summary + graph grid sits above
+  // the AI panel, so the graph needs to be brought back into view.
+  const graphSectionRef = useRef<HTMLDivElement | null>(null);
+
+  // `?explain=1` — deep-linked from the graph/dependency explorers: after the
+  // analysis loads, bring the AI explanation into view and flash it once so
+  // the user lands on the narrative, not the deterministic sections.
+  const explainParam = searchParams.get('explain') === '1';
+  const aiSectionRef = useRef<HTMLDivElement | null>(null);
+  const [aiFlash, setAiFlash] = useState(false);
 
   // Fresh backend request whenever the node or depth changes (never reuse stale results).
   const runAnalysis = useCallback(() => {
@@ -156,6 +168,23 @@ export function ImpactExplorer() {
       ignore = true;
     };
   }, [nodeId, depth, refreshTrigger, recordSnapshot]);
+
+  // Auto-expand: when the deep link carries ?explain=1, wait for the results
+  // (and the AI panel) to render, then scroll it into view with a one-shot
+  // highlight ring so it can't be missed.
+  useEffect(() => {
+    if (!analysis || !explainParam) return;
+    const scrollTimer = window.setTimeout(() => {
+      aiSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 200);
+    const flashOn = window.setTimeout(() => setAiFlash(true), 350);
+    const flashOff = window.setTimeout(() => setAiFlash(false), 3200);
+    return () => {
+      window.clearTimeout(scrollTimer);
+      window.clearTimeout(flashOn);
+      window.clearTimeout(flashOff);
+    };
+  }, [analysis, explainParam]);
 
   const setDepth = useCallback(
     (d: number) => {
@@ -379,7 +408,7 @@ export function ImpactExplorer() {
       {!loading && !error && analysis && analysis.summary.direct + analysis.summary.indirect > 0 ? (
         <>
           {/* Summary + graph */}
-          <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
+          <div ref={graphSectionRef} className="grid gap-4 lg:grid-cols-[280px_1fr]">
             <ImpactSummary
               summary={analysis.summary}
               activeTab={activeTab}
@@ -389,6 +418,30 @@ export function ImpactExplorer() {
               response={analysis}
               selectedPathId={selectedPathId}
               onSelectPath={setSelectedPathId}
+            />
+          </div>
+
+          {/* AI explanation — grounded in the deterministic analysis above; the
+              deterministic results stay fully visible regardless of AI state. */}
+          <div
+            ref={aiSectionRef}
+            data-testid="ai-section"
+            className={cn(
+              'rounded-2xl transition-shadow duration-500',
+              aiFlash && 'ring-2 ring-sky-500/60 shadow-[0_0_24px_-6px_rgba(56,189,248,0.6)]',
+            )}
+          >
+            <AiExplanationPanel
+              nodeId={analysis.root.id}
+              depth={analysis.depth}
+              rootLabel={analysis.root.label}
+              onSelectPath={(entityId) => {
+                setSelectedPathId(entityId);
+                setActiveTab('all');
+                // The chip lives below the graph — bring the graph back into
+                // view so the full highlighted chain is visible.
+                graphSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }}
             />
           </div>
 

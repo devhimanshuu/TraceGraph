@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react';
 import { Dialog } from '@base-ui/react/dialog';
 import { Menu, X } from 'lucide-react';
-import { UserButton } from '@clerk/nextjs';
+import { GitHubUserMenu } from '@/components/auth/github-user-menu';
 import { Wordmark } from '@/components/wordmark';
 import { SidebarNav } from '@/components/layout/sidebar-nav';
 import { SystemStatus } from '@/components/layout/system-status';
@@ -46,7 +46,7 @@ function SidebarContent() {
         </div>
         <div className="flex items-center justify-between gap-2 px-1">
           <SystemStatus />
-          <UserButton />
+          <GitHubUserMenu />
         </div>
       </div>
     </div>

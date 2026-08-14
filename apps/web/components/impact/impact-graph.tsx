@@ -21,6 +21,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import type { GraphNodeRef, ImpactResponse } from '@tracegraph/shared';
 import { NodeTypeIcon } from '@/components/dependencies/relationship-badge';
+import { selectedPathEdgeKeys, selectedPathNodeIds } from '@/components/impact/impact-path-selection';
 
 /** Node-type → hex accents, mirroring the rest of the app. */
 const NODE_HEX: Record<string, string> = {
@@ -53,6 +54,8 @@ function ImpactNode({ data, selected }: NodeProps) {
   const kind = data.kind as 'root' | 'direct' | 'indirect';
   const isRoot = kind === 'root';
   const isSelected = selected || data.selected === true;
+  // A chain member of the selected path (not the anchor itself).
+  const isHighlighted = !isRoot && !isSelected && data.highlighted === true;
   const hex = NODE_HEX[ref.type] ?? '#94a3b8';
 
   return (
@@ -62,9 +65,11 @@ function ImpactNode({ data, selected }: NodeProps) {
           ? 'border-sky-500/50 bg-card ring-2 ring-sky-500/25'
           : isSelected
             ? 'bg-card ring-2'
-            : 'border-border/80 bg-card/90'
+            : isHighlighted
+              ? 'border-sky-500/40 bg-card/95 ring-1 ring-sky-500/40'
+              : 'border-border/80 bg-card/90'
       }`}
-      style={!isRoot && isSelected ? { borderColor: hex } : undefined}
+      style={!isRoot && (isSelected || isHighlighted) ? { borderColor: hex } : undefined}
     >
       <Handle type="target" position={Position.Top} className="size-2 !bg-muted-foreground/70" />
       <div className="flex items-center gap-2">
@@ -123,6 +128,7 @@ function ImpactFlowEdge({
   });
   const color = (data?.color as string | undefined) ?? '#94a3b8';
   const label = data?.label as string | undefined;
+  const emphasized = data?.emphasized === true;
 
   return (
     <>
@@ -131,11 +137,11 @@ function ImpactFlowEdge({
         d={path}
         fill="none"
         stroke={color}
-        strokeWidth={1.5}
+        strokeWidth={emphasized ? 2.5 : 1.5}
         strokeLinecap="round"
         strokeDasharray="3 14"
         className="tg-flow-line pointer-events-none"
-        opacity={0.9}
+        opacity={emphasized ? 1 : 0.9}
       />
       {label ? (
         <EdgeLabelRenderer>
@@ -171,6 +177,12 @@ function ImpactGraphInner({ response, selectedPathId, onSelectPath }: ImpactGrap
     const placed = new Set<string>();
     let edgeIndex = 0;
 
+    // Full-chain selection: when an entity is selected, every node and edge on
+    // its evidence chain (affected → … → root) is emphasized, not just the
+    // anchor entity (Phase 10 §15).
+    const pathNodes = selectedPathNodeIds(response, selectedPathId);
+    const pathEdges = selectedPathEdgeKeys(response, selectedPathId);
+
     const root = response.root;
     const center = { x: 320, y: 220 };
     rfNodes.push({
@@ -195,7 +207,12 @@ function ImpactGraphInner({ response, selectedPathId, onSelectPath }: ImpactGrap
             x: center.x + radius * Math.cos(angle),
             y: center.y + radius * Math.sin(angle),
           },
-          data: { ref: entity, kind, selected: selectedPathId === entity.id },
+          data: {
+            ref: entity,
+            kind,
+            selected: selectedPathId === entity.id,
+            highlighted: pathNodes?.has(entity.id) ?? false,
+          },
         });
         placed.add(entity.id);
       });
@@ -205,15 +222,20 @@ function ImpactGraphInner({ response, selectedPathId, onSelectPath }: ImpactGrap
 
     // Edges from every impacted entity toward the root (through its path).
     const pushEdge = (from: string, to: string, type: string, color: string) => {
+      const onPath = pathEdges.has(`${from}::${to}`);
       edgeIndex += 1;
       rfEdges.push({
         id: `e-${edgeIndex}`,
         source: from,
         target: to,
         type: 'flow',
-        data: { color, label: type },
-        style: { stroke: color, strokeWidth: 1.5, opacity: 0.55 },
-        markerEnd: { type: MarkerType.ArrowClosed, width: 12, height: 12, color },
+        data: { color, label: type, emphasized: onPath },
+        style: {
+          stroke: color,
+          strokeWidth: onPath ? 2.5 : 1.5,
+          opacity: onPath ? 1 : 0.55,
+        },
+        markerEnd: { type: MarkerType.ArrowClosed, width: onPath ? 14 : 12, height: onPath ? 14 : 12, color },
       });
     };
     for (const entity of [...direct, ...indirect]) {

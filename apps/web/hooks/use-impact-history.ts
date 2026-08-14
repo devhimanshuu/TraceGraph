@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAuth } from '@clerk/nextjs';
+import { useGitHubSession } from '@/hooks/use-github-session';
 import type { ImpactSnapshot } from '@tracegraph/shared';
 import {
   impactHistoryService,
@@ -17,7 +17,7 @@ import {
  * still renders; history simply doesn't update.
  */
 export function useImpactHistory() {
-  const { getToken } = useAuth();
+  const { getToken } = useGitHubSession();
   const getTokenRef = useRef(getToken);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 

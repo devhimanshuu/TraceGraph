@@ -12,7 +12,7 @@ import {
   Radar,
   Search,
 } from 'lucide-react';
-import { useAuth } from '@clerk/nextjs';
+import { useGitHubSession } from '@/hooks/use-github-session';
 import type { ImpactResponse } from '@tracegraph/shared';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -51,7 +51,7 @@ export function ImpactCompare() {
   const nodeA = searchParams.get('nodeA');
   const nodeB = searchParams.get('nodeB');
   const depthParam = searchParams.get('depth');
-  const { getToken } = useAuth();
+  const { getToken } = useGitHubSession();
   const getTokenRef = useRef(getToken);
   useEffect(() => {
     getTokenRef.current = getToken;

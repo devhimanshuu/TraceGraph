@@ -92,13 +92,11 @@ export default function DashboardPage() {
     return (
       <div className="mx-auto flex max-w-lg flex-col items-center gap-3 py-16 text-center">
         <Sparkles className="size-6 text-muted-foreground/60" aria-hidden />
-        <h1 className="text-xl font-semibold tracking-tight">No workspace yet</h1>
+        <h1 className="text-xl font-semibold tracking-tight">No repository yet</h1>
         <p className="text-sm text-muted-foreground">
-          The demo graph is empty. Load the TraceGraph dataset to explore the codebase.
+          The graph is empty. Connect a GitHub repository to map it and explore its
+          relationships, impact, and history.
         </p>
-        <code className="mt-1 rounded-md border border-border/60 bg-card/40 px-2 py-1 font-mono text-xs">
-          npm run db:seed
-        </code>
       </div>
     );
   }
