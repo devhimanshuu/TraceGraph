@@ -207,6 +207,35 @@ export function createFakeGraphRepository(): GraphRepository {
       ],
       paths: [{ nodes: [root.id, checkoutService.id], relTypes: ['CALLS' as const] }],
     })),
+    traverseIntoNode: jest.fn(async (root: GraphNodeRef, depth: number) => ({
+      root,
+      depth,
+      nodes: [
+        { ...checkoutService, hops: 1 },
+        { ...paymentService, hops: 2 },
+      ],
+      edges: [
+        {
+          id: 'e-1',
+          source: checkoutService.id,
+          target: root.id,
+          type: 'CALLS' as const,
+          properties: {},
+        },
+      ],
+      paths: [{ nodes: [root.id, checkoutService.id], relTypes: ['CALLS' as const] }],
+    })),
+    findRelationshipSummary: jest.fn(async () => ({
+      relationships: 12,
+      dependencies: 2,
+      dependents: 4,
+      callers: 4,
+      callees: 2,
+      tests: 8,
+      commits: 3,
+      pullRequests: 2,
+      issues: 1,
+    })),
     findGraphNeighborhood: jest.fn(async (root: GraphNode, depth: number) => ({
       root: { id: root.id, type: root.type, label: root.label },
       depth,

@@ -44,3 +44,28 @@ RETURN DISTINCT properties(i) AS i
 ORDER BY i.number DESC
 LIMIT $limit
 `;
+
+// ── History counts (Phase 8) — COUNT variants of the chain above, used by
+// `GET /api/nodes/:id/relationship-summary` so the UI gets counts in one
+// request. Counts mirror the list semantics (DISTINCT entities).
+
+export const COUNT_COMMITS_FOR_ENTITY = `
+MATCH (f:File)-[:CONTAINS*0..3]->(n {id: $id})
+MATCH (c:Commit)-[:MODIFIES]->(f)
+RETURN count(DISTINCT c) AS count
+`;
+
+export const COUNT_PULL_REQUESTS_FOR_ENTITY = `
+MATCH (f:File)-[:CONTAINS*0..3]->(n {id: $id})
+MATCH (c:Commit)-[:MODIFIES]->(f)
+MATCH (pr:PullRequest)-[:CONTAINS]->(c)
+RETURN count(DISTINCT pr) AS count
+`;
+
+export const COUNT_ISSUES_FOR_ENTITY = `
+MATCH (f:File)-[:CONTAINS*0..3]->(n {id: $id})
+MATCH (c:Commit)-[:MODIFIES]->(f)
+MATCH (pr:PullRequest)-[:CONTAINS]->(c)
+MATCH (i:Issue)-[:RELATED_TO]->(pr)
+RETURN count(DISTINCT i) AS count
+`;

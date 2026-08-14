@@ -1,5 +1,5 @@
 import { Transform, Type } from 'class-transformer';
-import { IsArray, IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsArray, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 import {
   DEFAULT_TRAVERSAL_DEPTH,
   DEFAULT_TRAVERSAL_PATHS,
@@ -17,7 +17,12 @@ const csv = ({ value }: { value: unknown }): unknown =>
         .filter(Boolean)
     : value;
 
-/** `GET /api/traversal/:id?depth=&types=&limit=` — bounded multi-hop reachability. */
+/**
+ * `GET /api/traversal/:id?depth=&types=&limit=&direction=` — bounded
+ * multi-hop reachability. `direction=out` (default) walks what the root
+ * reaches; `direction=in` walks everything that reaches the root (the
+ * dependents chain), which the Dependency Explorer's multi-hop preview uses.
+ */
 export class TraversalQueryDto {
   @IsOptional()
   @Type(() => Number)
@@ -25,6 +30,11 @@ export class TraversalQueryDto {
   @Min(1)
   @Max(MAX_TRAVERSAL_DEPTH)
   depth?: number = DEFAULT_TRAVERSAL_DEPTH;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['out', 'in'])
+  direction?: 'out' | 'in' = 'out';
 
   @IsOptional()
   @Transform(csv)

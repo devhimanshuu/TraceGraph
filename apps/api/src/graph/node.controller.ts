@@ -3,6 +3,7 @@ import type {
   DependencyTarget,
   GraphNode,
   NodeRelationships,
+  RelationshipSummary,
   TestCoverage,
 } from '@tracegraph/shared';
 import { GraphService } from './graph.service';
@@ -20,6 +21,11 @@ export class NodeController {
   @Get(':id')
   getNode(@Param('id') id: string): Promise<GraphNode> {
     return this.graphService.getNode(id);
+  }
+
+  @Get(':id/relationship-summary')
+  getRelationshipSummary(@Param('id') id: string): Promise<RelationshipSummary> {
+    return this.graphService.getRelationshipSummary(id);
   }
 
   @Get(':id/relationships')

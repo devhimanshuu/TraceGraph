@@ -1,11 +1,10 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
-import Link from 'next/link';
 import { Dialog } from '@base-ui/react/dialog';
 import { Menu, X } from 'lucide-react';
 import { UserButton } from '@clerk/nextjs';
-import { Logo } from '@/components/logo';
+import { Wordmark } from '@/components/wordmark';
 import { SidebarNav } from '@/components/layout/sidebar-nav';
 import { SystemStatus } from '@/components/layout/system-status';
 import { useRepositoryContext } from '@/components/layout/repository-provider';
@@ -17,25 +16,16 @@ function SidebarContent() {
   const { repository } = useRepositoryContext();
   return (
     <div className="flex h-full flex-col">
-      <Link
-        href="/dashboard"
-        className="flex items-center gap-2.5 border-b border-border/60 px-5 py-4 outline-none focus-visible:bg-muted/40"
-      >
-        <Logo />
-        <span className="flex flex-col leading-tight">
-          <span className="text-[15px] font-semibold tracking-wide">TraceGraph</span>
-          <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            codebase intelligence
-          </span>
-        </span>
-      </Link>
+      <div className="border-b border-border/60 px-5 py-4">
+        <Wordmark href="/dashboard" />
+      </div>
 
       <div className="flex-1 overflow-y-auto px-3 py-3">
         <SidebarNav />
       </div>
 
-      <div className="flex flex-col gap-3 border-t border-border/60 px-5 py-4">
-        <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-3 border-t border-border/60 px-4 py-4">
+        <div className="flex flex-col gap-1.5 rounded-lg border border-border/60 bg-card/50 px-3 py-2.5">
           {repository ? (
             <>
               <p className="truncate text-sm font-medium" title={repository.fullName}>
@@ -54,7 +44,7 @@ function SidebarContent() {
             <p className="text-xs text-muted-foreground">Loading repository…</p>
           )}
         </div>
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 px-1">
           <SystemStatus />
           <UserButton />
         </div>
@@ -83,7 +73,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Dialog.Root open={open} onOpenChange={setOpen}>
           <Dialog.Trigger
             render={
-              <Button variant="ghost" size="icon" aria-label="Open navigation menu">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Open navigation menu"
+                className="size-10"
+              >
                 <Menu className="size-5" />
               </Button>
             }
@@ -100,7 +95,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     variant="ghost"
                     size="icon"
                     aria-label="Close navigation menu"
-                    className="absolute right-2 top-3 z-10"
+                    className="absolute right-2 top-3 z-10 size-10"
                   >
                     <X className="size-4" />
                   </Button>
@@ -110,10 +105,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Dialog.Portal>
         </Dialog.Root>
 
-        <Link href="/dashboard" className="flex items-center gap-2 text-[15px] font-semibold tracking-wide">
-          <Logo />
-          TraceGraph
-        </Link>
+        <Wordmark href="/dashboard" />
       </header>
 
       {/* Main content */}

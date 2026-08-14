@@ -145,6 +145,25 @@ describe('Graph API (e2e, in-memory repository)', () => {
         target: { type: 'Function', label: 'processPayment' },
       });
     });
+
+    it('GET /api/nodes/:id/relationship-summary returns one-request counts', async () => {
+      const res = await authedGet(`/api/nodes/${ENCODED_PAYMENT_ID}/relationship-summary`).expect(200);
+      expect(res.body).toEqual({
+        relationships: 12,
+        dependencies: 2,
+        dependents: 4,
+        callers: 4,
+        callees: 2,
+        tests: 8,
+        commits: 3,
+        pullRequests: 2,
+        issues: 1,
+      });
+    });
+
+    it('relationship-summary 404s for an unknown node', async () => {
+      await authedGet('/api/nodes/missing/relationship-summary').expect(404);
+    });
   });
 
   describe('history endpoints', () => {
@@ -189,6 +208,17 @@ describe('Graph API (e2e, in-memory repository)', () => {
 
     it('rejects invalid relationship types with 400', async () => {
       await authedGet(`/api/traversal/${ENCODED_PAYMENT_ID}?types=NOPE`).expect(400);
+    });
+
+    it('direction=in walks the dependents chain (reverse traversal)', async () => {
+      const res = await authedGet(`/api/traversal/${ENCODED_PAYMENT_ID}?direction=in&depth=2`)
+        .expect(200);
+      expect(res.body.root.id).toBe(PAYMENT_SERVICE_ID);
+      expect(res.body.paths[0].nodes[0]).toBe(PAYMENT_SERVICE_ID);
+    });
+
+    it('rejects an invalid direction with 400', async () => {
+      await authedGet(`/api/traversal/${ENCODED_PAYMENT_ID}?direction=sideways`).expect(400);
     });
   });
 
