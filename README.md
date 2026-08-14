@@ -100,39 +100,56 @@ cp apps/web/.env.example apps/web/.env.local
 | `PORT`                              | apps/api            | no       | API port (default `4000`)                                   |
 | `NODE_ENV`                          | apps/api            | no       | `development` \| `test` \| `production`                     |
 | `NEXT_PUBLIC_API_URL`               | apps/web            | ✅       | Backend base URL, e.g. `http://localhost:4000/api`          |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | apps/web            | ✅       | Clerk publishable key (public, from the Clerk dashboard)    |
-| `CLERK_SECRET_KEY`                  | apps/api + apps/web | ✅       | Clerk secret key (server-only, never client code)           |
+| `GITHUB_CLIENT_ID`                  | apps/api            | no       | GitHub OAuth App client id (absent → auth entry degrades)   |
+| `GITHUB_CLIENT_SECRET`              | apps/api            | no       | GitHub OAuth App secret (server-only, never committed)      |
+| `SESSION_SECRET`                    | apps/api + apps/web | no       | HMAC secret signing TraceGraph's own session tokens         |
+| `WEB_APP_URL`                       | apps/api            | no       | Where the OAuth callback bounces the browser (default :3000) |
 
 Missing or invalid required values cause the API to **fail fast at boot** with a
 readable message (Joi validation). The backend never logs credentials.
 
-## Authentication (Clerk)
+## Authentication (GitHub)
 
-TraceGraph uses [Clerk](https://clerk.com) for authentication:
+TraceGraph uses **GitHub-only authentication** — the identity provider is also
+the resource provider (the same flow that will later list and import your
+repos):
 
-- **Web app** — `@clerk/nextjs` with a `ClerkProvider` in the root layout.
-  Signed-out visitors see the landing page with sign-in / sign-up controls;
-  `/dashboard` (and every other route) is protected by the `proxy.ts`
-  middleware and redirects to sign-in.
-- **API** — a global `ClerkAuthGuard` verifies the Bearer session token on
-  every route except `@Public()` health endpoints. Verification is fail-closed:
-  a missing header, invalid token, or unconfigured `CLERK_SECRET_KEY` all
-  return `401 Unauthorized`.
-- The frontend attaches the session token via `useAuth().getToken()` before
-  calling the NestJS API.
+1. **Sign-in** — `GET /api/auth/github/login` server-side redirects to a
+   GitHub OAuth App (read-only `read:user public_repo` scopes — no scary
+   private-repo prompt).
+2. **Callback** — `GET /api/auth/github/callback` exchanges the code, fetches
+   your profile, and issues **TraceGraph's own signed session** (HS256 JWT
+   keyed by `SESSION_SECRET`) as an httpOnly `tg_session` cookie, then bounces
+   to `/?auth=success`.
+3. **Bootstrap** — the web app reads the session back through
+   `GET /api/auth/session` and stores the bearer token; every data hook uses
+   `useGitHubSession().getToken()`.
+4. **Guard** — a global `GitHubAuthGuard` verifies the bearer token or session
+   cookie on every route except `@Public()` (health + auth). Fail-closed: a
+   missing header, invalid token, or unconfigured `SESSION_SECRET` returns
+   `401`.
 
-Create a Clerk application, then copy its keys into the env files:
+The GitHub access token never reaches the browser — it stays in a server-side
+session store keyed by the session id. Sessions are short-lived (7 days) and
+revoked on sign-out.
+
+Create a GitHub OAuth App (github.com/settings/developers → **New OAuth App**)
+with **Homepage URL** `http://localhost:3000` and **Authorization callback URL**
+`http://localhost:4000/api/auth/github/callback`, then copy the keys into the
+env files:
 
 ```bash
-# Backend
-CLERK_SECRET_KEY=sk_test_...    # apps/api/.env
-# Frontend
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...   # apps/web/.env.local
-CLERK_SECRET_KEY=sk_test_...                    # apps/web/.env.local
+# Backend (apps/api/.env)
+GITHUB_CLIENT_ID=...
+GITHUB_CLIENT_SECRET=...
+SESSION_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+# Frontend (apps/web/.env.local) — must match the backend
+SESSION_SECRET=...
 ```
 
-> The web app's `CLERK_SECRET_KEY` is used server-side (middleware / `auth()`)
-> and is never shipped to the browser — only the publishable key is public.
+> `SESSION_SECRET` is shared by both apps so the `proxy.ts` middleware can
+> verify route access with the same key the API uses. It is never shipped to
+> the browser.
 
 ## CognoDB Development Setup
 
@@ -191,9 +208,7 @@ running — no crash, no leaked connection details.
 | `npm run typecheck`                         | `tsc --noEmit` (api + web + shared)   |
 | `npm run test`                              | Jest (api: unit + e2e)                |
 | `npm run format` / `format:check`           | Prettier write / verify               |
-| `npm run db:seed`                           | Load the deterministic demo graph     |
-| `npm run db:clear`                          | Remove TraceGraph data (label-scoped) |
-| `npm run db:verify`                         | Counts + critical paths + integrity   |
+| `npm run db:check`                          | Live CognoDB connectivity check       |
 
 ## API Conventions
 
@@ -251,20 +266,16 @@ management, validation, CORS, error handling, health endpoints, shared types.
   CognoDB instance; degraded mode keeps the app running when the DB is down.
 - 35 backend tests (unit + e2e), including mocked-driver health up/down tests.
 
-**Phase 4 (this milestone) — Graph Data Model & Deterministic Seed.**
+**Phase 4 (this milestone) — Graph Data Model & Schema Contract.**
 
 - 10 labels, 12 relationship types, named `tg_*` unique-id constraints
   (Neo4j 5 syntax — verified against the live instance; legacy `ASSERT` and
   `SHOW CONSTRAINTS` are unsupported on CognoDB).
-- commerce-platform demo dataset: 202 nodes / 348 relationships, including the
-  demo-critical multi-hop call chain `OrderService → CheckoutService →
-PaymentService → PaymentRepository → DatabaseService` and the history chain
-  `Issue #912 → PR #421 → Commit 8f21ac7 → payment.service.ts`.
-- `npm run db:seed` is deterministic and idempotent (parameterized `UNWIND` +
-  `MERGE` batches through `DatabaseService`; re-running never duplicates —
-  verified). `npm run db:clear` is label-scoped (safe on a shared instance).
-  `npm run db:verify` checks 41 assertions: counts vs the dataset definition,
-  critical entities, 2-hop/3-hop traversals, and integrity (0 orphans).
+- The schema is the contract every write path must satisfy (the original
+  deterministic seed dataset was removed — the GitHub import pipeline is the
+  replacement data source). Schema details live in
+  [docs/graph-data-model.md](docs/graph-data-model.md); constraints are
+  created idempotently on import (`CREATE CONSTRAINT ... IF NOT EXISTS`).
 
 **Phase 5 (this milestone) — Cypher Query Layer & Graph Repository API.**
 
@@ -279,20 +290,17 @@ PaymentService → PaymentRepository → DatabaseService` and the history chain
 - Engineering history traverses the File → Commit → PR → Issue chain; the
   repository overview is label-scoped (safe on a shared instance).
 - 83 backend tests (unit + e2e with an in-memory repository), verified live
-  against the seeded graph.
+  against the graph.
 
-**Current — SaaS product shell + Clerk authentication.**
+**Current — SaaS product shell + GitHub-only authentication.**
 
-- Public SaaS landing page (hero, features, value props) replaces the
-  foundation-status view; sign-in / sign-up controls render from Clerk.
+- Public SaaS landing page (hero, features, value props) with GitHub sign-in.
 - Product dashboard behind auth: repository overview, live graph statistics,
-  and upcoming-workspace cards (Graph Explorer, Impact Analysis).
-- `@clerk/nextjs` + `proxy.ts` middleware — every route except the landing
-  page and health checks requires a session.
-- API auth: global `ClerkAuthGuard` verifies the Bearer session token on every
-  route (fail-closed 401; `@Public()` only on health). The frontend attaches
-  the token via `useAuth().getToken()`.
-- 95 backend tests (incl. auth guard unit + fail-closed e2e).
+  and workspace cards (Graph Explorer, Impact Analysis).
+- GitHub OAuth App + own signed sessions: `proxy.ts` middleware gates routes,
+  the global `GitHubAuthGuard` fails closed on the API, and
+  `useGitHubSession().getToken()` drives every data fetch.
+- 211 backend tests (incl. session/guard unit specs + fail-closed e2e).
 
 **Next (Phase 6):** Impact Analysis — per
 [docs/PHASE-1-TECHNICAL-DESIGN.md](docs/PHASE-1-TECHNICAL-DESIGN.md).
