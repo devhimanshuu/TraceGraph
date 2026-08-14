@@ -14,6 +14,8 @@ describe('GraphService', () => {
     findDependentRows: jest.fn(),
     findTests: jest.fn(),
     traverseFromNode: jest.fn(),
+    traverseIntoNode: jest.fn(),
+    findRelationshipSummary: jest.fn(),
     search: jest.fn(),
   } as unknown as GraphRepository;
   const service = new GraphService(repo);
@@ -118,6 +120,56 @@ describe('GraphService', () => {
       100,
     );
     expect(result.root.id).toBe('class:pp');
+  });
+
+  it('traverse with direction=in walks the dependents chain', async () => {
+    (repo.findNodeById as jest.Mock).mockResolvedValue(node);
+    const traverseIntoNode = jest.fn().mockResolvedValue({
+      root: { id: 'class:pp', type: 'Class', label: 'PaymentService' },
+      depth: 3,
+      nodes: [],
+      edges: [],
+      paths: [],
+    });
+    (repo as unknown as { traverseIntoNode: jest.Mock }).traverseIntoNode = traverseIntoNode;
+
+    await service.traverse('class:pp', { depth: 3, direction: 'in' });
+    expect(traverseIntoNode).toHaveBeenCalledWith(
+      { id: 'class:pp', type: 'Class', label: 'PaymentService' },
+      3,
+      ['CALLS', 'IMPORTS', 'EXTENDS'],
+      100,
+    );
+    expect(repo.traverseFromNode).not.toHaveBeenCalled();
+  });
+
+  it('getRelationshipSummary 404s for an unknown node without querying', async () => {
+    (repo.findNodeById as jest.Mock).mockResolvedValue(null);
+    await expect(service.getRelationshipSummary('nope')).rejects.toBeInstanceOf(NotFoundException);
+    expect((repo as unknown as { findRelationshipSummary: jest.Mock }).findRelationshipSummary)
+      .not.toHaveBeenCalled();
+  });
+
+  it('getRelationshipSummary returns category counts for the node', async () => {
+    (repo.findNodeById as jest.Mock).mockResolvedValue(node);
+    (repo as unknown as { findRelationshipSummary: jest.Mock }).findRelationshipSummary = jest
+      .fn()
+      .mockResolvedValue({
+        relationships: 12,
+        dependencies: 2,
+        dependents: 4,
+        callers: 4,
+        callees: 2,
+        tests: 8,
+        commits: 3,
+        pullRequests: 2,
+        issues: 1,
+      });
+
+    const summary = await service.getRelationshipSummary('class:pp');
+    expect(summary.dependencies).toBe(2);
+    expect(summary.tests).toBe(8);
+    expect(repo.findNodeById).toHaveBeenCalledWith('class:pp');
   });
 
   it('search delegates with the query and limit', async () => {

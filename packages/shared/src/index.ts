@@ -115,6 +115,24 @@ export interface TestCoverage {
   target: GraphNodeRef;
 }
 
+/**
+ * `GET /api/nodes/:id/relationship-summary` — one lightweight request with
+ * the counts behind every Dependency Explorer category. Lets the UI render
+ * counts without fetching each relationship list up front.
+ */
+export interface RelationshipSummary {
+  /** Total incoming + outgoing relationships for the node. */
+  relationships: number;
+  dependencies: number;
+  dependents: number;
+  callers: number;
+  callees: number;
+  tests: number;
+  commits: number;
+  pullRequests: number;
+  issues: number;
+}
+
 /** `GET /api/repository` — label-scoped statistics for the TraceGraph dataset. */
 export interface RepositoryStats {
   directories: number;

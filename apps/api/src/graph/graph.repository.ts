@@ -18,6 +18,7 @@ import type {
   NodeRelationships,
   NodeType,
   RelationshipType,
+  RelationshipSummary,
   RepositoryActivity,
   RepositoryComponent,
   SearchResultItem,
@@ -47,6 +48,18 @@ import {
   FIND_INCOMING_RELATIONSHIPS,
 } from './queries/node.queries';
 import {
+  COUNT_CLASS_DEPENDENCIES,
+  COUNT_CLASS_DEPENDENTS,
+  COUNT_CLASS_EXTENDS,
+  COUNT_FILE_IMPORTED_BY,
+  COUNT_FILE_IMPORTS,
+  COUNT_FUNCTION_CALLEES,
+  COUNT_FUNCTION_CALLERS,
+  COUNT_RELATIONSHIPS,
+  COUNT_TESTS_FOR_CLASS,
+  COUNT_TESTS_FOR_CONTAINER,
+  COUNT_TESTS_FOR_FILE,
+  COUNT_TESTS_FOR_FUNCTION,
   FIND_CLASS_DEPENDENCIES,
   FIND_CLASS_DEPENDENTS,
   FIND_CLASS_EXTENDS,
@@ -61,6 +74,9 @@ import {
 } from './queries/dependency.queries';
 import { buildTraversalQuery } from './queries/traversal.queries';
 import {
+  COUNT_COMMITS_FOR_ENTITY,
+  COUNT_ISSUES_FOR_ENTITY,
+  COUNT_PULL_REQUESTS_FOR_ENTITY,
   FIND_COMMITS_FOR_ENTITY,
   FIND_ISSUES_FOR_ENTITY,
   FIND_PULL_REQUESTS_FOR_ENTITY,
@@ -241,6 +257,100 @@ export class GraphRepository {
     return rows.map(toTestCoverage);
   }
 
+  // ── Relationship summary (Phase 8) ──────────────────────────────────────────
+
+  /**
+   * One-request counts for every Dependency Explorer category. Runs the COUNT
+   * variants of the list queries in parallel; mirroring their semantics so the
+   * counts always match what the lists would return.
+   */
+  async findRelationshipSummary(node: GraphNode): Promise<RelationshipSummary> {
+    const count = (cypher: string, name: string) =>
+      this.db
+        .executeRead<CountRow[]>((tx) => tx.run<CountRow>(cypher, { id: node.id }), { name })
+        .then((rows) => toNumber(rows[0]?.count));
+
+    const relationships = count(COUNT_RELATIONSHIPS, 'count-relationships');
+    const commits = count(COUNT_COMMITS_FOR_ENTITY, 'count-commits-for-entity');
+    const pullRequests = count(COUNT_PULL_REQUESTS_FOR_ENTITY, 'count-pull-requests-for-entity');
+    const issues = count(COUNT_ISSUES_FOR_ENTITY, 'count-issues-for-entity');
+    const tests = (() => {
+      switch (node.type) {
+        case 'Function':
+          return count(COUNT_TESTS_FOR_FUNCTION, 'count-tests-function');
+        case 'File':
+          return count(COUNT_TESTS_FOR_FILE, 'count-tests-file');
+        case 'Class':
+          return count(COUNT_TESTS_FOR_CLASS, 'count-tests-class');
+        case 'Repository':
+        case 'Directory':
+          return count(COUNT_TESTS_FOR_CONTAINER, 'count-tests-container');
+        default:
+          return Promise.resolve(0);
+      }
+    })();
+
+    // Callers/callees are service-level aliases of dependents/dependencies
+    // (GET callers = GET dependents, GET callees = GET dependencies), so they
+    // share the same count — no duplicated count queries.
+    const [dependencies, dependents, testsCount] = await Promise.all([
+      this.countDependencies(node, count),
+      this.countDependents(node, count),
+      tests,
+    ]);
+
+    return {
+      relationships: await relationships,
+      dependencies,
+      dependents,
+      callers: dependents,
+      callees: dependencies,
+      tests: testsCount,
+      commits: await commits,
+      pullRequests: await pullRequests,
+      issues: await issues,
+    };
+  }
+
+  /** Dependency count, resolved per node type (mirrors findDependencyRows). */
+  private async countDependencies(
+    node: GraphNode,
+    count: (cypher: string, name: string) => Promise<number>,
+  ): Promise<number> {
+    switch (node.type) {
+      case 'Function':
+        return count(COUNT_FUNCTION_CALLEES, 'count-function-callees');
+      case 'File':
+        return count(COUNT_FILE_IMPORTS, 'count-file-imports');
+      case 'Class': {
+        const [parents, callees] = await Promise.all([
+          count(COUNT_CLASS_EXTENDS, 'count-class-extends'),
+          count(COUNT_CLASS_DEPENDENCIES, 'count-class-dependencies'),
+        ]);
+        return parents + callees;
+      }
+      default:
+        return 0;
+    }
+  }
+
+  /** Dependent count, resolved per node type (mirrors findDependentRows). */
+  private async countDependents(
+    node: GraphNode,
+    count: (cypher: string, name: string) => Promise<number>,
+  ): Promise<number> {
+    switch (node.type) {
+      case 'Function':
+        return count(COUNT_FUNCTION_CALLERS, 'count-function-callers');
+      case 'File':
+        return count(COUNT_FILE_IMPORTED_BY, 'count-file-imported-by');
+      case 'Class':
+        return count(COUNT_CLASS_DEPENDENTS, 'count-class-dependents');
+      default:
+        return 0;
+    }
+  }
+
   // ── History ─────────────────────────────────────────────────────────────────
 
   async findCommits(id: string, limit: number) {
@@ -284,7 +394,7 @@ export class GraphRepository {
   }
 
   /** Reverse-direction walk: everything that REACHES the root. */
-  private async traverseIntoNode(
+  async traverseIntoNode(
     root: GraphNodeRef,
     depth: number,
     types: readonly string[],

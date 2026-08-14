@@ -282,4 +282,81 @@ describe('GraphRepository', () => {
     expect(executeRead).toHaveBeenCalledTimes(10);
     expect(counts.Developer).toBe(37); // same mock value for every label
   });
+
+  it('findRelationshipSummary returns one-request counts with parallel queries', async () => {
+    const { db, executeRead } = createMockDb();
+    // Every count query returns a single row with a count value.
+    executeRead.mockResolvedValue([{ count: int(2) }]);
+    const repo = new GraphRepository(db);
+
+    const summary = await repo.findRelationshipSummary({
+      id: 'class:x',
+      type: 'Class',
+      label: 'X',
+      properties: {},
+    });
+
+    expect(summary).toEqual({
+      relationships: 2,
+      dependencies: 4, // extends + class deps (two count queries)
+      dependents: 2,
+      callers: 2,
+      callees: 4, // aliases for classes
+      tests: 2,
+      commits: 2,
+      pullRequests: 2,
+      issues: 2,
+    });
+    // relationships + commits + PRs + issues + tests + extends + deps + dependents
+    expect(executeRead).toHaveBeenCalledTimes(8);
+  });
+
+  it('findRelationshipSummary maps Function callers/callees to CALLS counts', async () => {
+    const { db, executeRead } = createMockDb();
+    executeRead.mockResolvedValue([{ count: int(3) }]);
+    const repo = new GraphRepository(db);
+
+    const summary = await repo.findRelationshipSummary({
+      id: 'fn:pp',
+      type: 'Function',
+      label: 'processPayment',
+      properties: {},
+    });
+
+    expect(summary.dependencies).toBe(3); // callees
+    expect(summary.callees).toBe(3);
+    expect(summary.dependents).toBe(3); // callers
+    expect(summary.callers).toBe(3);
+    const cyphers = executeRead.mock.calls.map((c) => c[0]).filter((c) => typeof c === 'string');
+    expect(cyphers.some((c) => c.includes('COUNT_FUNCTION_CALLEES') || c.includes('count(DISTINCT callee)'))).toBe(false);
+  });
+
+  it('traverseIntoNode builds the inbound pattern and canonicalizes paths', async () => {
+    const { db, executeRead } = createMockDb();
+    executeRead.mockResolvedValue([
+      {
+        target: { id: 'fn:order', name: 'processOrder' },
+        nodeType: 'Function',
+        hops: int(2),
+        // Inbound pattern is (target)-[:CALLS]->(start) so raw paths arrive
+        // end→…→start; the repository canonicalizes them to start→…→end.
+        nodeIds: ['fn:order', 'fn:co', 'fn:pp'],
+        relTypes: ['CALLS', 'CALLS'],
+        relProps: [{}, {}],
+      },
+    ]);
+    const repo = new GraphRepository(db);
+
+    const result = await repo.traverseIntoNode(
+      { id: 'fn:pp', type: 'Function', label: 'processPayment' },
+      3,
+      ['CALLS'],
+      100,
+    );
+
+    const { cypher } = await runWork(executeRead, 0, []);
+    expect(cypher).toContain('(target)-[:CALLS*1..3]->(start {id: $rootId})');
+    // Paths are canonicalized root → … → target.
+    expect(result.paths[0].nodes).toEqual(['fn:pp', 'fn:co', 'fn:order']);
+  });
 });
