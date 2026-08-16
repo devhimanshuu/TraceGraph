@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type { GithubImportResult } from '@tracegraph/shared';
 import { ApiRequestError } from '@/lib/api-client';
 import { RepoChooser } from './repo-chooser';
 
@@ -106,10 +107,69 @@ describe('RepoChooser', () => {
       expect(githubService.importRepo).toHaveBeenCalledWith(
         'octocat/hello-world',
         'test-token',
+        expect.any(Function),
       ),
     );
     await waitFor(() => expect(refreshMock).toHaveBeenCalledTimes(1));
     expect(await screen.findByText(/imported — 12 files/)).toBeInTheDocument();
+  });
+
+  it('shows staged import progress while the repository is being mapped', async () => {
+    vi.mocked(githubService.listRepos).mockResolvedValue(REPOS);
+    // Hold the import open so the stepper stays mounted while we assert it;
+    // resolve it later to see the success summary replace the stepper.
+    let finishImport: (result: GithubImportResult) => void = () => {};
+    vi.mocked(githubService.importRepo).mockImplementation(async (_fullName, _token, onStatus) => {
+      onStatus?.({
+        jobId: 'job-1',
+        fullName: 'octocat/hello-world',
+        status: 'running',
+        stage: 'parsing',
+        stageLabel: 'Parsing source code',
+        detail: '3 files fetched',
+        startedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      return new Promise<GithubImportResult>((resolve) => {
+        finishImport = resolve;
+      });
+    });
+
+    render(<RepoChooser />);
+    fireEvent.click(screen.getByRole('button', { name: 'Choose a repository' }));
+    await screen.findByText('octocat/hello-world');
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Import' })[0]);
+
+    // The stepper appears with all five pipeline stages and the current one marked.
+    expect(await screen.findByTestId('import-stages')).toBeInTheDocument();
+    expect(screen.getByText('Fetching repository files')).toBeInTheDocument();
+    expect(screen.getByText('Parsing source code')).toBeInTheDocument();
+    expect(screen.getByText('Building the graph model')).toBeInTheDocument();
+    expect(screen.getByText('Writing engineering history')).toBeInTheDocument();
+    expect(screen.getByText('Persisting to the graph')).toBeInTheDocument();
+    // The reported stage detail renders next to the active step.
+    expect(await screen.findByText('3 files fetched')).toBeInTheDocument();
+    // The import heading shows which repo is being mapped.
+    expect(screen.getByText(/Importing octocat\/hello-world/)).toBeInTheDocument();
+
+    // Once the import resolves, the stepper gives way to the success summary.
+    finishImport({
+      fullName: 'octocat/hello-world',
+      repositoryId: 'repo:octocat/hello-world',
+      nodesCreated: 42,
+      relationshipsCreated: 128,
+      files: 12,
+      functions: 20,
+      classes: 5,
+      tests: 4,
+      commits: 10,
+      pullRequests: 2,
+      issues: 1,
+      durationMs: 4000,
+    });
+    expect(await screen.findByText(/imported — 12 files/)).toBeInTheDocument();
+    expect(screen.queryByTestId('import-stages')).not.toBeInTheDocument();
   });
 
   it('shows the import failure reason inline', async () => {

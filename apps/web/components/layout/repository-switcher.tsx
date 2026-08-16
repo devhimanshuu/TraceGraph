@@ -1,10 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Dialog } from '@base-ui/react/dialog';
 import {
   CheckCircle2,
+  ChevronsUpDown,
   FolderGit2,
   Loader2,
   RefreshCw,
@@ -28,7 +29,7 @@ import { formatRelativeTime } from '@/lib/format';
  * After a switch/import the repository context refreshes and the user lands
  * back on the dashboard so the new overview is immediately visible.
  */
-export function RepositorySwitcher() {
+export function RepositorySwitcher({ collapsed = false }: { collapsed?: boolean }) {
   const router = useRouter();
   const { getToken } = useGitHubSession();
   const { repository, refresh } = useRepositoryContext();
@@ -61,9 +62,10 @@ export function RepositorySwitcher() {
     }
   }, [getToken]);
 
-  useEffect(() => {
-    if (open) void load();
-  }, [open, load]);
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (next) void load();
+  };
 
   const switchRepo = async (repo: GithubRepo) => {
     setBusy(repo.fullName);
@@ -100,17 +102,46 @@ export function RepositorySwitcher() {
     : [];
 
   return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
+    <Dialog.Root open={open} onOpenChange={handleOpenChange}>
       <Dialog.Trigger
         render={
           <button
             type="button"
-            className="flex w-full items-center gap-2 rounded-lg px-1.5 py-1.5 text-left text-xs text-muted-foreground outline-none transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={repository ? `Switch repository (${repository.fullName})` : 'Import a repository'}
+            title={repository ? `Active repository: ${repository.fullName}. Click to switch.` : 'Import a repository'}
+            className={
+              collapsed
+                ? 'flex w-full items-center justify-center rounded-lg p-1.5 text-muted-foreground outline-none transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring'
+                : 'group flex w-full items-center gap-2 rounded-lg border border-border/60 bg-card/50 px-2.5 py-2 text-left outline-none transition-colors hover:border-sky-500/40 hover:bg-card/80 focus-visible:ring-2 focus-visible:ring-ring'
+            }
           >
-            <FolderGit2 className="size-3.5 shrink-0" aria-hidden />
-            <span className="truncate font-medium">
-              {repository ? `Switch repository` : 'Import a repository'}
-            </span>
+            {collapsed ? (
+              <FolderGit2 className="size-3.5 shrink-0" aria-hidden />
+            ) : (
+              <>
+                <FolderGit2 className="size-4 shrink-0 text-sky-500 dark:text-sky-400" aria-hidden />
+                <span className="flex min-w-0 flex-1 flex-col leading-tight">
+                  {repository ? (
+                    <>
+                      <span className="truncate text-xs font-semibold text-foreground">
+                        {repository.name}
+                      </span>
+                      <span className="truncate font-mono text-[10px] text-muted-foreground">
+                        {repository.language} · {repository.defaultBranch}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-xs font-medium text-muted-foreground">
+                      Import a repository
+                    </span>
+                  )}
+                </span>
+                <ChevronsUpDown
+                  aria-hidden
+                  className="size-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground"
+                />
+              </>
+            )}
           </button>
         }
       />

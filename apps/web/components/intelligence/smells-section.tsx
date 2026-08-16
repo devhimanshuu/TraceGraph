@@ -3,14 +3,16 @@
 import Link from 'next/link';
 import { ArrowRight, GitFork, RefreshCcw, Scale, Siren } from 'lucide-react';
 import type { ArchitectureSmell, SmellResponse } from '@tracegraph/shared';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SectionError } from '@/components/dashboard/section-error';
 import { NodeTypeBadge } from '@/components/dependencies/relationship-badge';
 import { useApiResource } from '@/hooks/use-api-resource';
 import { intelligenceService } from '@/lib/services/intelligence.service';
+import { SCROLL_LIST_CLASS } from '@/lib/scroll';
+import { cn } from '@/lib/utils';
 
-function SmellCard({ smell }: { smell: ArchitectureSmell }) {
+function SmellRow({ smell }: { smell: ArchitectureSmell }) {
   const icon =
     smell.kind === 'cycle' ? (
       <RefreshCcw className="size-4 text-rose-500" />
@@ -21,37 +23,35 @@ function SmellCard({ smell }: { smell: ArchitectureSmell }) {
     );
 
   return (
-    <Card className="overflow-hidden">
-      <CardContent className="flex flex-col gap-2.5 p-4">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            {icon}
-            {smell.title}
-          </div>
-          <span className="shrink-0 rounded-full bg-muted/70 px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
-            {Object.entries(smell.metrics)
-              .map(([key, value]) => `${key} ${value}`)
-              .join(' · ')}
-          </span>
+    <div className="rounded-lg border border-border/60 bg-card/40 p-3 transition-colors hover:bg-card/60">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">
+          {icon}
+          <span className="truncate">{smell.title}</span>
         </div>
-        <p className="text-xs leading-relaxed text-muted-foreground">{smell.reason}</p>
-        <ul className="flex flex-wrap gap-1.5">
-          {smell.entities.map((entity, i) => (
-            <li key={entity.id} className="flex items-center gap-1.5">
-              {i > 0 ? <span className="text-[10px] text-muted-foreground/60">→</span> : null}
-              <Link
-                href={`/dependencies?node=${encodeURIComponent(entity.id)}`}
-                className="group inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-card/40 px-2 py-1 text-xs text-foreground transition-colors hover:border-sky-500/40 hover:bg-card"
-              >
-                {entity.label}
-                <NodeTypeBadge type={entity.type} className="hidden" />
-                <ArrowRight className="size-3 text-muted-foreground/50 transition-colors group-hover:text-sky-500" />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </CardContent>
-    </Card>
+        <span className="shrink-0 rounded-full bg-muted/70 px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
+          {Object.entries(smell.metrics)
+            .map(([key, value]) => `${key} ${value}`)
+            .join(' · ')}
+        </span>
+      </div>
+      <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{smell.reason}</p>
+      <ul className="mt-2 flex flex-wrap gap-1.5">
+        {smell.entities.map((entity, i) => (
+          <li key={entity.id} className="flex items-center gap-1.5">
+            {i > 0 ? <span className="text-[10px] text-muted-foreground/60">→</span> : null}
+            <Link
+              href={`/dependencies?node=${encodeURIComponent(entity.id)}`}
+              className="group inline-flex items-center gap-1.5 rounded-md border border-border/60 bg-card/40 px-2 py-1 text-xs text-foreground transition-colors hover:border-sky-500/40 hover:bg-card"
+            >
+              {entity.label}
+              <NodeTypeBadge type={entity.type} className="hidden" />
+              <ArrowRight className="size-3 text-muted-foreground/50 transition-colors group-hover:text-sky-500" />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -67,30 +67,48 @@ function Group({
   smells: ArchitectureSmell[];
 }) {
   return (
-    <div className="flex flex-col gap-2">
-      <h3 className={`flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider ${accent}`}>
-        <Icon className="size-3.5" aria-hidden />
-        {title} · {smells.length}
-      </h3>
-      {smells.length === 0 ? (
-        <p className="rounded-lg border border-border/40 bg-card/20 px-3 py-2.5 text-xs text-muted-foreground">
-          None found — the modeled graph is clean here.
-        </p>
-      ) : (
-        <div className="flex flex-col gap-2">{smells.map((s) => <SmellCard key={s.reason + s.entities[0]?.id} smell={s} />)}</div>
-      )}
-    </div>
+    <Card className="flex flex-col overflow-hidden">
+      <CardHeader className="flex-row items-center justify-between gap-2 pb-2">
+        <CardTitle className={cn('flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider', accent)}>
+          <Icon className="size-3.5" aria-hidden />
+          {title}
+        </CardTitle>
+        <span className="shrink-0 rounded-full bg-muted/70 px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
+          {smells.length}
+        </span>
+      </CardHeader>
+      <CardContent className="flex-1 p-2 pt-0">
+        {smells.length === 0 ? (
+          <p className="rounded-lg border border-border/40 bg-card/20 px-3 py-2.5 text-xs text-muted-foreground">
+            None found — the modeled graph is clean here.
+          </p>
+        ) : (
+          <div className={cn(SCROLL_LIST_CLASS, 'flex max-h-[22rem] flex-col gap-2 p-1')}>
+            {smells.map((s) => (
+              <SmellRow key={s.reason + s.entities[0]?.id} smell={s} />
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
 function SmellsSkeleton() {
   return (
-    <div className="flex flex-col gap-3">
-      <Skeleton className="h-4 w-40" />
-      <Skeleton className="h-28" />
-      <Skeleton className="h-28" />
-      <Skeleton className="h-4 w-40" />
-      <Skeleton className="h-24" />
+    <div className="grid gap-4 lg:grid-cols-3">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <Card key={i}>
+          <CardHeader>
+            <Skeleton className="h-4 w-32" />
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            <Skeleton className="h-24" />
+            <Skeleton className="h-24" />
+            <Skeleton className="h-24" />
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }
@@ -132,7 +150,7 @@ export function SmellsSection() {
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="grid items-stretch gap-4 lg:grid-cols-3">
       <Group title="Cycles" icon={GitFork} accent="text-rose-500" smells={data.cycles} />
       <Group title="God modules" icon={Scale} accent="text-amber-500" smells={data.godModules} />
       <Group title="Fragile" icon={Siren} accent="text-orange-500" smells={data.fragile} />

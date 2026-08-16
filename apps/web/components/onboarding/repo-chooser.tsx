@@ -13,7 +13,12 @@ import {
   Search,
   XCircle,
 } from 'lucide-react';
-import type { GithubImportResult, GithubRepo } from '@tracegraph/shared';
+import type {
+  GithubImportJob,
+  GithubImportResult,
+  GithubRepo,
+  GithubImportStage,
+} from '@tracegraph/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +29,22 @@ import { githubService } from '@/lib/services/github.service';
 import { formatRelativeTime } from '@/lib/format';
 
 type Mode = 'intro' | 'picker';
+
+const IMPORT_STAGES: Array<{ id: GithubImportStage; label: string }> = [
+  { id: 'fetching', label: 'Fetching repository files' },
+  { id: 'parsing', label: 'Parsing source code' },
+  { id: 'building', label: 'Building the graph model' },
+  { id: 'history', label: 'Writing engineering history' },
+  { id: 'persisting', label: 'Persisting to the graph' },
+];
+
+const STAGE_INDEX: Record<GithubImportStage, number> = {
+  fetching: 0,
+  parsing: 1,
+  building: 2,
+  history: 3,
+  persisting: 4,
+};
 
 /**
  * Onboarding — the app's only way to get data. Signed-in users pick one of
@@ -42,6 +63,8 @@ export function RepoChooser() {
 
   const [search, setSearch] = useState('');
   const [importingName, setImportingName] = useState<string | null>(null);
+  const [importStage, setImportStage] = useState<GithubImportStage | 'none'>('none');
+  const [importDetail, setImportDetail] = useState<string | undefined>(undefined);
   const [importError, setImportError] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<GithubImportResult | null>(null);
 
@@ -66,11 +89,17 @@ export function RepoChooser() {
 
   const importRepo = async (repo: GithubRepo) => {
     setImportingName(repo.fullName);
+    setImportStage('fetching');
+    setImportDetail(undefined);
     setImportError(null);
     setLastResult(null);
     try {
       const token = await getToken();
-      const result = await githubService.importRepo(repo.fullName, token);
+      const onStatus = (job: GithubImportJob) => {
+        setImportStage(job.status === 'running' ? job.stage : 'none');
+        setImportDetail(job.detail);
+      };
+      const result = await githubService.importRepo(repo.fullName, token, onStatus);
       setLastResult(result);
       // The repository context re-fetches; once it succeeds the empty state
       // unmounts and the dashboard renders the real overview.
@@ -78,6 +107,8 @@ export function RepoChooser() {
     } catch (err) {
       setImportError(err instanceof Error ? err.message : 'The import failed unexpectedly.');
     } finally {
+      setImportStage('none');
+      setImportDetail(undefined);
       setImportingName(null);
     }
   };
@@ -92,6 +123,93 @@ export function RepoChooser() {
         (r.description ?? '').toLowerCase().includes(q),
     );
   }, [repos, search]);
+
+  // ── Import in progress: a staged stepper replaces the list so the user
+  // sees exactly what the pipeline is doing instead of a static spinner. ──
+  if (importingName) {
+    const currentIndex = importStage === 'none' ? -1 : STAGE_INDEX[importStage];
+    const progress =
+      currentIndex < 0
+        ? 0
+        : Math.round(((currentIndex + 0.6) / IMPORT_STAGES.length) * 100);
+    return (
+      <Card className="mx-auto w-full max-w-xl">
+        <CardHeader className="gap-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Loader2 className="size-4 animate-spin text-primary" aria-hidden />
+            Importing {importingName}
+          </CardTitle>
+          <CardDescription>
+            Mapping files, symbols, dependencies and history into the graph.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <div
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progress}
+            aria-label={`Import progress: ${progress}%`}
+            className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+          >
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-sky-500 to-violet-500 transition-all duration-500"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+
+          <ol className="flex flex-col gap-1" data-testid="import-stages">
+            {IMPORT_STAGES.map(({ id, label }, index) => {
+              const done = currentIndex > index;
+              const active = currentIndex === index;
+              return (
+                <li
+                  key={id}
+                  className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm"
+                  aria-current={active ? 'step' : undefined}
+                >
+                  {done ? (
+                    <CheckCircle2
+                      className="size-4 shrink-0 text-emerald-500"
+                      aria-hidden
+                    />
+                  ) : active ? (
+                    <Loader2 className="size-4 shrink-0 animate-spin text-primary" aria-hidden />
+                  ) : (
+                    <span
+                      className="size-4 shrink-0 rounded-full border-2 border-muted-foreground/25"
+                      aria-hidden
+                    />
+                  )}
+                  <span
+                    className={
+                      done
+                        ? 'text-muted-foreground line-through decoration-muted-foreground/40'
+                        : active
+                          ? 'font-medium text-foreground'
+                          : 'text-muted-foreground/60'
+                    }
+                  >
+                    {label}
+                  </span>
+                  {active && importDetail ? (
+                    <span className="ml-auto truncate font-mono text-[11px] text-muted-foreground">
+                      {importDetail}
+                    </span>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ol>
+
+          <p className="text-xs text-muted-foreground">
+            Large repositories can take a minute — the graph is written in batches as each
+            stage completes. You can leave this page; the import keeps running.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (mode === 'intro') {
     return (
@@ -211,7 +329,6 @@ export function RepoChooser() {
         {!reposLoading && !reposError && filtered.length > 0 && (
           <ul className="flex flex-col gap-2" data-testid="repo-list">
             {filtered.map((repo) => {
-              const isImporting = importingName === repo.fullName;
               return (
                 <li
                   key={repo.fullName}
@@ -252,13 +369,7 @@ export function RepoChooser() {
                   </div>
 
                   <div className="flex shrink-0 items-center gap-2">
-                    {isImporting && (
-                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                        Importing…
-                      </span>
-                    )}
-                    {!isImporting && lastResult?.fullName === repo.fullName && (
+                    {lastResult?.fullName === repo.fullName && (
                       <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
                         <CheckCircle2 className="size-3.5" aria-hidden />
                         Imported
@@ -268,7 +379,6 @@ export function RepoChooser() {
                       size="sm"
                       disabled={importingName !== null}
                       onClick={() => void importRepo(repo)}
-                      aria-busy={isImporting}
                     >
                       Import
                     </Button>

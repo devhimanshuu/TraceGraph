@@ -53,10 +53,12 @@ function GridPattern({
       <rect width="100%" height="100%" strokeWidth={0} fill={`url(#${id})`} />
       {squares && (
         <svg x={x} y={y} className="overflow-visible">
-          {squares.map(([sx, sy]) => (
+          {squares.map(([sx, sy], index) => (
+            // Random square generators (grid-card's getRandomPattern) can emit
+            // the same coordinates twice, so the index keeps keys unique.
             <rect
               strokeWidth="0"
-              key={`${sx}-${sy}`}
+              key={`${sx}-${sy}-${index}`}
               width={width - 1}
               height={height - 1}
               x={sx * width + 1}

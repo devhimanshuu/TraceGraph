@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   AlertTriangle,
@@ -18,6 +18,7 @@ import { SectionError } from '@/components/dashboard/section-error';
 import { NodeTypeBadge } from '@/components/dependencies/relationship-badge';
 import { useGitHubSession } from '@/hooks/use-github-session';
 import { intelligenceService } from '@/lib/services/intelligence.service';
+import { SCROLL_LIST_CLASS } from '@/lib/scroll';
 import { cn } from '@/lib/utils';
 
 const LOADING_STEPS = ['Resolving changed files', 'Tracing dependents', 'Ranking affected tests'];
@@ -71,15 +72,19 @@ function SummaryStat({
  * Paste the changed-file list from a PR/diff; the tool resolves the files in
  * the graph and shows every dependent (direct/indirect), the affected tests
  * ranked by coverage, and an overall LOW/MEDIUM/HIGH risk summary.
+ *
+ * `initialFiles` pre-fills the textarea (used by the "Analyze PR" actions on
+ * the graph/dependency pages via `?blast=` — the tool never auto-runs, the
+ * user reviews the file list and clicks the button).
  */
-export function BlastRadiusTool() {
+export function BlastRadiusTool({ initialFiles }: { initialFiles?: string[] }) {
   const { getToken } = useGitHubSession();
   const getTokenRef = useRef(getToken);
   useEffect(() => {
     getTokenRef.current = getToken;
   });
 
-  const [text, setText] = useState('');
+  const [text, setText] = useState(() => initialFiles?.join('\n') ?? '');
   const [depth, setDepth] = useState(2);
   const [blast, setBlast] = useState<BlastRadiusResponse | null>(null);
   const [tests, setTests] = useState<TestToRun[] | null>(null);
@@ -93,10 +98,20 @@ export function BlastRadiusTool() {
     return () => window.clearInterval(t);
   }, [loading]);
 
-  const files = text
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
+  // Accept both newline- and comma-separated lists (the `?blast=` deep-link
+  // joins a whole selection with commas; pasted `git diff` output is newline
+  // separated). Duplicates are dropped so the analysis isn't double-counted.
+  const files = useMemo(() => {
+    const seen = new Set<string>();
+    return text
+      .split(/[,\n]/)
+      .map((part) => part.trim())
+      .filter((part) => {
+        if (!part || seen.has(part)) return false;
+        seen.add(part);
+        return true;
+      });
+  }, [text]);
 
   const run = useCallback(async () => {
     if (files.length === 0) return;
@@ -194,7 +209,7 @@ export function BlastRadiusTool() {
         {error ? (
           <SectionError
             title="Blast radius analysis failed"
-            message="We couldn't complete the batch traversal. Please try again."
+            message={error ?? "We couldn't complete the batch traversal. Please try again."}
             onRetry={() => void run()}
           />
         ) : null}
@@ -234,7 +249,7 @@ export function BlastRadiusTool() {
                 {blast.directImpact.length === 0 ? (
                   <p className="text-xs text-muted-foreground">None found within the depth.</p>
                 ) : (
-                  <ul className="flex flex-col gap-1.5">
+                  <ul className={cn(SCROLL_LIST_CLASS, 'flex max-h-80 flex-col gap-1.5')}>
                     {blast.directImpact.map((e) => (
                       <EntityRow key={e.id} id={e.id} type={e.type} label={e.label} reason={e.reason} />
                     ))}
@@ -248,7 +263,7 @@ export function BlastRadiusTool() {
                 {blast.indirectImpact.length === 0 ? (
                   <p className="text-xs text-muted-foreground">None found within the depth.</p>
                 ) : (
-                  <ul className="flex flex-col gap-1.5">
+                  <ul className={cn(SCROLL_LIST_CLASS, 'flex max-h-80 flex-col gap-1.5')}>
                     {blast.indirectImpact.map((e) => (
                       <EntityRow key={e.id} id={e.id} type={e.type} label={e.label} reason={e.reason} />
                     ))}
@@ -268,7 +283,7 @@ export function BlastRadiusTool() {
                   No test coverage found for the changed surface.
                 </p>
               ) : (
-                <ul className="flex flex-col gap-1.5">
+                <ul className={cn(SCROLL_LIST_CLASS, 'flex max-h-64 flex-col gap-1.5')}>
                   {tests.slice(0, 8).map((t) => (
                     <li
                       key={t.id}

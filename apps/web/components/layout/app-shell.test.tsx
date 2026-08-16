@@ -46,6 +46,20 @@ function renderShell() {
   );
 }
 
+/** Make matchMedia report the given min-width query results. */
+function mockMatchMedia(matches: Record<string, boolean>) {
+  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+    matches: matches[query] ?? false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(repositoryService.getOverview).mockResolvedValue(overview);
@@ -73,11 +87,13 @@ describe('AppShell navigation', () => {
     expect(screen.getByRole('link', { name: 'Graph' })).not.toHaveAttribute('aria-current');
   });
 
-  it('shows the repository context and graph status in the sidebar', async () => {
+  it('shows the active repository in the header dropdown and graph status in the sidebar', async () => {
     renderShell();
 
+    // The active repo now lives in the sidebar header as a compact dropdown.
     expect(await screen.findByText('commerce-platform')).toBeInTheDocument();
-    expect(screen.getByText('TypeScript')).toBeInTheDocument();
+    expect(screen.getByText(/TypeScript · main/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Switch repository/ })).toBeInTheDocument();
     expect(screen.getByText('Graph connected')).toBeInTheDocument();
   });
 
@@ -89,5 +105,53 @@ describe('AppShell navigation', () => {
     expect(await screen.findByRole('button', { name: 'Close navigation menu' })).toBeInTheDocument();
     // Drawer exposes the same destinations as the desktop sidebar.
     expect(screen.getByRole('link', { name: 'Graph' })).toHaveAttribute('href', '/graph');
+  });
+
+  it('collapses and expands the desktop sidebar via the rail toggle', async () => {
+    window.localStorage.clear();
+    renderShell();
+
+    // Collapse — nav labels are replaced by icon-only links with aria-labels.
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }));
+    expect(screen.getByRole('button', { name: 'Expand sidebar' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Overview' })).toHaveAttribute('aria-label', 'Overview');
+    expect(screen.getByRole('link', { name: 'Overview' })).not.toHaveTextContent('Overview');
+    expect(window.localStorage.getItem('tracegraph:sidebar-collapsed')).toBe('1');
+
+    // Expand — full labels return.
+    fireEvent.click(screen.getByRole('button', { name: 'Expand sidebar' }));
+    expect(screen.getByRole('link', { name: 'Overview' })).toHaveTextContent('Overview');
+    expect(window.localStorage.getItem('tracegraph:sidebar-collapsed')).toBe('0');
+    window.localStorage.clear();
+  });
+
+  it('auto-collapses the rail on small laptops (lg–xl) regardless of the saved preference', async () => {
+    mockMatchMedia({ '(min-width: 1024px)': true, '(min-width: 1280px)': false });
+    window.localStorage.setItem('tracegraph:sidebar-collapsed', '0'); // saved expanded
+    renderShell();
+
+    // Forced collapsed: nav is icon-only, toggle is pinned disabled.
+    expect(await screen.findByRole('link', { name: 'Overview' })).toHaveAttribute('aria-label', 'Overview');
+    const toggle = screen.getByRole('button', { name: 'Expand sidebar' });
+    expect(toggle).toBeDisabled();
+    // The saved preference is untouched (the override applies only here).
+    expect(window.localStorage.getItem('tracegraph:sidebar-collapsed')).toBe('0');
+  });
+
+  it('keeps the saved preference on wide screens (xl+)', async () => {
+    mockMatchMedia({ '(min-width: 1024px)': true, '(min-width: 1280px)': true });
+    window.localStorage.setItem('tracegraph:sidebar-collapsed', '0'); // saved expanded
+    renderShell();
+
+    // Expanded with full labels, and the toggle is enabled.
+    const overview = await screen.findByRole('link', { name: 'Overview' });
+    expect(overview).toHaveTextContent('Overview');
+    expect(screen.getByRole('button', { name: 'Collapse sidebar' })).toBeEnabled();
+
+    // Collapsing at xl+ writes the preference, and the rail stays collapsed.
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }));
+    expect(screen.getByRole('button', { name: 'Expand sidebar' })).toBeEnabled();
+    expect(window.localStorage.getItem('tracegraph:sidebar-collapsed')).toBe('1');
+    window.localStorage.clear();
   });
 });

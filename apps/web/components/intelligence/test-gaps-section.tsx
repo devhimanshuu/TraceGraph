@@ -3,18 +3,23 @@
 import Link from 'next/link';
 import { ArrowRight, FlaskConical, ShieldAlert } from 'lucide-react';
 import type { TestGapResponse } from '@tracegraph/shared';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SectionError } from '@/components/dashboard/section-error';
 import { useApiResource } from '@/hooks/use-api-resource';
 import { intelligenceService } from '@/lib/services/intelligence.service';
+import { SCROLL_LIST_CLASS } from '@/lib/scroll';
+import { cn } from '@/lib/utils';
 
 function TestGapsSkeleton() {
   return (
     <Card>
+      <CardHeader>
+        <Skeleton className="h-4 w-36" />
+      </CardHeader>
       <CardContent className="flex flex-col gap-2 p-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-10" />
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} className="h-9" />
         ))}
       </CardContent>
     </Card>
@@ -58,9 +63,18 @@ export function TestGapsSection() {
   }
 
   return (
-    <Card>
-      <CardContent className="flex flex-col gap-1.5 p-3">
-        <ul className="flex flex-col gap-1.5" data-testid="test-gaps-list">
+    <Card className="flex flex-col overflow-hidden">
+      <CardHeader className="flex-row items-center justify-between gap-2 pb-2">
+        <CardTitle className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <ShieldAlert className="size-3.5 text-amber-500" aria-hidden />
+          Test gaps
+        </CardTitle>
+        <span className="shrink-0 rounded-full bg-muted/70 px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
+          {data.gaps.length}
+        </span>
+      </CardHeader>
+      <CardContent className="flex-1 p-2 pt-0">
+        <ul className={cn(SCROLL_LIST_CLASS, 'flex max-h-80 flex-col gap-1 p-1')} data-testid="test-gaps-list">
           {data.gaps.map((g) => (
             <li key={g.id} className="group flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted/40">
               <div className="flex min-w-0 flex-1 flex-col">

@@ -1,5 +1,6 @@
 'use client';
 
+import { useSearchParams } from 'next/navigation';
 import { GitCompareArrows, Radar, ScanSearch } from 'lucide-react';
 import { RepoChooser } from '@/components/onboarding/repo-chooser';
 import { SectionError } from '@/components/dashboard/section-error';
@@ -19,6 +20,31 @@ import { KnowledgeSection } from '@/components/intelligence/knowledge-section';
 export function IntelligenceHub() {
   const { repository, loading: repoLoading, error: repoError, refresh: refreshRepo } =
     useRepositoryContext();
+
+  // ?blast=<path> pre-fills the blast-radius tool — "Analyze PR" from the
+  // graph/dependency pages. Multiple files are supported: repeat the param or
+  // separate paths with commas/newlines (a whole graph selection deep-links as
+  // `?blast=src/a.ts,src/b.ts`). A `key` remounts the tool so a new selection
+  // replaces the previous pre-fill instead of accumulating.
+  // ?entity=<id> scopes the who-to-ask map to one entity — deep-linked from
+  // the "Who touched this most" chip on the dependency/graph pages.
+  const searchParams = useSearchParams();
+  const initialFiles = (() => {
+    const seen = new Set<string>();
+    const files: string[] = [];
+    for (const raw of searchParams.getAll('blast')) {
+      for (const part of raw.split(/[,\n]/)) {
+        const file = part.trim();
+        if (file && !seen.has(file)) {
+          seen.add(file);
+          files.push(file);
+        }
+      }
+    }
+    return files.length > 0 ? files : undefined;
+  })();
+  const entityParam = searchParams.get('entity');
+  const scopedEntityId = entityParam || undefined;
 
   if (repoLoading) {
     return (
@@ -78,7 +104,7 @@ export function IntelligenceHub() {
       {/* PR blast radius — the interactive centerpiece */}
       <section className="flex flex-col gap-4">
         <SectionHeading icon={GitCompareArrows} label="PR blast radius" />
-        <BlastRadiusTool />
+        <BlastRadiusTool key={initialFiles?.join('\n') ?? 'default'} initialFiles={initialFiles} />
       </section>
 
       {/* Architecture smells */}
@@ -87,23 +113,15 @@ export function IntelligenceHub() {
         <SmellsSection />
       </section>
 
-      {/* Dead code + test gaps + knowledge */}
-      <div className="grid items-start gap-6 lg:grid-cols-3">
-        <div className="flex flex-col gap-6 lg:col-span-2">
-          <div className="flex flex-col gap-4">
-            <SectionHeading icon={ScanSearch} label="Dead code" />
-            <OrphansSection />
-          </div>
-          <div className="flex flex-col gap-4">
-            <SectionHeading icon={ScanSearch} label="Test coverage gaps" />
-            <TestGapsSection />
-          </div>
+      {/* Codebase findings — equal-height scrollable cards */}
+      <section className="flex flex-col gap-4">
+        <SectionHeading icon={ScanSearch} label="Codebase findings" />
+        <div className="grid items-stretch gap-4 lg:grid-cols-3">
+          <OrphansSection />
+          <TestGapsSection />
+          <KnowledgeSection key={scopedEntityId ?? 'repo'} entityId={scopedEntityId} />
         </div>
-        <div className="flex flex-col gap-4">
-          <SectionHeading icon={ScanSearch} label="Who to ask" />
-          <KnowledgeSection />
-        </div>
-      </div>
+      </section>
     </div>
   );
 }

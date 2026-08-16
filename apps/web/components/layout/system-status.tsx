@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
  * the API reports it down, gray while checking. Purely informational — never
  * the primary signal for anything.
  */
-export function SystemStatus() {
+export function SystemStatus({ collapsed = false }: { collapsed?: boolean }) {
   const { database, loading, error } = useHealth();
 
   const up = !loading && !error && database?.status === 'up';
@@ -19,7 +19,12 @@ export function SystemStatus() {
     <span
       role="status"
       aria-label={up ? 'Graph connected' : down ? 'Graph unavailable' : 'Checking graph status'}
-      className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
+      title={collapsed ? (up ? 'Graph connected' : down ? 'Graph unavailable' : 'Checking graph status') : undefined}
+      className={
+        collapsed
+          ? 'inline-flex justify-center text-xs text-muted-foreground'
+          : 'inline-flex items-center gap-1.5 text-xs text-muted-foreground'
+      }
     >
       <span
         aria-hidden
@@ -30,7 +35,7 @@ export function SystemStatus() {
           checking && 'bg-amber-500',
         )}
       />
-      {up ? 'Graph connected' : down ? 'Graph unavailable' : 'Checking…'}
+      {!collapsed ? (up ? 'Graph connected' : down ? 'Graph unavailable' : 'Checking…') : null}
     </span>
   );
 }

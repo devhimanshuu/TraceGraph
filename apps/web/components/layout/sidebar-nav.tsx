@@ -16,15 +16,19 @@ const NAV_ITEMS = [
 /**
  * Primary application navigation. The active item carries `aria-current="page"`
  * and a left accent bar so it is discoverable without relying on color alone.
+ * When `collapsed`, items render icon-only (centered) with a tooltip so the
+ * rail stays usable at its narrow width.
  */
-export function SidebarNav() {
+export function SidebarNav({ collapsed = false }: { collapsed?: boolean }) {
   const pathname = usePathname();
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="px-3 font-mono text-[10px] uppercase tracking-widest text-muted-foreground/70">
-        Workspace
-      </p>
+      {!collapsed ? (
+        <p className="px-3 font-mono text-[10px] uppercase tracking-widest text-muted-foreground/70">
+          Workspace
+        </p>
+      ) : null}
       <nav aria-label="Primary" className="flex flex-col gap-1">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
@@ -33,8 +37,11 @@ export function SidebarNav() {
               key={href}
               href={href}
               aria-current={active ? 'page' : undefined}
+              aria-label={collapsed ? label : undefined}
+              title={collapsed ? label : undefined}
               className={cn(
-                'relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors',
+                'relative flex items-center rounded-lg text-sm transition-colors',
+                collapsed ? 'justify-center px-2 py-2' : 'gap-2.5 px-3 py-2',
                 active
                   ? 'bg-primary/10 font-medium text-foreground'
                   : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
@@ -46,8 +53,8 @@ export function SidebarNav() {
                   className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-sky-500"
                 />
               ) : null}
-              <Icon className="size-4" />
-              {label}
+              <Icon className="size-4 shrink-0" />
+              {!collapsed ? label : null}
             </Link>
           );
         })}
