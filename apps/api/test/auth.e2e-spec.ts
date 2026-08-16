@@ -8,8 +8,10 @@ import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
 import type { AppConfig } from '../src/config/configuration';
 import { GraphRepository } from '../src/graph/graph.repository';
+import { SessionRepository } from '../src/auth/session.repository';
 import { SessionService } from '../src/auth/session.service';
 import { createFakeGraphRepository } from './helpers/fake-graph-repository';
+import { createFakeSessionRepository } from './helpers/fake-session-repository';
 
 // A real SESSION_SECRET puts the guard in genuine verification mode: without
 // a valid TraceGraph-signed token every protected route must fail closed 401.
@@ -39,6 +41,11 @@ describe('Authentication (e2e, GitHub session)', () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(GraphRepository)
       .useValue(createFakeGraphRepository())
+      // Sessions persist to CognoDB in production; the e2e environment has no
+      // reachable database, so the real SessionService runs against an
+      // in-memory store — the JWT sign/verify contract stays genuine.
+      .overrideProvider(SessionRepository)
+      .useValue(createFakeSessionRepository())
       .compile();
 
     app = moduleRef.createNestApplication();

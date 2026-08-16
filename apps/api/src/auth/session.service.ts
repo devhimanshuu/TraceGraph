@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { AuthConfig } from '../config/configuration';
+import { SessionRepository, type StoredSession } from './session.repository';
 
 /** Identity claims attached to every authenticated request. */
 export interface SessionUser {
@@ -19,11 +20,6 @@ export interface VerifiedSession {
   user: SessionUser;
   /** GitHub OAuth access token — server-side only, never returned to the browser. */
   ghToken: string;
-}
-
-interface StoredSession {
-  ghToken: string;
-  expiresAt: number;
 }
 
 /**
@@ -79,20 +75,24 @@ function verifyJwt(token: string, secret: string): Record<string, unknown> | nul
  * Issues and verifies TraceGraph's own session tokens (HS256 JWTs).
  *
  * The token the browser holds carries only identity claims plus a random
- * session id. The GitHub access token lives in an in-memory store keyed by
- * that id — it never reaches the browser ("token stays backend-only").
+ * session id. The GitHub access token lives in CognoDB (via SessionRepository)
+ * keyed by that id — it never reaches the browser ("token stays backend-only").
  *
- * Sessions are short-lived and die with the process; re-signing in is the
- * recovery path. Verification is fail-closed: a missing SESSION_SECRET, an
+ * Sessions are persisted, not held in process memory: the API runs on
+ * serverless Lambda where instances are ephemeral and concurrent, so an
+ * in-memory store would lose sessions on cold start / scale-out and turn real
+ * logins into 401s. Verification is fail-closed: a missing SESSION_SECRET, an
  * expired token, or an unknown session id all yield `null` (401) — never a
  * degraded allow.
  */
 @Injectable()
 export class SessionService {
   private readonly logger = new Logger(SessionService.name);
-  private readonly sessions = new Map<string, StoredSession>();
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly repository: SessionRepository,
+  ) {}
 
   private get authConfig(): AuthConfig {
     return this.config.get<AuthConfig>('auth') ?? ({} as AuthConfig);
@@ -115,10 +115,15 @@ export class SessionService {
     }
     const sid = randomUUID();
     const ttlDays = this.authConfig.sessionTtlDays ?? 7;
-    const expiresAt = Date.now() + ttlDays * 24 * 60 * 60 * 1000;
-    this.sessions.set(sid, { ghToken, expiresAt });
+    const now = Date.now();
+    const expiresAt = now + ttlDays * 24 * 60 * 60 * 1000;
+    const stored: StoredSession = { sid, ghToken, expiresAt, createdAt: now };
+    await this.repository.ensureConstraint();
+    await this.repository.create(stored);
+    // Opportunistic cleanup of expired sessions — never blocks login.
+    await this.repository.purgeExpired().catch(() => undefined);
 
-    const now = Math.floor(Date.now() / 1000);
+    const nowSec = Math.floor(now / 1000);
     return signJwt(
       {
         sid,
@@ -126,8 +131,8 @@ export class SessionService {
         login: user.login,
         name: user.name,
         avatarUrl: user.avatarUrl,
-        iat: now,
-        exp: now + ttlDays * 24 * 60 * 60,
+        iat: nowSec,
+        exp: nowSec + ttlDays * 24 * 60 * 60,
       },
       this.secret,
     );
@@ -149,7 +154,7 @@ export class SessionService {
     if (!sid) {
       return null;
     }
-    const stored = this.sessions.get(sid);
+    const stored = await this.repository.findBySid(sid);
     if (!stored || stored.expiresAt < Date.now()) {
       return null;
     }
@@ -169,7 +174,7 @@ export class SessionService {
     const payload = verifyJwt(token, this.secret);
     const sid = typeof payload?.sid === 'string' ? payload.sid : '';
     if (sid) {
-      this.sessions.delete(sid);
+      await this.repository.deleteBySid(sid);
     }
   }
 }

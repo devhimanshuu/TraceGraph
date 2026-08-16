@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { AuthController } from './auth.controller';
 import { GitHubAuthGuard } from './github-auth.guard';
 import { GitHubAuthService } from './github-auth.service';
+import { SessionRepository } from './session.repository';
 import { SessionService } from './session.service';
 
 /**
@@ -15,6 +16,7 @@ import { SessionService } from './session.service';
   controllers: [AuthController],
   providers: [
     SessionService,
+    SessionRepository,
     GitHubAuthService,
     {
       provide: APP_GUARD,
