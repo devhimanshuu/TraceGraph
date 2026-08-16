@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -21,7 +21,15 @@ import {
   type NodeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { ArrowRight, GitFork, Network, Radar, Search, Workflow } from 'lucide-react';
+import {
+  ArrowRight,
+  GitCompareArrows,
+  GitFork,
+  Network,
+  Radar,
+  Search,
+  Workflow,
+} from 'lucide-react';
 import { useGitHubSession } from '@/hooks/use-github-session';
 import type { GraphNode, GraphResponse } from '@tracegraph/shared';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -185,6 +193,9 @@ export function GraphExplorer() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+  // React Flow's native selection (shift-click / box select) — used to
+  // deep-link a whole selection into the PR blast-radius tool.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [searchOpen, setSearchOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [depth, setDepth] = useState(1);
@@ -194,6 +205,7 @@ export function GraphExplorer() {
     async function load() {
       setLoading(true);
       setError(null);
+      setSelectedIds(() => new Set()); // new neighborhood = new selection
       try {
         const token = await getToken();
         const data = await apiClient.getGraph(
@@ -327,6 +339,44 @@ export function GraphExplorer() {
     [graphData],
   );
 
+  // Stable selection handler. An inline arrow here would give React Flow a new
+  // callback identity every render, making it re-subscribe and re-emit the
+  // selection (then `setSelectedIds` schedules another render — an infinite
+  // loop). The equality guard additionally no-ops when React Flow re-emits the
+  // same selection, so the state only updates on a real change.
+  const handleSelectionChange = useCallback(({ nodes }: { nodes: Array<{ id: string }> }) => {
+    setSelectedIds((prev) => {
+      const next = new Set(nodes.map((n) => n.id));
+      if (prev.size === next.size) {
+        let same = true;
+        for (const id of next) {
+          if (!prev.has(id)) {
+            same = false;
+            break;
+          }
+        }
+        if (same) return prev;
+      }
+      return next;
+    });
+  }, []);
+
+  // File paths for the currently selected nodes — same resolution as the
+  // single-node "Analyze PR" action, so a whole selection deep-links into the
+  // blast-radius tool as one comma-separated `?blast=` value.
+  const selectedBlastPaths = useMemo(() => {
+    if (!graphData || selectedIds.size === 0) return [];
+    return graphData.nodes
+      .filter((n) => selectedIds.has(n.id))
+      .map(
+        (n) =>
+          (n.properties?.filePath as string | undefined) ||
+          (n.properties?.path as string | undefined) ||
+          (n.type === 'File' ? n.label : undefined),
+      )
+      .filter((p): p is string => Boolean(p));
+  }, [graphData, selectedIds]);
+
   const handleNodeClick = (_: React.MouseEvent, node: Node) => {
     const gn = graphData?.nodes.find((n) => n.id === node.id);
     if (gn) {
@@ -401,6 +451,21 @@ export function GraphExplorer() {
             <Search className="size-3.5" />
             Search symbol
           </Button>
+          {selectedBlastPaths.length > 1 ? (
+            <Link
+              href={`/intelligence?blast=${encodeURIComponent(selectedBlastPaths.join(','))}`}
+              className={buttonVariants({
+                variant: 'outline',
+                size: 'sm',
+                className:
+                  'h-8 text-xs gap-1.5 border-emerald-500/40 text-emerald-500 hover:border-emerald-500/70 hover:bg-emerald-500/10 hover:text-emerald-400',
+              })}
+              title="Pre-fill the PR blast-radius tool with every selected file"
+            >
+              <GitCompareArrows className="size-3.5" />
+              Analyze PR ({selectedBlastPaths.length})
+            </Link>
+          ) : null}
           {selectedNode ? (
             <>
               <Link
@@ -410,6 +475,27 @@ export function GraphExplorer() {
                 <Radar className="size-3.5" />
                 Analyze Impact
               </Link>
+              {(() => {
+                const blastPath =
+                  (selectedNode.properties?.filePath as string | undefined) ||
+                  (selectedNode.properties?.path as string | undefined) ||
+                  (selectedNode.type === 'File' ? selectedNode.label : undefined);
+                return blastPath ? (
+                  <Link
+                    href={`/intelligence?blast=${encodeURIComponent(blastPath)}`}
+                    className={buttonVariants({
+                      variant: 'outline',
+                      size: 'sm',
+                      className:
+                        'h-8 text-xs gap-1.5 border-emerald-500/40 text-emerald-500 hover:border-emerald-500/70 hover:bg-emerald-500/10 hover:text-emerald-400',
+                    })}
+                    title="Pre-fill the PR blast-radius tool with this file"
+                  >
+                    <GitCompareArrows className="size-3.5" />
+                    Analyze PR
+                  </Link>
+                ) : null;
+              })()}
               <Link
                 href={`/dependencies?node=${encodeURIComponent(selectedNode.id)}`}
                 className={buttonVariants({ variant: 'outline', size: 'sm', className: 'h-8 text-xs gap-1.5' })}
@@ -487,6 +573,7 @@ export function GraphExplorer() {
                   edgeTypes={edgeTypes}
                   onNodeClick={handleNodeClick}
                   onNodeDoubleClick={handleNodeDoubleClick}
+                  onSelectionChange={handleSelectionChange}
                   fitView
                   fitViewOptions={{ padding: 0.2 }}
                   minZoom={0.2}
@@ -508,7 +595,7 @@ export function GraphExplorer() {
                 {graphData?.nodes.length ?? 0} nodes · {graphData?.edges.length ?? 0} relationships
               </div>
               <div className="pointer-events-none absolute right-3 top-3 z-10 hidden rounded-md border border-border/50 bg-card/85 px-2 py-1 font-mono text-[10px] text-muted-foreground backdrop-blur-sm md:block">
-                Click inspect · Double-click focus · Drag pan · Scroll zoom
+                Click inspect · Shift-click select · Double-click focus · Drag pan · Scroll zoom
               </div>
 
               {/* Float details panel on the bottom-right */}

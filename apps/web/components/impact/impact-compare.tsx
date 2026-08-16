@@ -177,7 +177,7 @@ export function ImpactCompare() {
       <div className="mx-auto max-w-lg py-10">
         <SectionError
           title="Could not build the comparison"
-          message="We couldn't complete the graph traversal for one of the entities. Please try again."
+          message={error ?? "We couldn't complete the graph traversal for one of the entities. Please try again."}
           onRetry={() => setRefreshTrigger((c) => c + 1)}
         />
       </div>

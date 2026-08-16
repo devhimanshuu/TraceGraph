@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { FlaskConical, GitCompare, GitFork, Network, Printer, Radar, Search, Workflow } from 'lucide-react';
-import type { ImpactResponse } from '@tracegraph/shared';
+import { GitCompare, GitFork, Network, Printer, Radar, Search, Workflow } from 'lucide-react';
+import type { ImpactResponse, TestToRun } from '@tracegraph/shared';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,12 +15,14 @@ import { useNode } from '@/hooks/use-node';
 import { useImpactHistory } from '@/hooks/use-impact-history';
 import { useGitHubSession } from '@/hooks/use-github-session';
 import { impactService } from '@/lib/services/impact.service';
+import { intelligenceService } from '@/lib/services/intelligence.service';
 import { ImpactSummary } from '@/components/impact/impact-summary';
 import { ImpactGraph } from '@/components/impact/impact-graph';
 import { ImpactTabs, type ImpactTabKey } from '@/components/impact/impact-tabs';
 import { AffectedComponents } from '@/components/impact/affected-components';
 import { ImpactHistoryView } from '@/components/impact/impact-history-view';
 import { TestCoverageView } from '@/components/dependencies/test-coverage-view';
+import { RankedTestsView } from '@/components/impact/ranked-tests-view';
 import { PathExplorer } from '@/components/impact/path-explorer';
 import { ImpactHistoryList } from '@/components/impact/impact-history-list';
 import { AiExplanationPanel } from '@/components/impact/ai-explanation';
@@ -89,6 +91,12 @@ export function ImpactExplorer() {
   const [analysis, setAnalysis] = useState<ImpactResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Ranked tests-to-run from the intelligence engine — same directlyCovers
+  // weighting as the PR blast-radius tool, fetched once per analysis run.
+  const [rankedTests, setRankedTests] = useState<TestToRun[] | null>(null);
+  const [testsLoading, setTestsLoading] = useState(false);
+  const [testsError, setTestsError] = useState<string | null>(null);
+  const [testsRefresh, setTestsRefresh] = useState(0);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [activeTab, setActiveTab] = useState<ImpactTabKey>('all');
   const [selectedPathId, setSelectedPathId] = useState<string | null>(null);
@@ -155,6 +163,38 @@ export function ImpactExplorer() {
       ignore = true;
     };
   }, [nodeId, depth, refreshTrigger, recordSnapshot]);
+
+  // Ranked tests-to-run — the intelligence engine weights tests that guard
+  // directly affected entities double (same ranking the blast tool shows).
+  // Fetched per analysis run; a failure here never breaks the impact results.
+  useEffect(() => {
+    let ignore = false;
+    if (!nodeId) return;
+    const targetId = nodeId;
+
+    async function loadTests() {
+      setTestsLoading(true);
+      setTestsError(null);
+      try {
+        const token = await getTokenRef.current();
+        const res = await intelligenceService.testsForChange([targetId], { depth }, token);
+        if (!ignore) {
+          setRankedTests(res.tests);
+          setTestsLoading(false);
+        }
+      } catch (err) {
+        if (!ignore) {
+          setTestsError(err instanceof Error ? err.message : 'Test ranking failed');
+          setRankedTests(null);
+          setTestsLoading(false);
+        }
+      }
+    }
+    void loadTests();
+    return () => {
+      ignore = true;
+    };
+  }, [nodeId, depth, testsRefresh]);
 
   // Auto-expand: when the deep link carries ?explain=1, wait for the results
   // (and the AI panel) to render, then scroll it into view with a one-shot
@@ -360,7 +400,7 @@ export function ImpactExplorer() {
       {!loading && error ? (
         <SectionError
           title="Impact analysis failed"
-          message="We couldn't complete the graph traversal. Please try again."
+          message={error ?? "We couldn't complete the graph traversal. Please try again."}
           onRetry={runAnalysis}
         />
       ) : null}
@@ -461,24 +501,32 @@ export function ImpactExplorer() {
             {activeTab === 'tests' ? (
               <div className="flex flex-col gap-3">
                 <p className="px-1 text-xs text-muted-foreground">
-                  Potentially affected tests — coverage for {currentLabel} and its directly affected
-                  components, based on modeled TESTS relationships.
+                  Potentially affected tests — ranked by how much of the change surface each one
+                  guards (tests covering directly affected code count double).
                 </p>
-                {analysis.tests.length === 0 ? (
-                  <div className="flex flex-col items-center gap-2 rounded-xl border border-border/60 bg-card/40 py-10 text-center">
-                    <FlaskConical className="size-5 text-muted-foreground/60" aria-hidden />
-                    <p className="text-sm font-medium">No potentially affected tests</p>
-                    <p className="max-w-sm text-xs text-muted-foreground">
-                      No test coverage was found for {currentLabel} or its direct dependents in the
-                      current model.
-                    </p>
-                  </div>
-                ) : (
+                {/* Ranked tests-to-run (directlyCovers-weighted) when available; */}
+                {/* falls back to the plain deduped list if the ranking failed. */}
+                {!testsLoading && !testsError ? (
+                  <RankedTestsView
+                    tests={rankedTests}
+                    loading={false}
+                    error={null}
+                    currentLabel={currentLabel}
+                  />
+                ) : testsError ? (
                   <TestCoverageView
                     tests={analysis.tests}
                     loading={false}
                     error={null}
                     currentLabel={currentLabel}
+                  />
+                ) : (
+                  <RankedTestsView
+                    tests={null}
+                    loading
+                    error={null}
+                    currentLabel={currentLabel}
+                    onRetry={() => setTestsRefresh((c) => c + 1)}
                   />
                 )}
               </div>

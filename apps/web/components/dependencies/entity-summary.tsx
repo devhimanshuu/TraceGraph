@@ -7,6 +7,7 @@ import {
   Boxes,
   FileCode2,
   FlaskConical,
+  GitCompareArrows,
   History,
   Network,
   Radar,
@@ -19,6 +20,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EntitySearchDialog } from '@/components/dependencies/entity-search-dialog';
+import { TopCommitterChip } from '@/components/dependencies/top-committer-chip';
 import {
   getNodeTypeColor,
   NodeTypeBadge,
@@ -101,6 +103,9 @@ export function EntitySummary({ node, summary, loading }: EntitySummaryProps) {
                   <NodeTypeBadge type={node.type} />
                 </div>
 
+                {/* Who touched this most — top 3 committers, clickable */}
+                <TopCommitterChip nodeId={node.id} entityLabel={node.label} variant="row" />
+
                 {/* File path + line numbers */}
                 {filePath ? (
                   <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
@@ -151,6 +156,21 @@ export function EntitySummary({ node, summary, loading }: EntitySummaryProps) {
                 Analyze Impact
                 <ArrowRight className="size-3" />
               </Link>
+              {filePath ? (
+                <Link
+                  href={`/intelligence?blast=${encodeURIComponent(filePath)}`}
+                  className={buttonVariants({
+                    variant: 'outline',
+                    size: 'sm',
+                    className:
+                      'h-8 text-xs gap-1.5 border-emerald-500/40 text-emerald-500 hover:border-emerald-500/70 hover:bg-emerald-500/10 hover:text-emerald-400',
+                  })}
+                  title="Pre-fill the PR blast-radius tool with this file"
+                >
+                  <GitCompareArrows className="size-3.5" />
+                  Analyze PR
+                </Link>
+              ) : null}
               <Link
                 href={`/impact?node=${encodeURIComponent(node.id)}&explain=1`}
                 className={buttonVariants({

@@ -1,7 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, FileCode2, Radar, Sparkles, Workflow, X } from 'lucide-react';
+import {
+  ArrowRight,
+  FileCode2,
+  GitCompareArrows,
+  Radar,
+  Sparkles,
+  Workflow,
+  X,
+} from 'lucide-react';
 import type { GraphNode } from '@tracegraph/shared';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +19,7 @@ import {
   NodeTypeBadge,
   NodeTypeIcon,
 } from '@/components/dependencies/relationship-badge';
+import { TopCommitterChip } from '@/components/dependencies/top-committer-chip';
 
 export interface NodeDetailsPanelProps {
   node: GraphNode | null;
@@ -42,6 +51,7 @@ export function NodeDetailsPanel({ node, onClose }: NodeDetailsPanelProps) {
         </div>
         <div className="flex items-center gap-1.5">
           <NodeTypeBadge type={node.type} />
+          <TopCommitterChip nodeId={node.id} entityLabel={node.label} />
           {onClose ? (
             <Button
               variant="ghost"
@@ -90,6 +100,22 @@ export function NodeDetailsPanel({ node, onClose }: NodeDetailsPanelProps) {
             <Radar className="size-3.5" />
             Analyze Impact
           </Link>
+
+          {filePath ? (
+            <Link
+              href={`/intelligence?blast=${encodeURIComponent(filePath)}`}
+              className={buttonVariants({
+                variant: 'outline',
+                className:
+                  'w-full gap-2 text-xs border-emerald-500/40 text-emerald-500 hover:border-emerald-500/70 hover:bg-emerald-500/10 hover:text-emerald-400',
+                size: 'sm',
+              })}
+              title="Pre-fill the PR blast-radius tool with this file"
+            >
+              <GitCompareArrows className="size-3.5" />
+              Analyze PR
+            </Link>
+          ) : null}
 
           <Link
             href={`/impact?node=${encodeURIComponent(node.id)}&explain=1`}

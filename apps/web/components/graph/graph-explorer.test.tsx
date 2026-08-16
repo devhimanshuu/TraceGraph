@@ -75,6 +75,16 @@ vi.mock('@/components/dependencies/entity-search-dialog', () => ({
   EntitySearchDialog: () => <div data-testid="search-dialog" />,
 }));
 
+vi.mock('@/lib/services/intelligence.service', () => ({
+  intelligenceService: {
+    getKnowledge: vi.fn().mockResolvedValue({
+      repo: { id: 'repo:commerce-platform', type: 'Repository', label: 'commerce-platform' },
+      entity: null,
+      owners: [],
+    }),
+  },
+}));
+
 import { apiClient } from '@/lib/api-client';
 import { ApiRequestError } from '@/lib/api-client';
 
@@ -153,6 +163,32 @@ describe('GraphExplorer', () => {
     expect(apiClient.getNode).not.toHaveBeenCalled();
   });
 
+  it('shows the top committer chip for the selected node', async () => {
+    const { intelligenceService } = await import('@/lib/services/intelligence.service');
+    vi.mocked(intelligenceService.getKnowledge).mockResolvedValue({
+      repo: { id: 'repo:commerce-platform', type: 'Repository', label: 'commerce-platform' },
+      entity: { id: ROOT.id, type: 'Class', label: 'Root' },
+      owners: [
+        {
+          developer: { id: 'developer:dev1', type: 'Developer', label: 'dev1' },
+          commits: 14,
+          lastCommit: '2025-03-05T00:00:00.000Z',
+        },
+      ],
+    });
+
+    render(<GraphExplorer />);
+    await waitFor(() => expect(screen.getAllByText('Root').length).toBeGreaterThan(0));
+
+    const chip = await screen.findByTestId('top-committer-chip');
+    expect(chip).toHaveTextContent('dev1');
+    expect(chip).toHaveTextContent('14 commits');
+    expect(intelligenceService.getKnowledge).toHaveBeenCalledWith(
+      { entityId: ROOT.id, limit: 3 },
+      'test-token',
+    );
+  });
+
   it('re-fetches with a deeper traversal when the depth selector changes', async () => {
     render(<GraphExplorer />);
     await waitFor(() => expect(screen.getAllByText('Root').length).toBeGreaterThan(0));
@@ -191,5 +227,54 @@ describe('GraphExplorer', () => {
     expect(
       screen.getByRole('button', { name: /Search symbols/ }),
     ).toBeInTheDocument();
+  });
+
+  it('deep-links a whole multi-selection into the blast-radius tool', async () => {
+    const A: GraphNode = {
+      id: 'file:src/a.ts',
+      type: 'File',
+      label: 'a.ts',
+      properties: { filePath: 'src/a.ts' },
+    };
+    const B: GraphNode = {
+      id: 'file:src/b.ts',
+      type: 'File',
+      label: 'b.ts',
+      properties: { filePath: 'src/b.ts' },
+    };
+    const NO_PATH: GraphNode = {
+      id: 'cls:src/c.ts:C',
+      type: 'Class',
+      label: 'C',
+      properties: {},
+    };
+    vi.mocked(apiClient.getGraph).mockResolvedValue(graphResponse([A, B, NO_PATH]));
+
+    render(<GraphExplorer />);
+    await waitFor(() => expect(screen.getAllByText('a.ts').length).toBeGreaterThan(0));
+
+    const onSelectionChange = reactFlowProps.onSelectionChange as (sel: {
+      nodes: Array<{ id: string }>;
+    }) => void;
+
+    // Select two files + one node without a path → only the two files link.
+    onSelectionChange({ nodes: [{ id: A.id }, { id: B.id }, { id: NO_PATH.id }] });
+
+    const link = await screen.findByRole('link', { name: /Analyze PR \(2\)/ });
+    expect(link).toHaveAttribute(
+      'href',
+      `/intelligence?blast=${encodeURIComponent('src/a.ts,src/b.ts')}`,
+    );
+
+    // Re-emitting the SAME selection must not churn state (this is what would
+    // drive React Flow into an update-depth loop with an unstable handler).
+    onSelectionChange({ nodes: [{ id: A.id }, { id: B.id }, { id: NO_PATH.id }] });
+    expect(screen.getByRole('link', { name: /Analyze PR \(2\)/ })).toBeInTheDocument();
+
+    // A single selection collapses back to the per-node actions.
+    onSelectionChange({ nodes: [{ id: A.id }] });
+    await waitFor(() =>
+      expect(screen.queryByRole('link', { name: /Analyze PR \(/ })).not.toBeInTheDocument(),
+    );
   });
 });

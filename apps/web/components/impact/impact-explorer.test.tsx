@@ -20,6 +20,16 @@ vi.mock('@/lib/services/impact.service', () => ({
   impactService: { getImpact: vi.fn() },
 }));
 
+const { mockTestsForChange } = vi.hoisted(() => ({
+  mockTestsForChange: vi.fn(),
+}));
+
+vi.mock('@/lib/services/intelligence.service', () => ({
+  intelligenceService: {
+    testsForChange: (...args: unknown[]) => mockTestsForChange(...args),
+  },
+}));
+
 vi.mock('@/lib/services/ai.service', () => ({
   aiService: { explain: vi.fn() },
 }));
@@ -96,6 +106,27 @@ const mockTest: TestCoverage = {
   filePath: 'apps/api/services/payment.service.spec.ts',
   target: { id: 'fn:apps/api/services/payment.service.ts:processPayment', type: 'Function', label: 'processPayment' },
 };
+
+const mockRankedTests = [
+  {
+    id: 'test:apps/api/services/payment.service.spec.ts:processPayment_succeeds',
+    name: 'processPayment succeeds',
+    framework: 'jest',
+    filePath: 'apps/api/services/payment.service.spec.ts',
+    covers: 2,
+    directlyCovers: 1,
+    risk: 3,
+  },
+  {
+    id: 'test:apps/api/services/checkout.service.spec.ts:checkout_flow',
+    name: 'checkout flow',
+    framework: 'jest',
+    filePath: 'apps/api/services/checkout.service.spec.ts',
+    covers: 1,
+    directlyCovers: 0,
+    risk: 1,
+  },
+];
 
 const mockResponse: ImpactResponse = {
   root,
@@ -191,6 +222,11 @@ describe('ImpactExplorer', () => {
     vi.clearAllMocks();
     defaultLedger();
     vi.mocked(aiService.explain).mockResolvedValue(mockExplanation);
+    mockTestsForChange.mockResolvedValue({
+      changed: [{ id: mockNode.id, type: 'Class', label: 'PaymentService' }],
+      unresolved: [],
+      tests: mockRankedTests,
+    });
   });
 
   it('shows the welcome screen with featured entities when no node is selected', async () => {
@@ -246,7 +282,7 @@ describe('ImpactExplorer', () => {
     );
   });
 
-  it('filters to the Tests tab and shows potentially affected tests', async () => {
+  it('filters to the Tests tab and shows the directlyCovers-weighted ranking', async () => {
     mockUseSearchParams.mockReturnValue(
       new URLSearchParams('node=class:apps/api/services/payment.service.ts:PaymentService'),
     );
@@ -258,8 +294,37 @@ describe('ImpactExplorer', () => {
     await screen.findByRole('heading', { name: 'PaymentService' });
     fireEvent.click(screen.getByRole('tab', { name: /Tests\s*1/ }));
 
-    expect(await screen.findByText('apps/api/services/payment.service.spec.ts')).toBeInTheDocument();
+    // Ranked list renders with coverage facts + risk tier.
+    expect(await screen.findByTestId('ranked-tests-list')).toBeInTheDocument();
     expect(screen.getByText('processPayment succeeds')).toBeInTheDocument();
+    expect(screen.getByText('checkout flow')).toBeInTheDocument();
+    expect(screen.getByText(/covers 2 · 1 direct/)).toBeInTheDocument();
+    expect(screen.getByText('MEDIUM')).toBeInTheDocument();
+    expect(screen.getByText('LOW')).toBeInTheDocument();
+
+    expect(mockTestsForChange).toHaveBeenCalledWith(
+      [mockNode.id],
+      { depth: 2 },
+      'test-token',
+    );
+  });
+
+  it('falls back to the plain deduped test list when the ranking fails', async () => {
+    mockUseSearchParams.mockReturnValue(
+      new URLSearchParams('node=class:apps/api/services/payment.service.ts:PaymentService'),
+    );
+    mockNodeReady();
+    vi.mocked(impactService.getImpact).mockResolvedValue(mockResponse);
+    mockTestsForChange.mockRejectedValue(new Error('ranking unavailable'));
+
+    render(<ImpactExplorer />);
+
+    await screen.findByRole('heading', { name: 'PaymentService' });
+    fireEvent.click(screen.getByRole('tab', { name: /Tests\s*1/ }));
+
+    // Graceful degradation: the plain TESTS-relationship list still renders.
+    expect(await screen.findByText('processPayment succeeds')).toBeInTheDocument();
+    expect(screen.queryByTestId('ranked-tests-list')).not.toBeInTheDocument();
   });
 
   it('renders the path explorer when an entity is selected', async () => {
@@ -316,6 +381,25 @@ describe('ImpactExplorer', () => {
     expect(await screen.findByRole('heading', { name: 'PaymentService' })).toBeInTheDocument();
     expect(screen.getAllByText('CheckoutService').length).toBeGreaterThan(0);
     expect(impactService.getImpact).toHaveBeenCalledTimes(2);
+  });
+
+  it('offers a sign-in-again recovery path when the session expired (not a dead-end retry)', async () => {
+    mockUseSearchParams.mockReturnValue(
+      new URLSearchParams('node=class:apps/api/services/payment.service.ts:PaymentService'),
+    );
+    mockNodeReady();
+    vi.mocked(impactService.getImpact).mockRejectedValue(
+      new Error('Your session is invalid or has expired. Please sign in again.'),
+    );
+
+    render(<ImpactExplorer />);
+
+    expect(await screen.findByText('Impact analysis failed')).toBeInTheDocument();
+    // The real API message surfaces (not the generic fallback) so the auth
+    // marker is detected and the recovery link replaces the useless Retry.
+    expect(screen.getByText(/session is invalid or has expired/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Sign in again/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Retry/i })).not.toBeInTheDocument();
   });
 
   it('renders the AI explanation panel alongside the deterministic results', async () => {

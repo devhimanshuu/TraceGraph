@@ -60,6 +60,7 @@ const mockTests: TestToRun[] = [
 
 describe('BlastRadiusTool', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     vi.mocked(intelligenceService.blastRadius).mockResolvedValue(mockBlast);
     vi.mocked(intelligenceService.testsForChange).mockResolvedValue({
       changed: mockBlast.changed,
@@ -108,5 +109,41 @@ describe('BlastRadiusTool', () => {
     fireEvent.click(screen.getByRole('button', { name: /Try sample files/i }));
     const textarea = screen.getByLabelText(/Changed files/i) as HTMLTextAreaElement;
     expect(textarea.value).toContain('app/(dashboard)/_actions/workspaces.ts');
+  });
+
+  it('pre-fills the file list from initialFiles (Analyze PR)', () => {
+    render(<BlastRadiusTool initialFiles={['app/api/telegram/webhook/route.ts']} />);
+    const textarea = screen.getByLabelText(/Changed files/i) as HTMLTextAreaElement;
+    expect(textarea.value).toBe('app/api/telegram/webhook/route.ts');
+    // Pre-fill enables the run button but never auto-runs.
+    expect(screen.getByRole('button', { name: /Analyze blast radius/i })).toBeEnabled();
+    expect(intelligenceService.blastRadius).not.toHaveBeenCalled();
+  });
+
+  it('pre-fills a whole selection (comma-separated) with each file on its own line', () => {
+    render(
+      <BlastRadiusTool
+        initialFiles={['app/api/telegram/webhook/route.ts', 'agent/model.ts']}
+      />,
+    );
+    const textarea = screen.getByLabelText(/Changed files/i) as HTMLTextAreaElement;
+    expect(textarea.value).toBe('app/api/telegram/webhook/route.ts\nagent/model.ts');
+    expect(intelligenceService.blastRadius).not.toHaveBeenCalled();
+  });
+
+  it('splits comma- or newline-separated pasted lists and dedupes', async () => {
+    render(<BlastRadiusTool />);
+
+    fireEvent.change(screen.getByLabelText(/Changed files/i), {
+      target: { value: 'src/a.ts,src/b.ts\nsrc/a.ts, src/c.ts' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Analyze blast radius/i }));
+
+    await screen.findByTestId('blast-results');
+    expect(intelligenceService.blastRadius).toHaveBeenCalledWith(
+      ['src/a.ts', 'src/b.ts', 'src/c.ts'],
+      { depth: 2 },
+      'test-token',
+    );
   });
 });

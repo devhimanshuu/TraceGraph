@@ -29,6 +29,16 @@ vi.mock('@/lib/services/node.service', () => ({
   },
 }));
 
+vi.mock('@/lib/services/intelligence.service', () => ({
+  intelligenceService: {
+    getKnowledge: vi.fn().mockResolvedValue({
+      repo: { id: 'repo:commerce-platform', type: 'Repository', label: 'commerce-platform' },
+      entity: null,
+      owners: [],
+    }),
+  },
+}));
+
 vi.mock('@/lib/services/repository.service', () => ({
   repositoryService: {
     getFeatured: vi.fn().mockResolvedValue([
