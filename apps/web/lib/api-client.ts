@@ -4,7 +4,8 @@ import type {
   BlastRadiusResponse,
   DatabaseHealth,
   DependencyTarget,
-  GithubImportResult,
+  GithubImportJob,
+  GithubImportJobStart,
   GithubRepo,
   GraphNode,
   GraphResponse,
@@ -157,8 +158,11 @@ export const apiClient = {
   getAppHealth: () => request<AppHealth>('/health'),
   getDatabaseHealth: () => request<DatabaseHealth>('/health/database'),
   getRepositoryOverview: (token?: string | null) => request<RepositoryOverview>('/repository', token),
-  getRepositoryActivity: (limit: number, token?: string | null) =>
-    request<RepositoryActivity>(`/repository/activity?limit=${limit}`, token),
+  getRepositoryActivity: (limit: number, since?: string, token?: string | null) =>
+    request<RepositoryActivity>(
+      `/repository/activity?limit=${limit}${since ? `&since=${encodeURIComponent(since)}` : ''}`,
+      token,
+    ),
   getRepositoryComponents: (limit: number, token?: string | null) =>
     request<RepositoryComponent[]>(`/repository/components?limit=${limit}`, token),
   getFeaturedEntities: (limit: number, token?: string | null) =>
@@ -251,8 +255,10 @@ export const apiClient = {
   // GitHub onboarding (repo picker + import)
   listGithubRepos: (token?: string | null) =>
     request<GithubRepo[]>('/github/repos', token),
-  importGithubRepo: (fullName: string, token?: string | null) =>
-    mutate<GithubImportResult>('/github/import', 'POST', token, { fullName }),
+  startGithubImport: (fullName: string, token?: string | null) =>
+    mutate<GithubImportJobStart>('/github/import', 'POST', token, { fullName }),
+  getGithubImportStatus: (jobId: string, token?: string | null) =>
+    request<GithubImportJob>(`/github/imports/${encodeURIComponent(jobId)}`, token),
 
   // Codebase intelligence (orphans, smells, test gaps, blast radius, knowledge)
   getOrphans: (limit = 50, token?: string | null) =>

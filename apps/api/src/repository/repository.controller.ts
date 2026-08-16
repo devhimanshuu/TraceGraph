@@ -25,7 +25,7 @@ export class RepositoryController {
 
   @Get('activity')
   getActivity(@Query() query: HistoryQueryDto): Promise<RepositoryActivity> {
-    return this.repositoryService.getActivity(query.limit ?? 10);
+    return this.repositoryService.getActivity(query.limit ?? 10, query.since);
   }
 
   @Get('components')

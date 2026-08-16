@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { RepositoryComponent } from '@tracegraph/shared';
 import { ApiRequestError } from '@/lib/api-client';
 import { RepositoryProvider } from '@/components/layout/repository-provider';
@@ -11,6 +11,8 @@ vi.mock('@/lib/services/repository.service', () => ({
     getOverview: vi.fn(),
     getActivity: vi.fn(),
     getComponents: vi.fn(),
+    getImportedRepositories: vi.fn(),
+    setActiveRepository: vi.fn(),
   },
 }));
 
@@ -64,7 +66,33 @@ const activity = {
 };
 
 const components: RepositoryComponent[] = [
-  { id: 'class:apps/api/services/payment.service.ts:PaymentService', type: 'Class', label: 'PaymentService', dependents: 6 },
+  {
+    id: 'class:apps/api/services/payment.service.ts:PaymentService',
+    type: 'Class',
+    label: 'PaymentService',
+    dependents: 6,
+    path: 'apps/api/services/payment.service.ts',
+    topDependents: ['processOrder', 'refund'],
+  },
+];
+
+const importedRepos = [
+  {
+    id: 'repo:commerce-platform',
+    name: 'commerce-platform',
+    fullName: 'acme/commerce-platform',
+    description: 'A modular commerce backend',
+    language: 'TypeScript',
+    active: true,
+  },
+  {
+    id: 'repo:inventory-service',
+    name: 'inventory-service',
+    fullName: 'acme/inventory-service',
+    description: 'Inventory management',
+    language: 'Go',
+    active: false,
+  },
 ];
 
 function renderPage() {
@@ -80,6 +108,10 @@ beforeEach(() => {
   vi.mocked(repositoryService.getOverview).mockResolvedValue(overview);
   vi.mocked(repositoryService.getActivity).mockResolvedValue(activity);
   vi.mocked(repositoryService.getComponents).mockResolvedValue(components);
+  vi.mocked(repositoryService.getImportedRepositories).mockResolvedValue(importedRepos);
+  vi.mocked(repositoryService.setActiveRepository).mockResolvedValue({
+    active: importedRepos[0],
+  });
 });
 
 describe('DashboardPage', () => {
@@ -146,6 +178,12 @@ describe('DashboardPage', () => {
     renderPage();
 
     expect(await screen.findByText('Recent activity')).toBeInTheDocument();
+    // The default 30-day window sends a `since` cutoff to the API.
+    expect(repositoryService.getActivity).toHaveBeenCalledWith(
+      10,
+      expect.any(String),
+      'test-token',
+    );
     expect(screen.getByText('Add retry handling to payment flow')).toBeInTheDocument();
     expect(screen.getByText('#421')).toBeInTheDocument();
     expect(screen.getByText('Add payment retry handling')).toBeInTheDocument();
@@ -167,6 +205,37 @@ describe('DashboardPage', () => {
     expect(await screen.findByText('No core components found')).toBeInTheDocument();
   });
 
+  it('shows who depends on each core component via the top-dependents sublist', async () => {
+    renderPage();
+
+    expect(await screen.findByText('Called by')).toBeInTheDocument();
+    expect(screen.getByText('processOrder')).toBeInTheDocument();
+    expect(screen.getByText('refund')).toBeInTheDocument();
+  });
+
+  it('offers an Analyze PR shortcut deep-linking the core components\' files', async () => {
+    renderPage();
+
+    // The most-depended-on class carries a file path → the shortcut appears
+    // and pre-fills the blast-radius tool with that file.
+    const link = await screen.findByRole('link', { name: 'Analyze PR' });
+    expect(link).toHaveAttribute(
+      'href',
+      `/intelligence?blast=${encodeURIComponent('apps/api/services/payment.service.ts')}`,
+    );
+  });
+
+  it('hides the Analyze PR shortcut when no component has a path', async () => {
+    vi.mocked(repositoryService.getComponents).mockResolvedValue([
+      { id: 'class:x', type: 'Class', label: 'X', dependents: 1 },
+    ]);
+
+    renderPage();
+
+    expect(await screen.findByText('Core components')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Analyze PR' })).not.toBeInTheDocument();
+  });
+
   it('shows a dedicated empty message when there is no recent activity', async () => {
     vi.mocked(repositoryService.getActivity).mockResolvedValue({
       commits: [],
@@ -176,6 +245,12 @@ describe('DashboardPage', () => {
 
     renderPage();
 
+    // Default window is 30 days — the empty state is period-aware.
+    expect(await screen.findByText('No activity in this period')).toBeInTheDocument();
+
+    // Switching to All time shows the all-time empty copy.
+    const group = screen.getByRole('group', { name: 'Activity time range' });
+    fireEvent.click(within(group).getByRole('button', { name: 'All' }));
     expect(await screen.findByText('No recent activity')).toBeInTheDocument();
   });
 
@@ -186,5 +261,50 @@ describe('DashboardPage', () => {
 
     expect(await screen.findByText("Couldn't load recent activity")).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Retry' }).length).toBeGreaterThan(0);
+  });
+
+  it('renders imported repositories with the active state and a quick-switch action', async () => {
+    renderPage();
+
+    const list = await screen.findByTestId('imported-repos-list');
+    expect(within(list).getByText('commerce-platform')).toBeInTheDocument();
+    expect(within(list).getByText('acme/commerce-platform · TypeScript')).toBeInTheDocument();
+    // Active repo is marked (badge + button) and disabled for switching.
+    expect(within(list).getAllByText('Active').length).toBe(2);
+    const activeButton = within(list).getByRole('button', { name: 'Active' });
+    expect(activeButton).toBeDisabled();
+
+    // Switching the inactive repo flips state and refreshes dashboard data.
+    const switchButton = within(list).getByRole('button', { name: 'Switch' });
+    fireEvent.click(switchButton);
+
+    expect(repositoryService.setActiveRepository).toHaveBeenCalledWith('repo:inventory-service');
+    expect(await screen.findByText('inventory-service')).toBeInTheDocument();
+  });
+
+  it('shows a helpful empty state when no repositories are imported', async () => {
+    vi.mocked(repositoryService.getImportedRepositories).mockResolvedValue([]);
+
+    renderPage();
+
+    expect(await screen.findByText('No imported repositories')).toBeInTheDocument();
+  });
+
+  it('re-fetches activity with a new since cutoff when the time range changes', async () => {
+    renderPage();
+
+    const group = await screen.findByRole('group', { name: 'Activity time range' });
+    fireEvent.click(within(group).getByRole('button', { name: '7d' }));
+
+    await waitFor(() =>
+      expect(repositoryService.getActivity).toHaveBeenLastCalledWith(
+        10,
+        expect.any(String),
+        'test-token',
+      ),
+    );
+    expect(repositoryService.getActivity).toHaveBeenCalledTimes(2);
+    // The range control reflects the selection.
+    expect(within(group).getByRole('button', { name: '7d' })).toHaveAttribute('aria-pressed', 'true');
   });
 });

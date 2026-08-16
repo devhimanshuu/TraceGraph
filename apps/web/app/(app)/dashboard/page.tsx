@@ -1,6 +1,6 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import {
   ArrowRight,
@@ -22,10 +22,12 @@ import {
   ArchitectureSummarySkeleton,
 } from '@/components/dashboard/architecture-summary';
 import { RecentActivity } from '@/components/dashboard/recent-activity';
+import { ImportedRepositories } from '@/components/dashboard/imported-repositories';
 import { SectionError } from '@/components/dashboard/section-error';
 import { RepoChooser } from '@/components/onboarding/repo-chooser';
 import { useRepositoryContext } from '@/components/layout/repository-provider';
 import { useActivity } from '@/hooks/use-activity';
+import { type ActivityRange } from '@/lib/activity';
 import { useComponents } from '@/hooks/use-components';
 import { formatDate } from '@/lib/format';
 
@@ -71,12 +73,24 @@ function PageSkeleton() {
 export default function DashboardPage() {
   const { repository, loading: repoLoading, error: repoError, refresh: refreshRepo } =
     useRepositoryContext();
+  const [activityRange, setActivityRange] = useState<ActivityRange>('30d');
   const {
     activity,
     loading: activityLoading,
     error: activityError,
     refresh: refreshActivity,
-  } = useActivity(10);
+  } = useActivity(10, activityRange);
+
+  // Re-fetch activity when the time range changes — the loader closure in
+  // useApiResource is updated each render, so refresh() picks up the new
+  // `since` cutoff without remounting the hook.
+  const prevActivityRange = useRef(activityRange);
+  useEffect(() => {
+    if (prevActivityRange.current !== activityRange) {
+      prevActivityRange.current = activityRange;
+      void refreshActivity();
+    }
+  }, [activityRange, refreshActivity]);
   const {
     components,
     loading: componentsLoading,
@@ -250,8 +264,22 @@ export default function DashboardPage() {
             onRetry={() => void refreshActivity()}
           />
         ) : activity ? (
-          <RecentActivity activity={activity} />
+          <RecentActivity
+            activity={activity}
+            range={activityRange}
+            onRangeChange={setActivityRange}
+          />
         ) : null}
+      </section>
+
+      {/* Imported repositories */}
+      <section className="flex flex-col gap-4">
+        <SectionTitle>Imported repositories</SectionTitle>
+        <ImportedRepositories
+          onSwitched={async () => {
+            await Promise.all([refreshRepo(), refreshActivity(), refreshComponents()]);
+          }}
+        />
       </section>
 
       {/* Explore CTA */}

@@ -198,6 +198,10 @@ export interface RepositoryComponent {
   label: string;
   /** Number of distinct callers (functions) that depend on this component. */
   dependents: number;
+  /** Source path (files) or containing file (classes), when the graph has one. */
+  path?: string;
+  /** Up to 3 distinct caller names — who depends on this component. */
+  topDependents?: string[];
 }
 
 /** One imported repository in the graph — for the repo switcher. */
@@ -421,6 +425,36 @@ export interface GithubImportResult {
   pullRequests: number;
   issues: number;
   durationMs: number;
+}
+
+/** Stage of an in-flight import — mirrors the import pipeline order. */
+export type GithubImportStage =
+  | 'fetching'
+  | 'parsing'
+  | 'building'
+  | 'history'
+  | 'persisting';
+
+/** Live status of a background import job. */
+export interface GithubImportJob {
+  jobId: string;
+  fullName: string;
+  status: 'running' | 'done' | 'error';
+  /** Current pipeline stage while running. */
+  stage: GithubImportStage | 'none';
+  stageLabel: string;
+  /** Optional stage detail, e.g. the file count fetched so far. */
+  detail?: string;
+  result?: GithubImportResult;
+  error?: string;
+  startedAt: string;
+  updatedAt: string;
+}
+
+/** `POST /api/github/import` — starts the background job and returns its id. */
+export interface GithubImportJobStart {
+  jobId: string;
+  fullName: string;
 }
 
 /** One dead-code / orphan candidate: an entity nothing depends on. */

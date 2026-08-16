@@ -88,6 +88,23 @@ describe('RepositoryService', () => {
       expect(graphRepository.findRepositoryActivity).toHaveBeenCalledWith(
         'repo:commerce-platform',
         10,
+        undefined,
+      );
+    });
+
+    it('passes the since cutoff through for time-filtered activity', async () => {
+      (graphRepository.findDefaultRepository as jest.Mock).mockResolvedValue(repoNode);
+      (graphRepository.findRepositoryActivity as jest.Mock).mockResolvedValue({
+        commits: [],
+        pullRequests: [],
+        issues: [],
+      });
+
+      await service.getActivity(10, '2025-02-01T00:00:00.000Z');
+      expect(graphRepository.findRepositoryActivity).toHaveBeenCalledWith(
+        'repo:commerce-platform',
+        10,
+        '2025-02-01T00:00:00.000Z',
       );
     });
 

@@ -40,4 +40,18 @@ describe('GitHubUserMenu', () => {
 
     expect(signOut).toHaveBeenCalledTimes(1);
   });
+
+  it('header variant renders a compact pill and opens the menu', () => {
+    render(<GitHubUserMenu variant="header" />);
+
+    const trigger = screen.getByRole('button', { name: 'Account menu' });
+    expect(trigger).toBeInTheDocument();
+    // Compact pill still carries the identity, no sidebar handle row.
+    expect(screen.getByText('Audit User')).toBeInTheDocument();
+    expect(screen.queryByText('@auditor')).not.toBeInTheDocument();
+
+    fireEvent.click(trigger);
+
+    expect(screen.getByRole('menuitem', { name: /Sign out/i })).toBeInTheDocument();
+  });
 });

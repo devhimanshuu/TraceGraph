@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
-import type { GithubImportResult } from '@tracegraph/shared';
+import type { GithubImportResult, GithubImportStage } from '@tracegraph/shared';
 import { posix } from 'node:path';
 import { DatabaseService } from '../database/database.service';
 import { GraphRepository } from '../graph/graph.repository';
@@ -53,12 +53,19 @@ export class GithubImportService {
     private readonly graphRepository: GraphRepository,
   ) {}
 
-  async importRepo(fullName: string, token?: string): Promise<GithubImportResult> {
+  async importRepo(
+    fullName: string,
+    token?: string,
+    onProgress?: (stage: GithubImportStage, stageLabel: string, detail?: string) => void,
+  ): Promise<GithubImportResult> {
     const startedAt = Date.now();
     const trimmed = fullName.trim();
     if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(trimmed)) {
       throw new BadRequestException('Repository must be in the form owner/name.');
     }
+
+    const stage = (s: GithubImportStage, label: string, detail?: string) =>
+      onProgress?.(s, label, detail);
 
     const meta = await this.api.getRepoMetadata(trimmed, token);
     const branch = String(meta.default_branch ?? 'main');
@@ -75,6 +82,7 @@ export class GithubImportService {
     let repoFiles: RepoFile[] = [];
     try {
       // ── 1. Download + extract the source tree ────────────────────────────────
+      stage('fetching', 'Fetching repository files', `Cloning ${trimmed}@${branch}`);
       const tarball = await this.api.downloadTarball(trimmed, branch, token);
       const extracted = await extractRepo(tarball);
       cleanup = extracted.cleanup;
@@ -85,6 +93,7 @@ export class GithubImportService {
       this.logger.log(`Imported ${repoFiles.length} files from ${trimmed}`);
 
       // ── 2. Parse source files ─────────────────────────────────────────────────
+      stage('parsing', 'Parsing source code', `${repoFiles.length} files fetched`);
       const parsedByPath = new Map<string, ParsedFile>();
       for (const file of repoFiles) {
         if (!file.source) continue;
@@ -93,6 +102,7 @@ export class GithubImportService {
       }
 
       // ── 3. Build the graph model ──────────────────────────────────────────────
+      stage('building', 'Building the graph model', `${parsedByPath.size} files parsed`);
       const nodes = new Map<string, { label: string; props: Record<string, unknown> }>();
       const edges: Edge[] = [];
 
@@ -301,6 +311,7 @@ export class GithubImportService {
       }
 
       // ── 4. History (commits / PRs / issues / developers) ──────────────────────
+      stage('history', 'Writing engineering history', `${nodes.size} nodes in memory`);
       const commits = await this.api.listCommits(trimmed, token);
       const commitShas = new Set<string>();
       for (const commit of commits.slice(0, 30)) {
@@ -393,6 +404,7 @@ export class GithubImportService {
       }
 
       // ── 5. Persist ─────────────────────────────────────────────────────────────
+      stage('persisting', 'Persisting to the graph', `${nodes.size} nodes · ${edges.length} relationships`);
       await this.ensureConstraints();
       await this.writeNodes(nodes);
       await this.writeEdges(edges);

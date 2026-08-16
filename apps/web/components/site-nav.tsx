@@ -137,10 +137,12 @@ export function SiteNav() {
               <Link className={buttonVariants({ variant: 'ghost', size: 'sm' })} href="/dashboard">
                 Dashboard
               </Link>
-              <GitHubUserMenu />
+              {/* Compact avatar pill matching the header's control size; the
+                  popup opens downward from the top-of-page header. */}
+              <GitHubUserMenu variant="header" />
             </>
           ) : (
-            !loading && <GitHubSignInButton label="Get started" size="sm" />
+            !loading && <GitHubSignInButton label="Get started" size="sm" hideLabelOnMobile />
           )}
 
           <MobileSiteNav productLinks={productLinks} learnLinks={learnLinks} />

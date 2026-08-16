@@ -1,6 +1,5 @@
 import {
   ArrowDown,
-  Check,
   CheckCircle2,
   ChevronDown,
   Database,
@@ -10,7 +9,6 @@ import {
   Network,
   Radar,
   ShieldCheck,
-  Sparkles,
   Star,
   Workflow,
 } from 'lucide-react';
@@ -110,40 +108,6 @@ const trust = [
     icon: ShieldCheck,
     title: 'Deterministic and explainable',
     body: 'Impact is graph traversal over typed relationships, not a guess. AI only summarizes evidence that already exists.',
-  },
-];
-
-const plans = [
-  {
-    name: 'Free',
-    price: '$0',
-    period: 'forever',
-    icon: GitBranch,
-    description: 'For individual developers mapping their first repository.',
-    features: [
-      'Map 1 GitHub repository',
-      'Full graph explorer',
-      'Impact analysis · 3 hops',
-      'Engineering history timeline',
-      'AI-grounded explanations',
-    ],
-    cta: 'Get started free',
-  },
-  {
-    name: 'Team',
-    price: '$19',
-    period: '/ month',
-    icon: Sparkles,
-    highlight: true,
-    description: 'For teams that review impact before they merge.',
-    features: [
-      'Unlimited repositories',
-      'PR blast-radius reports',
-      'Architecture smells & dead code',
-      'CI check mode',
-      'Priority support',
-    ],
-    cta: 'Start a team trial',
   },
 ];
 
@@ -822,73 +786,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Pricing */}
-      <section id="pricing" className="relative scroll-mt-24 overflow-hidden border-t border-border/60 bg-card/30">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-30"
-          style={{
-            backgroundImage: 'radial-gradient(circle, var(--border) 1px, transparent 1px)',
-            backgroundSize: '22px 22px',
-          }}
-        />
-        <div className="relative mx-auto w-full max-w-5xl px-6 py-20">
-          <FadeIn className="flex flex-col items-center gap-3 text-center">
-            <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
-              Pricing
-            </p>
-            <h2 className="max-w-xl font-heading text-2xl font-bold uppercase tracking-tight sm:text-3xl">
-              Start free, scale with your team
-            </h2>
-          </FadeIn>
-          <div className="mt-12 grid gap-4 md:grid-cols-2">
-            {plans.map(({ name, price, period, description, features, icon: Icon, highlight, cta }, i) => (
-              <FadeIn key={name} delay={i * 80} className="h-full">
-                <div
-                  className={`relative flex h-full flex-col gap-5 rounded-xl border p-6 transition-all duration-300 hover:-translate-y-0.5 ${
-                    highlight
-                      ? 'border-sky-500/50 bg-gradient-to-b from-sky-500/10 via-card/80 to-card/80 shadow-[0_20px_50px_-20px_rgba(56,189,248,0.35)] hover:shadow-[0_24px_60px_-20px_rgba(56,189,248,0.45)]'
-                      : 'border-border/60 bg-card/70 hover:border-sky-500/40 hover:shadow-[0_16px_40px_-20px_rgba(2,6,23,0.28)]'
-                  }`}
-                >
-                  {highlight && (
-                    <span className="absolute right-4 top-4 rounded-full border border-sky-400/40 bg-sky-500/10 px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-sky-300">
-                      Most popular
-                    </span>
-                  )}
-                  <div className="flex items-center gap-3 pr-16">
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-sky-400 ring-1 ring-inset ring-sky-400/20">
-                      <Icon className="size-4.5" />
-                    </span>
-                    <div>
-                      <h3 className="text-sm font-semibold">{name}</h3>
-                      <p className="text-xs text-muted-foreground">{description}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="font-mono text-4xl font-bold tracking-tight">{price}</span>
-                    <span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-                      {period}
-                    </span>
-                  </div>
-                  <ul className="flex flex-col gap-2.5">
-                    {features.map((f) => (
-                      <li key={f} className="flex items-start gap-2 text-sm text-muted-foreground">
-                        <Check className="mt-0.5 size-4 shrink-0 text-emerald-500 dark:text-emerald-400" aria-hidden />
-                        {f}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="mt-auto pt-2">
-                    <LandingCta label={cta} className="w-full" />
-                  </div>
-                </div>
-              </FadeIn>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* FAQ */}
       <section id="faq" className="mx-auto w-full max-w-3xl scroll-mt-24 px-6 py-20">
         <FadeIn className="flex flex-col items-center gap-3 text-center">
@@ -949,46 +846,88 @@ export default function Home() {
         </FadeIn>
       </section>
 
-      <footer className="border-t border-border/60 bg-card/30">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10 sm:flex-row sm:items-start sm:justify-between">
-          <div className="flex max-w-sm flex-col gap-3">
+      <footer className="relative overflow-hidden border-t border-border/60 bg-card/30">
+        {/* Glowing top border accent line */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-500/40 to-transparent" />
+
+        {/* Giant brand watermark — solid muted ghost. Theme-aware (muted-foreground)
+            and quiet: no gradient, no glow. The vertical mask fades it into the page. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 flex select-none items-end justify-center overflow-hidden [mask-image:linear-gradient(to_top,black_40%,transparent_98%)]"
+        >
+          <p className="translate-y-6 text-center font-sans text-[clamp(4rem,18vw,16rem)] font-bold tracking-wide leading-none text-muted-foreground/20">
+            TraceGraph
+          </p>
+        </div>
+
+        <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-12 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex max-w-sm flex-col gap-4">
             {/* Same brand lockup as the header — one logo everywhere */}
             <Wordmark href="/" />
             <p className="text-xs leading-relaxed text-muted-foreground">
               Understand your codebase through relationships — files, classes, functions, tests, and
               change history, mapped as a labeled property graph.
             </p>
+            {/* Operational status chip */}
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-border/60 bg-background/50 px-2.5 py-1 text-[11px] text-muted-foreground backdrop-blur-sm">
+              <span className="relative flex size-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+              </span>
+              <span>All Systems Operational</span>
+            </div>
           </div>
-          <nav
-            aria-label="Footer"
-            className="flex flex-col items-start gap-2 text-xs text-muted-foreground sm:items-end"
-          >
-            <a href="#how-it-works" className="transition-colors hover:text-foreground">
-              How it works
-            </a>
-            <a href="#features" className="transition-colors hover:text-foreground">
-              Features
-            </a>
-            <a href="#pricing" className="transition-colors hover:text-foreground">
-              Pricing
-            </a>
-            <a href="#faq" className="transition-colors hover:text-foreground">
-              FAQ
-            </a>
-            <a
-              href="https://opencypher.org"
-              target="_blank"
-              rel="noreferrer"
-              className="font-mono transition-colors hover:text-foreground"
-            >
-              Built on openCypher ↗
-            </a>
-          </nav>
+
+          <div className="grid grid-cols-2 gap-8 text-xs sm:grid-cols-3 sm:gap-12">
+            <div className="flex flex-col gap-3">
+              <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-foreground/80">Product</span>
+              <a href="#how-it-works" className="text-muted-foreground transition-colors hover:text-foreground">
+                How it works
+              </a>
+              <a href="#features" className="text-muted-foreground transition-colors hover:text-foreground">
+                Features
+              </a>
+              <a href="#faq" className="text-muted-foreground transition-colors hover:text-foreground">
+                FAQ
+              </a>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-foreground/80">Capabilities</span>
+              <a href="#features" className="text-muted-foreground transition-colors hover:text-foreground">
+                Impact Analysis
+              </a>
+              <a href="#features" className="text-muted-foreground transition-colors hover:text-foreground">
+                Graph Explorer
+              </a>
+              <a href="#features" className="text-muted-foreground transition-colors hover:text-foreground">
+                Smell Detection
+              </a>
+            </div>
+
+            <div className="col-span-2 flex flex-col gap-3 sm:col-span-1">
+              <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-foreground/80">Platform</span>
+              <a
+                href="https://opencypher.org"
+                target="_blank"
+                rel="noreferrer"
+                className="font-mono text-muted-foreground transition-colors hover:text-foreground"
+              >
+                openCypher ↗
+              </a>
+              <span className="font-mono text-[11px] text-muted-foreground/60">
+                CognoDB v1.0
+              </span>
+            </div>
+          </div>
         </div>
-        <div className="border-t border-border/40">
-          <p className="mx-auto w-full max-w-6xl px-6 py-4 text-center text-[11px] text-muted-foreground/70 sm:text-left">
-            © {new Date().getFullYear()} TraceGraph — Codebase intelligence, powered by CognoDB.
-          </p>
+
+        <div className="relative border-t border-border/40">
+          <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-2 px-6 py-4 text-[11px] text-muted-foreground/70 sm:flex-row">
+            <p>© {new Date().getFullYear()} TraceGraph — Codebase intelligence, powered by CognoDB.</p>
+            <p className="font-mono text-[10px] text-muted-foreground/50">Built for high-velocity engineering</p>
+          </div>
         </div>
       </footer>
     </main>

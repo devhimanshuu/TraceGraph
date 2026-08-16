@@ -1,8 +1,8 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Req } from '@nestjs/common';
 import type { Request } from 'express';
-import type { GithubImportResult, GithubRepo } from '@tracegraph/shared';
+import type { GithubImportJob, GithubImportJobStart, GithubRepo } from '@tracegraph/shared';
 import { GithubApiService } from './github-api.service';
-import { GithubImportService } from './github-import.service';
+import { GithubImportJobService } from './github-import-job.service';
 import { ImportRepoDto } from './dto/import-repo.dto';
 
 interface SessionRequest extends Request {
@@ -11,7 +11,7 @@ interface SessionRequest extends Request {
 }
 
 /**
- * `/api/github` — the repo picker + import flow (onboarding). Both routes are
+ * `/api/github` — the repo picker + import flow (onboarding). All routes are
  * auth-gated by the global guard; the GitHub access token is resolved from the
  * verified session and never returned to the browser.
  */
@@ -19,7 +19,7 @@ interface SessionRequest extends Request {
 export class GithubController {
   constructor(
     private readonly api: GithubApiService,
-    private readonly importer: GithubImportService,
+    private readonly jobService: GithubImportJobService,
   ) {}
 
   /** Repositories the signed-in user can import, most recently updated first. */
@@ -28,13 +28,23 @@ export class GithubController {
     return this.api.listRepos(req.githubToken ?? '');
   }
 
-  /** Imports a repository into the graph (metadata → tree → parse → write). */
+  /**
+   * Starts a background import and returns its job id immediately. The caller
+   * polls `GET /api/github/imports/:jobId` for staged progress (fetching →
+   * parsing → building → history → persisting).
+   */
   @Post('import')
   @HttpCode(HttpStatus.OK)
   async importRepo(
     @Body() dto: ImportRepoDto,
     @Req() req: SessionRequest,
-  ): Promise<GithubImportResult> {
-    return this.importer.importRepo(dto.fullName, req.githubToken);
+  ): Promise<GithubImportJobStart> {
+    return this.jobService.startImport(dto.fullName, req.githubToken);
+  }
+
+  /** Live status of a background import job. */
+  @Get('imports/:jobId')
+  getImportStatus(@Param('jobId') jobId: string): GithubImportJob {
+    return this.jobService.getJob(jobId);
   }
 }

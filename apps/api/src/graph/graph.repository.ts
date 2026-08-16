@@ -615,19 +615,29 @@ export class GraphRepository {
   // ── Repository-level intelligence ───────────────────────────────────────────
 
   /** Recent commits / PRs / issues across the whole repository (3 parallel reads). */
-  async findRepositoryActivity(repoId: string, limit: number): Promise<RepositoryActivity> {
+  async findRepositoryActivity(
+    repoId: string,
+    limit: number,
+    since?: string,
+  ): Promise<RepositoryActivity> {
     const [commits, pullRequests, issues] = await Promise.all([
       this.db.executeRead<
         Array<{ c?: Record<string, unknown>; d?: Record<string, unknown> | null }>
-      >((tx) => tx.run(FIND_REPOSITORY_ACTIVITY_COMMITS, { id: repoId, limit }), {
+      >((tx) => tx.run(FIND_REPOSITORY_ACTIVITY_COMMITS, { id: repoId, limit, since: since ?? null }), {
         name: 'repository-activity-commits',
       }),
       this.db.executeRead<Array<{ pr?: Record<string, unknown> }>>(
-        (tx) => tx.run(FIND_REPOSITORY_ACTIVITY_PULL_REQUESTS, { id: repoId, limit }),
+        (tx) =>
+          tx.run(FIND_REPOSITORY_ACTIVITY_PULL_REQUESTS, {
+            id: repoId,
+            limit,
+            since: since ?? null,
+          }),
         { name: 'repository-activity-pull-requests' },
       ),
       this.db.executeRead<Array<{ i?: Record<string, unknown> }>>(
-        (tx) => tx.run(FIND_REPOSITORY_ACTIVITY_ISSUES, { id: repoId, limit }),
+        (tx) =>
+          tx.run(FIND_REPOSITORY_ACTIVITY_ISSUES, { id: repoId, limit, since: since ?? null }),
         { name: 'repository-activity-issues' },
       ),
     ]);
@@ -641,7 +651,12 @@ export class GraphRepository {
   /** Core components ranked by distinct calling functions. */
   async findRepositoryComponents(repoId: string, limit: number): Promise<RepositoryComponent[]> {
     const rows = await this.db.executeRead<
-      Array<{ n?: Record<string, unknown>; nodeType?: string; dependents?: unknown }>
+      Array<{
+        n?: Record<string, unknown>;
+        nodeType?: string;
+        dependents?: unknown;
+        topCallers?: unknown[];
+      }>
     >((tx) => tx.run(FIND_REPOSITORY_COMPONENTS, { id: repoId, limit }), {
       name: 'repository-components',
     });
@@ -652,6 +667,14 @@ export class GraphRepository {
         type: (row.nodeType ?? 'Class') as NodeType,
         label: humanLabel(props),
         dependents: toNumber(row.dependents),
+        // Classes carry `filePath`; files carry `path` — the dashboard's
+        // "Analyze PR" shortcut deep-links the most-depended-on files.
+        path: String(props.filePath ?? props.path ?? ''),
+        // Up to 3 distinct callers, sorted for stable output — the dashboard
+        // shows who depends on each core component.
+        topDependents: Array.isArray(row.topCallers)
+          ? (row.topCallers as unknown[]).map(String).sort()
+          : undefined,
       };
     });
   }
@@ -688,6 +711,8 @@ export class GraphRepository {
         type: (row.nodeType ?? 'File') as NodeType,
         label: humanLabel(props),
         dependents: toNumber(row.dependents),
+        // Files carry `path`; classes carry `filePath` (functions have neither).
+        path: String(props.path ?? props.filePath ?? ''),
       };
     };
 

@@ -54,9 +54,9 @@ export class RepositoryService {
   }
 
   /** Recent commits / pull requests / issues across the repository. */
-  async getActivity(limit = 10): Promise<RepositoryActivity> {
+  async getActivity(limit = 10, since?: string): Promise<RepositoryActivity> {
     const repo = await this.requireRepository();
-    return this.graphRepository.findRepositoryActivity(repo.id, limit);
+    return this.graphRepository.findRepositoryActivity(repo.id, limit, since);
   }
 
   /** Core components (classes) ranked by distinct calling functions. */

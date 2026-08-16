@@ -359,4 +359,54 @@ describe('GraphRepository', () => {
     // Paths are canonicalized root → … → target.
     expect(result.paths[0].nodes).toEqual(['fn:pp', 'fn:co', 'fn:order']);
   });
+
+  it('findRepositoryComponents maps the file path and top dependents', async () => {
+    const { db, executeRead } = createMockDb();
+    executeRead.mockResolvedValue([
+      {
+        n: {
+          id: 'class:apps/api/services/payment.service.ts:PaymentService',
+          name: 'PaymentService',
+          filePath: 'apps/api/services/payment.service.ts',
+        },
+        nodeType: 'Class',
+        dependents: int(6),
+        // Arrives unsorted from the graph — the repository sorts for stability.
+        topCallers: ['refund', 'processOrder'],
+      },
+    ]);
+    const repo = new GraphRepository(db);
+
+    const result = await repo.findRepositoryComponents('repo:commerce-platform', 8);
+    expect(result).toEqual([
+      {
+        id: 'class:apps/api/services/payment.service.ts:PaymentService',
+        type: 'Class',
+        label: 'PaymentService',
+        dependents: 6,
+        path: 'apps/api/services/payment.service.ts',
+        topDependents: ['processOrder', 'refund'],
+      },
+    ]);
+  });
+
+  it('findRepositoryActivity threads the since cutoff into all three queries', async () => {
+    const { db, executeRead } = createMockDb();
+    executeRead.mockResolvedValue([]);
+    const repo = new GraphRepository(db);
+
+    await repo.findRepositoryActivity('repo:commerce-platform', 10, '2025-02-01T00:00:00.000Z');
+
+    expect(executeRead).toHaveBeenCalledTimes(3);
+    // Re-run each captured work callback and assert its Cypher + params.
+    for (const call of executeRead.mock.calls) {
+      const tx = {
+        run: jest.fn().mockResolvedValue([]),
+      };
+      await call[0](tx);
+      const [cypher, p] = tx.run.mock.calls[0];
+      expect(cypher).toContain('$since');
+      expect(p.since).toBe('2025-02-01T00:00:00.000Z');
+    }
+  });
 });

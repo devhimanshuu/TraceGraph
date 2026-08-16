@@ -16,6 +16,7 @@
 /** Recent commits across the whole repository, newest first. */
 export const FIND_REPOSITORY_ACTIVITY_COMMITS = `
 MATCH (repo:Repository {id: $id})-[:CONTAINS*1..4]->(f:File)<-[:MODIFIES]-(c:Commit)
+WHERE ($since IS NULL OR c.timestamp >= $since)
 OPTIONAL MATCH (c)-[:AUTHORED_BY]->(d:Developer)
 RETURN DISTINCT properties(c) AS c, properties(d) AS d
 ORDER BY c.timestamp DESC
@@ -26,6 +27,7 @@ LIMIT $limit
 export const FIND_REPOSITORY_ACTIVITY_PULL_REQUESTS = `
 MATCH (repo:Repository {id: $id})-[:CONTAINS*1..4]->(f:File)<-[:MODIFIES]-(c:Commit)
 MATCH (pr:PullRequest)-[:CONTAINS]->(c)
+WHERE ($since IS NULL OR coalesce(pr.mergedAt, pr.createdAt) >= $since)
 RETURN DISTINCT properties(pr) AS pr
 ORDER BY pr.number DESC
 LIMIT $limit
@@ -36,6 +38,7 @@ export const FIND_REPOSITORY_ACTIVITY_ISSUES = `
 MATCH (repo:Repository {id: $id})-[:CONTAINS*1..4]->(f:File)<-[:MODIFIES]-(c:Commit)
 MATCH (pr:PullRequest)-[:CONTAINS]->(c)
 MATCH (i:Issue)-[:RELATED_TO]->(pr)
+WHERE ($since IS NULL OR i.createdAt >= $since)
 RETURN DISTINCT properties(i) AS i
 ORDER BY i.number DESC
 LIMIT $limit
@@ -50,7 +53,8 @@ LIMIT $limit
 export const FIND_REPOSITORY_COMPONENTS = `
 MATCH (repo:Repository {id: $id})-[:CONTAINS*1..4]->(f:File)-[:CONTAINS]->(c:Class)
 MATCH (f)-[:CONTAINS]->(fn:Function)<-[:CALLS]-(caller:Function)
-RETURN properties(c) AS n, labels(c)[0] AS nodeType, count(DISTINCT caller) AS dependents
+WITH c, labels(c)[0] AS nodeType, collect(DISTINCT caller.name) AS callers, count(DISTINCT caller) AS dependents
+RETURN properties(c) AS n, nodeType, dependents, callers[0..3] AS topCallers
 ORDER BY dependents DESC, c.name
 LIMIT $limit
 `;

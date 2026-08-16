@@ -1,19 +1,31 @@
 'use client';
 
 import { Menu } from '@base-ui/react/menu';
-import { ChevronUp, LogOut } from 'lucide-react';
+import { ChevronDown, ChevronUp, LogOut } from 'lucide-react';
 import { useGitHubSession } from '@/hooks/use-github-session';
 
+interface GitHubUserMenuProps {
+  /** Sidebar rail mode — avatar-only trigger (used by the collapsed rail). */
+  collapsed?: boolean;
+  /**
+   * Where the control lives:
+   * - `sidebar` (default): full-width row with name + handle, opens upward
+   *   (the trigger sits at the sidebar's bottom edge).
+   * - `header`: compact avatar pill, opens downward (top-of-page headers).
+   */
+  variant?: 'sidebar' | 'header';
+}
+
 /**
- * Sidebar account control: a full-width row with the avatar, name and handle,
- * plus a chevron. Clicking it opens a small menu carrying the verified identity
- * and sign-out.
+ * Signed-in account control. The sidebar variant is a full-width row with the
+ * avatar, name and handle; the header variant is a compact avatar pill. Both
+ * open a small menu carrying the verified identity and sign-out.
  *
- * The popup opens `side="top"` on purpose: the trigger lives at the bottom edge
- * of the sidebar (and the mobile drawer), so opening downward would push the
- * menu off-screen. Opening upward is always fully visible.
+ * The popup opens toward the page interior on purpose: `side="top"` for the
+ * sidebar (bottom edge) and `side="bottom"` for the header (top edge), so the
+ * menu is always fully on-screen.
  */
-export function GitHubUserMenu() {
+export function GitHubUserMenu({ collapsed = false, variant = 'sidebar' }: GitHubUserMenuProps) {
   const { user, signOut } = useGitHubSession();
 
   if (!user) {
@@ -21,6 +33,7 @@ export function GitHubUserMenu() {
   }
 
   const initial = (user.name || user.login || '?').charAt(0).toUpperCase();
+  const isHeader = variant === 'header';
 
   return (
     <Menu.Root>
@@ -29,7 +42,14 @@ export function GitHubUserMenu() {
           <button
             type="button"
             aria-label="Account menu"
-            className="flex w-full items-center gap-2.5 rounded-lg p-1.5 text-left outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
+            title={collapsed || isHeader ? user.name || user.login : undefined}
+            className={
+              isHeader
+                ? 'flex items-center gap-2 rounded-full border border-border/60 bg-background/50 py-1 pr-2.5 pl-1 outline-none transition-colors duration-200 hover:border-sky-400/40 hover:bg-background/80 focus-visible:ring-2 focus-visible:ring-ring'
+                : collapsed
+                  ? 'flex w-full items-center justify-center rounded-lg p-1 outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring'
+                  : 'flex w-full items-center gap-2.5 rounded-lg p-1.5 text-left outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring'
+            }
           >
             <span className="relative flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 text-xs font-semibold text-white ring-1 ring-white/20">
               {user.avatarUrl ? (
@@ -40,23 +60,39 @@ export function GitHubUserMenu() {
                 initial
               )}
             </span>
-            <span className="flex min-w-0 flex-1 flex-col leading-tight">
-              <span className="truncate text-sm font-medium text-foreground">
+            {!collapsed && !isHeader ? (
+              <span className="flex min-w-0 flex-1 flex-col leading-tight">
+                <span className="truncate text-sm font-medium text-foreground">
+                  {user.name || user.login}
+                </span>
+                <span className="truncate font-mono text-[11px] text-muted-foreground">
+                  @{user.login}
+                </span>
+              </span>
+            ) : null}
+            {isHeader ? (
+              <span className="hidden max-w-28 truncate text-sm font-medium text-foreground sm:block">
                 {user.name || user.login}
               </span>
-              <span className="truncate font-mono text-[11px] text-muted-foreground">
-                @{user.login}
-              </span>
-            </span>
-            <ChevronUp
-              aria-hidden
-              className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-200 [.group:has([aria-expanded=true])_&]:rotate-180"
-            />
+            ) : null}
+            {!collapsed ? (
+              isHeader ? (
+                <ChevronDown
+                  aria-hidden
+                  className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-200 [.group:has([aria-expanded=true])_&]:rotate-180"
+                />
+              ) : (
+                <ChevronUp
+                  aria-hidden
+                  className="size-3.5 shrink-0 text-muted-foreground transition-transform duration-200 [.group:has([aria-expanded=true])_&]:rotate-180"
+                />
+              )
+            ) : null}
           </button>
         }
       />
       <Menu.Portal>
-        <Menu.Positioner side="top" align="end" sideOffset={8}>
+        <Menu.Positioner side={isHeader ? 'bottom' : 'top'} align="end" sideOffset={isHeader ? 10 : 8}>
           <Menu.Popup className="z-50 min-w-52 rounded-lg border border-border/70 bg-popover p-1.5 shadow-xl outline-none">
             <div className="border-b border-border/60 px-3 py-2">
               <p className="truncate text-sm font-semibold leading-tight">
@@ -77,3 +113,5 @@ export function GitHubUserMenu() {
     </Menu.Root>
   );
 }
+
+export type { GitHubUserMenuProps };

@@ -7,6 +7,7 @@ interface GitHubSignInButtonProps {
   variant?: 'default' | 'outline' | 'ghost';
   size?: 'default' | 'sm' | 'lg';
   className?: string;
+  hideLabelOnMobile?: boolean;
 }
 
 /** The GitHub octocat mark — lucide dropped brand icons, so it's inline. */
@@ -28,14 +29,25 @@ export function GitHubSignInButton({
   variant = 'default',
   size = 'default',
   className,
+  hideLabelOnMobile = false,
 }: GitHubSignInButtonProps) {
   return (
     <a
       href={githubLoginUrl}
-      className={cn(buttonVariants({ variant, size }), className)}
+      aria-label={label}
+      title={label}
+      className={cn(
+        buttonVariants({ variant, size }),
+        hideLabelOnMobile && 'w-7 px-0 sm:w-auto sm:px-2.5',
+        className,
+      )}
     >
-      <GitHubMark className="size-4" />
-      {label}
+      <GitHubMark className="size-4 shrink-0" />
+      {label && (
+        <span className={cn(hideLabelOnMobile && 'hidden sm:inline')}>
+          {label}
+        </span>
+      )}
     </a>
   );
 }
