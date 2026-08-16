@@ -57,7 +57,14 @@ export function setCookie(
 
 /** Expires a cookie immediately. */
 export function clearCookie(response: Response, name: string): void {
-  setCookie(response, name, '', { maxAge: 0, httpOnly: true, sameSite: 'lax', path: '/' });
+  const isProd = process.env.NODE_ENV === 'production';
+  setCookie(response, name, '', {
+    maxAge: 0,
+    httpOnly: true,
+    sameSite: isProd ? 'none' : 'lax',
+    secure: isProd,
+    path: '/',
+  });
 }
 
 /**

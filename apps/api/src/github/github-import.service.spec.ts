@@ -39,7 +39,11 @@ describe('GithubImportService', () => {
   let service: GithubImportService;
   let api: { [K in keyof GithubApiService]: jest.Mock };
   let db: { executeWrite: jest.Mock };
-  let graph: { countNodesByLabel: jest.Mock; countTraceGraphRelationships: jest.Mock };
+  let graph: {
+    countNodesByLabel: jest.Mock;
+    countTraceGraphRelationships: jest.Mock;
+    markRepositoryActive: jest.Mock;
+  };
   let cleanup: jest.Mock;
   let runCalls: Array<{ name: string; query: string; params?: unknown }>;
   let currentRunName: string;
@@ -107,6 +111,7 @@ describe('GithubImportService', () => {
           Test: 1, Commit: 1, PullRequest: 1, Issue: 1, Developer: 1,
         }),
       countTraceGraphRelationships: jest.fn().mockResolvedValueOnce(0).mockResolvedValueOnce(9),
+      markRepositoryActive: jest.fn().mockResolvedValue(undefined),
     };
 
     cleanup = jest.fn().mockResolvedValue(undefined);
@@ -149,6 +154,23 @@ describe('GithubImportService', () => {
     expect(cleanup).toHaveBeenCalledTimes(1);
     // The GitHub token flows into API calls.
     expect(api.getRepoMetadata).toHaveBeenCalledWith('octocat/hello-world', 'gh-token');
+  });
+
+  it('reports staged progress through the onProgress callback in pipeline order', async () => {
+    const stages: Array<{ stage: string; label: string }> = [];
+    await service.importRepo('octocat/hello-world', '', (stage, stageLabel) => {
+      stages.push({ stage, label: stageLabel });
+    });
+
+    expect(stages.map((s) => s.stage)).toEqual([
+      'fetching',
+      'parsing',
+      'building',
+      'history',
+      'persisting',
+    ]);
+    expect(stages[0]?.label).toContain('Fetching');
+    expect(stages[4]?.label).toContain('Persisting');
   });
 
   it('writes CALLS edges resolved through imports to the right function ids', async () => {

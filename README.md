@@ -110,10 +110,79 @@ npm run dev
 | `npm run lint` | Run ESLint across all workspaces |
 | `npm run test` | Run backend tests |
 | `npm run db:check` | Verify CognoDB database connectivity |
+| `npm run ci:check` (in `apps/api`) | PR blast-radius CLI — changed files → dependents, tests, risk score |
 
 ---
 
-## 🔌 API Overview
+## 🛡️ CI Check Mode — PR Blast Radius
+
+Every pull request changes a few files — but what else does it touch? The
+`ci:check` CLI runs the deterministic impact engine over a PR's changed files
+and answers that question in one command: affected dependents (direct +
+indirect), the tests to run, and a LOW / MEDIUM / HIGH risk summary.
+
+It is graph-driven and deterministic — the same Phase 9 impact engine the web
+app uses, no AI, no network calls beyond CognoDB.
+
+```bash
+# From apps/api
+npm run ci:check -- apps/api/src/impact/impact.service.ts apps/api/src/impact/impact.repository.ts
+```
+
+Example output:
+
+```text
+tracegraph check — 2 files changed
+  dependents:   5 direct, 2 indirect
+  tests to run: 3 potentially affected
+  risk:         MEDIUM
+    • 3 direct dependents (>= 3) → medium impact
+  top tests:
+    • impact.service.spec.ts (apps/api/src/impact/impact.service.spec.ts) — covers 2 affected, risk HIGH
+```
+
+### Gate CI on risk
+
+Use `--fail-on` to fail the pipeline when the change is risky enough — the exit
+code becomes `1` when the risk meets the threshold:
+
+```bash
+# Fail the pipeline on HIGH-risk changes
+npm run ci:check -- --fail-on high $(git diff --name-only origin/main...HEAD)
+
+# Tighter traversal + fail on MEDIUM or HIGH
+npm run ci:check -- --depth 3 --fail-on medium -- apps/api/src/services/payment.service.ts
+```
+
+### Work with a PR diff
+
+```bash
+# Changed files from the current branch, one per line
+git diff --name-only origin/main...HEAD | npm run ci:check -- --stdin
+```
+
+### Scriptable output
+
+```bash
+npm run ci:check -- --json -- apps/api/src/impact/impact.service.ts
+```
+
+### Options
+
+| Flag | Description |
+| --- | --- |
+| `--depth <1-4>` | Traversal depth (default 2, bounded by the API maximum) |
+| `--fail-on medium\|high` | Exit code `1` when risk meets the threshold |
+| `--stdin` | Read changed file paths from stdin, one per line |
+| `--json` | Emit JSON (`{ blast, tests }`) instead of the human summary |
+| `--` | Everything after this is a changed file path |
+
+Exit codes: `0` pass · `1` risk met `--fail-on` (or engine error) · `2` no
+files provided. Paths not found in the graph (new/ignored files) are reported
+as `unresolved` and don't fail the check.
+
+---
+
 
 | Method & Route | Description |
 | --- | --- |

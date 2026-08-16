@@ -8,6 +8,10 @@ build/
 out/
 .turbo/
 
+# Lambda deploy artifacts (built by scripts/build-lambda.js + serverless)
+bundle/
+.serverless/
+
 # Environment — NEVER commit real credentials
 .env
 .env.local

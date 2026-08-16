@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "nest build",
+    "build": "tsc -p tsconfig.build.json",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main.js",
@@ -11,9 +11,13 @@
     "typecheck": "tsc --noEmit",
     "test": "jest --runInBand",
     "db:check": "ts-node --transpile-only scripts/verify-db.ts",
-    "ci:check": "ts-node --transpile-only scripts/ci-check.ts"
+    "ci:check": "ts-node --transpile-only scripts/ci-check.ts",
+    "build:lambda": "node scripts/build-lambda.js",
+    "package:lambda": "npm run build:lambda && serverless package && node scripts/verify-lambda-package.js",
+    "deploy:lambda": "npm run build:lambda && serverless package && node scripts/verify-lambda-package.js && serverless deploy"
   },
   "dependencies": {
+    "@codegenie/serverless-express": "^5.0.0",
     "@nestjs/common": "^11.1.29",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.1.29",
@@ -23,21 +27,24 @@
     "class-validator": "^0.15.1",
     "joi": "^17.13.3",
     "neo4j-driver": "^6.2.0",
-    "tar": "^7.4.3",
-    "typescript": "~5.9.3",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2"
+    "rxjs": "^7.8.2",
+    "tar": "^7.4.3",
+    "typescript": "~5.9.3"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.24",
     "@nestjs/testing": "^11.1.29",
+    "@types/aws-lambda": "^8.10.147",
     "@types/express": "^5.0.6",
     "@types/jest": "^29.5.14",
     "@types/node": "^24.0.0",
     "@types/supertest": "^6.0.3",
+    "esbuild": "^0.28.2",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
     "jest": "^29.7.0",
+    "serverless": "^3.40.0",
     "source-map-support": "^0.5.21",
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.12",

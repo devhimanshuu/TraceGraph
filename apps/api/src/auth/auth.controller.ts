@@ -52,10 +52,12 @@ export class AuthController {
       return;
     }
     const state = randomUUID();
+    const isProd = process.env.NODE_ENV === 'production';
     setCookie(res, STATE_COOKIE, state, {
       maxAge: STATE_TTL_SECONDS,
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: isProd ? 'none' : 'lax',
+      secure: isProd,
     });
     res.redirect(this.github.getAuthorizeUrl(state));
   }
@@ -84,11 +86,12 @@ export class AuthController {
       const ghToken = await this.github.exchangeCode(code);
       const user = await this.github.fetchUser(ghToken);
       const token = await this.sessions.createSession(user, ghToken);
+      const isProd = process.env.NODE_ENV === 'production';
       setCookie(res, SESSION_COOKIE, token, {
         maxAge: (this.authConfig.sessionTtlDays ?? 7) * 86_400,
         httpOnly: true,
-        sameSite: 'lax',
-        secure: process.env.NODE_ENV === 'production',
+        sameSite: isProd ? 'none' : 'lax',
+        secure: isProd,
       });
       // Land the user directly in the app — the dashboard shows the repo
       // chooser when the graph is empty or the overview once imported.

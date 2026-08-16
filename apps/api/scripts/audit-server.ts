@@ -21,9 +21,13 @@ async function main(): Promise<void> {
   configureApp(app, config);
 
   const sessions = app.get(SessionService);
+  // Optional real GitHub token (TG_AUDIT_GITHUB_TOKEN) so GitHub-backed flows
+  // like the repo switcher can be verified in the preview. Without it the
+  // audit session is authenticated but has no GitHub access.
+  const ghToken = process.env.TG_AUDIT_GITHUB_TOKEN ?? '';
   const token = await sessions.createSession(
     { id: 'audit-user', login: 'auditor', name: 'Audit User', avatarUrl: '' },
-    '',
+    ghToken,
   );
 
   await app.listen(config.port);
