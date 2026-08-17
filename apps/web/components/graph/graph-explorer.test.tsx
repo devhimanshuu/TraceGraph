@@ -4,14 +4,28 @@ import type { GraphNode, GraphResponse } from '@tracegraph/shared';
 import { GraphExplorer } from './graph-explorer';
 
 // ── React Flow mock: renders children (so custom nodes render real labels) and
-// exposes the props for interaction tests (onNodeClick). Node positions are
-// captured so layout-switcher tests can assert nodes actually move.
+// exposes the props for interaction tests (onNodeClick). Node positions/styles
+// and edges are captured so layout, spotlight, and what-if tests can assert
+// the canvas actually re-renders.
 const reactFlowProps: Record<string, unknown> = {};
-const reactFlowNodePositions: Array<{ id: string; position: { x: number; y: number } }> = [];
+const reactFlowNodePositions: Array<{
+  id: string;
+  position: { x: number; y: number };
+  style?: Record<string, unknown>;
+  data?: unknown;
+}> = [];
+const reactFlowEdges: Array<{
+  id: string;
+  source: string;
+  target: string;
+  style?: Record<string, unknown>;
+  data?: unknown;
+}> = [];
 vi.mock('@xyflow/react', () => {
   const rf = ({
     children,
     nodes = [],
+    edges = [],
     nodeTypes = {},
     onNodeClick,
     ...props
@@ -23,6 +37,14 @@ vi.mock('@xyflow/react', () => {
       data: unknown;
       selected?: boolean;
       position: { x: number; y: number };
+      style?: Record<string, unknown>;
+    }>;
+    edges?: Array<{
+      id: string;
+      source: string;
+      target: string;
+      style?: Record<string, unknown>;
+      data?: unknown;
     }>;
     nodeTypes?: Record<string, (p: { data: unknown; selected?: boolean }) => React.ReactNode>;
     onNodeClick?: (event: React.MouseEvent, node: { id: string }) => void;
@@ -31,8 +53,9 @@ vi.mock('@xyflow/react', () => {
     reactFlowNodePositions.splice(
       0,
       reactFlowNodePositions.length,
-      ...nodes.map((n) => ({ id: n.id, position: n.position })),
+      ...nodes.map((n) => ({ id: n.id, position: n.position, style: n.style, data: n.data })),
     );
+    reactFlowEdges.splice(0, reactFlowEdges.length, ...edges);
     return (
       <div data-testid="react-flow">
         {nodes.map((n) => {
@@ -135,6 +158,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   Object.keys(reactFlowProps).forEach((k) => delete reactFlowProps[k]);
   reactFlowNodePositions.splice(0, reactFlowNodePositions.length);
+  reactFlowEdges.splice(0, reactFlowEdges.length);
   vi.mocked(apiClient.getGraph).mockResolvedValue(graphResponse());
   vi.mocked(apiClient.getNode).mockResolvedValue(ROOT);
 });
@@ -279,6 +303,159 @@ describe('GraphExplorer', () => {
     // Switching back to rings restores the centered root.
     fireEvent.click(screen.getByRole('button', { name: 'Rings layout' }));
     await waitFor(() => expect(rootPos()).toEqual({ x: 350, y: 250 }));
+  });
+
+  it('persists dragged node positions on the canvas and offers a reset', async () => {
+    render(<GraphExplorer />);
+    await waitFor(() => expect(reactFlowNodePositions.length).toBeGreaterThan(0));
+
+    const onDragStop = reactFlowProps.onNodeDragStop as (
+      _: unknown,
+      node: { id: string; position: { x: number; y: number } },
+    ) => void;
+
+    // Drag the neighbor to a new canvas position — like a free-form canvas.
+    onDragStop({}, { id: NEIGHBOR.id, position: { x: 640, y: 480 } });
+    await waitFor(() => {
+      const p = reactFlowNodePositions.find((n) => n.id === NEIGHBOR.id)!;
+      expect(p.position).toEqual({ x: 640, y: 480 });
+    });
+    // The re-render keeps the drag: no snap-back to the layout coordinates.
+    const after = reactFlowNodePositions.find((n) => n.id === NEIGHBOR.id)!;
+    expect(after.position).toEqual({ x: 640, y: 480 });
+
+    // A reset action appears once the user has rearranged the canvas…
+    fireEvent.click(screen.getByRole('button', { name: /Reset layout/ }));
+    // …and restores the auto-layout position.
+    await waitFor(() => {
+      const p = reactFlowNodePositions.find((n) => n.id === NEIGHBOR.id)!;
+      expect(p.position).not.toEqual({ x: 640, y: 480 });
+    });
+    expect(screen.queryByRole('button', { name: /Reset layout/ })).not.toBeInTheDocument();
+  });
+
+  it('clears user drags when the layout changes (a fresh arrangement wins)', async () => {
+    render(<GraphExplorer />);
+    await waitFor(() => expect(reactFlowNodePositions.length).toBeGreaterThan(0));
+
+    const onDragStop = reactFlowProps.onNodeDragStop as (
+      _: unknown,
+      node: { id: string; position: { x: number; y: number } },
+    ) => void;
+    onDragStop({}, { id: ROOT.id, position: { x: 900, y: 900 } });
+    await waitFor(() =>
+      expect(reactFlowNodePositions.find((n) => n.id === ROOT.id)!.position).toEqual({ x: 900, y: 900 }),
+    );
+
+    // Switching layouts recomputes the arrangement and drops the override.
+    fireEvent.click(screen.getByRole('button', { name: 'Flow layout' }));
+    await waitFor(() => {
+      const p = reactFlowNodePositions.find((n) => n.id === ROOT.id)!;
+      expect(p.position).not.toEqual({ x: 900, y: 900 });
+    });
+  });
+
+  it('enters a fullscreen canvas mode and exits via button or Esc', async () => {
+    render(<GraphExplorer />);
+    await waitFor(() => expect(reactFlowNodePositions.length).toBeGreaterThan(0));
+
+    // Enter fullscreen — the page chrome is replaced by the canvas overlay.
+    fireEvent.click(screen.getByRole('button', { name: /Fullscreen/ }));
+    const fullscreen = await screen.findByRole('region', {
+      name: 'Graph Explorer fullscreen',
+    });
+    expect(within(fullscreen).getByText(/2 nodes · 1 relationships/)).toBeInTheDocument();
+    // The page header is gone (no duplicate controls behind the overlay).
+    expect(screen.queryByRole('heading', { name: 'Graph Explorer' })).not.toBeInTheDocument();
+
+    // Controls stay live in fullscreen: switching layout re-positions the graph.
+    const rootPos = () => reactFlowNodePositions.find((n) => n.id === ROOT.id)!.position;
+    fireEvent.click(within(fullscreen).getByRole('button', { name: 'Flow layout' }));
+    await waitFor(() => expect(rootPos().x).toBeLessThan(350));
+
+    // Exit via the button restores the page chrome.
+    fireEvent.click(screen.getByRole('button', { name: 'Exit fullscreen' }));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('region', { name: 'Graph Explorer fullscreen' }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole('heading', { name: 'Graph Explorer' })).toBeInTheDocument();
+
+    // Re-enter and exit with Escape.
+    fireEvent.click(screen.getByRole('button', { name: /Fullscreen/ }));
+    await screen.findByRole('region', { name: 'Graph Explorer fullscreen' });
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('region', { name: 'Graph Explorer fullscreen' }),
+      ).not.toBeInTheDocument(),
+    );
+  });
+
+  it('spotlights the hovered node neighborhood and dims everything else', async () => {
+    const C: GraphNode = { id: 'fn:c.ts:C', type: 'Function', label: 'C', properties: {} };
+    vi.mocked(apiClient.getGraph).mockResolvedValue(graphResponse([ROOT, NEIGHBOR, C]));
+    render(<GraphExplorer />);
+    await waitFor(() => expect(reactFlowNodePositions.length).toBeGreaterThan(0));
+
+    const onEnter = reactFlowProps.onNodeMouseEnter as (e: unknown, node: { id: string }) => void;
+    const onLeave = reactFlowProps.onNodeMouseLeave as (e: unknown, node: { id: string }) => void;
+    const opacityOf = (id: string) =>
+      (reactFlowNodePositions.find((n) => n.id === id)!.style as { opacity?: number } | undefined)
+        ?.opacity;
+
+    // Hover the root (connected to Neighbor): the isolated node C dims, the
+    // connected neighborhood stays fully lit, and the edge brightens.
+    onEnter({}, { id: ROOT.id });
+    await waitFor(() => expect(opacityOf(C.id)).toBe(0.3));
+    expect(opacityOf(ROOT.id)).toBeUndefined();
+    expect(opacityOf(NEIGHBOR.id)).toBeUndefined();
+    const litEdge = reactFlowEdges.find(
+      (e) => e.source === ROOT.id && e.target === NEIGHBOR.id,
+    )!;
+    expect((litEdge.style as { opacity: number }).opacity).toBe(0.9);
+    expect((litEdge.data as { dimmed?: boolean }).dimmed).toBe(false);
+
+    // Leaving restores full opacity everywhere.
+    onLeave({}, { id: ROOT.id });
+    await waitFor(() => expect(opacityOf(C.id)).toBeUndefined());
+  });
+
+  it('simulates removing a node and marks everything that would break', async () => {
+    render(<GraphExplorer />);
+    await waitFor(() => expect(reactFlowNodePositions.length).toBeGreaterThan(0));
+
+    // Enter what-if mode: the canvas waits for a target.
+    fireEvent.click(screen.getByRole('button', { name: /What-if/ }));
+    expect(screen.getByText(/Pick a node to simulate its removal/)).toBeInTheDocument();
+
+    // Click Neighbor (the root CALLS it) → the root would break.
+    fireEvent.click(within(screen.getByTestId('react-flow')).getByText('Neighbor'));
+    await waitFor(() => {
+      const root = reactFlowNodePositions.find((n) => n.id === ROOT.id)!;
+      expect((root.data as { whatIfStatus: string }).whatIfStatus).toBe('affected');
+    });
+    const removed = reactFlowNodePositions.find((n) => n.id === NEIGHBOR.id)!;
+    expect((removed.data as { whatIfStatus: string }).whatIfStatus).toBe('removed');
+    expect((removed.style as { opacity: number }).opacity).toBe(0.45);
+    // The banner reports the breakage and the dependency edge turns red.
+    // (The banner text is split across elements, so assert on its textContent.)
+    const statuses = screen.getAllByRole('status');
+    const banner = statuses.map((s) => s.textContent).join(' ');
+    expect(banner).toMatch(/1 (visible )?node would break/);
+    expect(banner).toContain('Neighbor');
+    const redEdge = reactFlowEdges.find(
+      (e) => e.source === ROOT.id && e.target === NEIGHBOR.id,
+    )!;
+    expect((redEdge.style as { stroke: string }).stroke).toBe('#f43f5e');
+
+    // Stopping the simulation restores normal styling.
+    fireEvent.click(screen.getByRole('button', { name: /Stop simulation/ }));
+    await waitFor(() => {
+      const root = reactFlowNodePositions.find((n) => n.id === ROOT.id)!;
+      expect((root.data as { whatIfStatus?: string }).whatIfStatus).toBeUndefined();
+    });
   });
 
   it('deep-links a whole multi-selection into the blast-radius tool', async () => {

@@ -23,13 +23,17 @@ import {
 import '@xyflow/react/dist/style.css';
 import {
   ArrowRight,
+  FlaskConical,
   GitCompareArrows,
   GitFork,
   LayoutGrid,
   Layers,
+  Maximize,
+  Minimize,
   Network,
   Orbit,
   Radar,
+  RotateCcw,
   Search,
   Target,
   Workflow,
@@ -83,18 +87,29 @@ const REL_TYPE_HEX: Record<string, string> = {
 function CustomGraphNode({ data, selected }: NodeProps) {
   const node = data.node as GraphNode;
   const isRoot = Boolean(data.isRoot);
+  const whatIfStatus = data.whatIfStatus as 'removed' | 'affected' | undefined;
   const typeHex = NODE_TYPE_HEX[node?.type ?? 'Class'] ?? '#94a3b8';
 
   return (
     <div
       className={`group flex min-w-40 max-w-56 flex-col gap-1 rounded-xl border p-3 shadow-md transition-all ${
-        isRoot
-          ? 'border-sky-500/50 bg-card ring-2 ring-sky-500/25'
-          : selected
-            ? 'bg-card ring-2 ring-muted-foreground/30'
-            : 'border-border/80 bg-card/90 hover:border-border hover:bg-card'
+        whatIfStatus === 'removed'
+          ? 'border-dashed border-rose-500/40 bg-card/60'
+          : whatIfStatus === 'affected'
+            ? 'border-rose-500/60 bg-card ring-2 ring-rose-500/20'
+            : isRoot
+              ? 'border-sky-500/50 bg-card ring-2 ring-sky-500/25'
+              : selected
+                ? 'bg-card ring-2 ring-muted-foreground/30'
+                : 'border-border/80 bg-card/90 hover:border-border hover:bg-card'
       }`}
-      style={!isRoot && selected ? { borderColor: typeHex } : undefined}
+      style={
+        whatIfStatus === 'affected'
+          ? { boxShadow: '0 0 18px -5px rgba(244,63,94,0.55)' }
+          : !isRoot && selected
+            ? { borderColor: typeHex }
+            : undefined
+      }
     >
       <Handle type="target" position={Position.Top} className="size-2 !bg-muted-foreground/70" />
       <div className="flex items-center gap-2">
@@ -114,7 +129,15 @@ function CustomGraphNode({ data, selected }: NodeProps) {
       </div>
       <div className="flex items-center justify-between gap-1 pt-0.5">
         <NodeTypeBadge type={node?.type ?? 'Class'} />
-        {isRoot ? (
+        {whatIfStatus === 'removed' ? (
+          <span className="font-mono text-[9px] font-bold uppercase text-rose-400/80">
+            Removed
+          </span>
+        ) : whatIfStatus === 'affected' ? (
+          <span className="font-mono text-[9px] font-bold uppercase text-rose-400">
+            Would break
+          </span>
+        ) : isRoot ? (
           <span className="font-mono text-[9px] font-bold uppercase text-sky-400">Focus</span>
         ) : null}
       </div>
@@ -154,6 +177,8 @@ function FlowEdge({
   });
   const color = (data?.color as string | undefined) ?? '#94a3b8';
   const label = data?.label as string | undefined;
+  // Spotlight dimming (hover) — the traveling-dash overlay fades with the base.
+  const dimmed = Boolean(data?.dimmed);
 
   return (
     <>
@@ -167,7 +192,7 @@ function FlowEdge({
         strokeLinecap="round"
         strokeDasharray="3 14"
         className="tg-flow-line pointer-events-none"
-        opacity={0.9}
+        opacity={dimmed ? 0.05 : 0.9}
       />
       {label ? (
         <EdgeLabelRenderer>
@@ -192,6 +217,168 @@ const edgeTypes = {
   flow: FlowEdge,
 };
 
+/** Direct neighbors of `nodeId` over the returned edges (both directions). */
+function directNeighbors(graphData: GraphResponse | null, nodeId: string | null): Set<string> {
+  if (!nodeId || !graphData) return new Set();
+  const set = new Set<string>();
+  for (const e of graphData.edges) {
+    if (e.source === nodeId) set.add(e.target);
+    if (e.target === nodeId) set.add(e.source);
+  }
+  return set;
+}
+
+/**
+ * Nodes that transitively depend on `nodeId` — inbound reachability over the
+ * visible edges. This is the deterministic "what breaks if this is removed"
+ * set (same semantics as the impact engine's dependents).
+ */
+function dependentsOf(graphData: GraphResponse | null, nodeId: string | null): Set<string> {
+  if (!nodeId || !graphData) return new Set();
+  const inbound = new Map<string, string[]>();
+  for (const e of graphData.edges) {
+    const list = inbound.get(e.target) ?? [];
+    list.push(e.source);
+    inbound.set(e.target, list);
+  }
+  const reachable = new Set<string>([nodeId]);
+  const queue = [nodeId];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    for (const src of inbound.get(current) ?? []) {
+      if (!reachable.has(src)) {
+        reachable.add(src);
+        queue.push(src);
+      }
+    }
+  }
+  return reachable;
+}
+
+/** Segmented layout switcher — shared by the page header and the fullscreen bar. */
+function LayoutSelector({
+  layout,
+  onChange,
+}: {
+  layout: GraphLayoutKey;
+  onChange: (key: GraphLayoutKey) => void;
+}) {
+  return (
+    <div
+      role="group"
+      aria-label="Graph layout"
+      className="flex items-center rounded-md border border-border/60 bg-muted/40 p-0.5 text-xs shrink-0"
+    >
+      <LayoutGrid className="mx-1.5 size-3.5 text-muted-foreground/70" aria-hidden />
+      {GRAPH_LAYOUTS.map(({ key, label, title }) => {
+        const Icon = key === 'rings' ? Target : key === 'flow' ? Layers : Orbit;
+        return (
+          <button
+            key={key}
+            type="button"
+            onClick={() => onChange(key)}
+            aria-pressed={layout === key}
+            title={title}
+            aria-label={`${label} layout`}
+            className={`flex items-center gap-1.5 rounded px-2.5 py-1 transition-colors ${
+              layout === key
+                ? 'bg-background font-medium text-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Icon className="size-3.5" aria-hidden />
+            <span className="hidden sm:inline">{label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Segmented traversal-depth switcher — shared by the page header and fullscreen bar. */
+function DepthSelector({ depth, onChange }: { depth: number; onChange: (d: number) => void }) {
+  return (
+    <div
+      role="group"
+      aria-label="Traversal depth"
+      className="flex items-center rounded-md border border-border/60 bg-muted/40 p-0.5 text-xs shrink-0"
+    >
+      <GitFork className="mx-1.5 size-3.5 text-muted-foreground/70" aria-hidden />
+      {[1, 2, 3].map((d) => (
+        <button
+          key={d}
+          type="button"
+          onClick={() => onChange(d)}
+          aria-pressed={depth === d}
+          className={`rounded px-2.5 py-1 transition-colors ${
+            depth === d
+              ? 'bg-background font-medium text-foreground shadow-xs'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          {d} hop{d > 1 ? 's' : ''}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+interface GraphCanvasProps {
+  nodes: Node[];
+  edges: Edge[];
+  onNodeClick: (event: React.MouseEvent, node: Node) => void;
+  onNodeDoubleClick: (event: React.MouseEvent, node: Node) => void;
+  onNodeMouseEnter: (event: React.MouseEvent, node: Node) => void;
+  onNodeMouseLeave: (event: React.MouseEvent, node: Node) => void;
+  onSelectionChange: (params: { nodes: Array<{ id: string }> }) => void;
+  onNodeDragStop: (event: MouseEvent | TouchEvent, node: Node) => void;
+}
+
+/**
+ * The React Flow canvas — shared by the inline explorer and the fullscreen
+ * overlay so both keep the identical graph behavior (drags, selection, pan,
+ * hover spotlight).
+ */
+function GraphCanvas({
+  nodes,
+  edges,
+  onNodeClick,
+  onNodeDoubleClick,
+  onNodeMouseEnter,
+  onNodeMouseLeave,
+  onSelectionChange,
+  onNodeDragStop,
+}: GraphCanvasProps) {
+  return (
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
+      onNodeClick={onNodeClick}
+      onNodeDoubleClick={onNodeDoubleClick}
+      onNodeMouseEnter={onNodeMouseEnter}
+      onNodeMouseLeave={onNodeMouseLeave}
+      onSelectionChange={onSelectionChange}
+      onNodeDragStop={onNodeDragStop}
+      nodesDraggable
+      fitView
+      fitViewOptions={{ padding: 0.2 }}
+      minZoom={0.2}
+      maxZoom={2}
+      aria-label="Codebase neighborhood graph"
+    >
+      <Background color="var(--border)" gap={24} size={1} />
+      <Controls className="!bg-card/90 !border-border !rounded-lg !shadow-md [&_button]:!bg-card/90 [&_button]:!text-muted-foreground [&_button:hover]:!bg-muted/60" />
+      <MiniMap
+        className="!bg-card/90 !border-border !rounded-lg"
+        nodeColor={(n) => NODE_TYPE_HEX[(n.data.node as GraphNode)?.type] ?? '#94a3b8'}
+        maskColor="rgba(0, 0, 0, 0.55)"
+      />
+    </ReactFlow>
+  );
+}
+
 export function GraphExplorer() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -210,6 +397,39 @@ export function GraphExplorer() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [depth, setDepth] = useState(1);
   const [layout, setLayout] = useState<GraphLayoutKey>(DEFAULT_GRAPH_LAYOUT);
+  // User-dragged node positions, layered over the layout engine's output — the
+  // canvas stays free-form once the user rearranges it. The overrides are keyed
+  // to the arrangement they were made in (root · depth · layout), so a fresh
+  // neighborhood / depth / layout automatically ignores stale drags.
+  const [nodeOverrides, setNodeOverrides] = useState<{
+    key: string;
+    positions: Record<string, { x: number; y: number }>;
+  } | null>(null);
+  const arrangementKey = useMemo(
+    () => `${graphData?.root.id ?? ''}:${depth}:${layout}`,
+    [graphData, depth, layout],
+  );
+  // Fullscreen canvas mode — the explorer replaces the page chrome with a
+  // distraction-free, viewport-filling graph (in-app, so it works even where
+  // the browser Fullscreen API is unavailable, e.g. sandboxed iframes).
+  const [fullscreen, setFullscreen] = useState(false);
+  // Hover spotlight: the node under the cursor + its direct neighbors stay lit,
+  // everything else fades — the neighborhood reads at a glance.
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  // What-if mode: simulate removing a node; everything that would break glows
+  // red (deterministic inbound reachability over the visible neighborhood).
+  const [whatIf, setWhatIf] = useState(false);
+  const [whatIfNodeId, setWhatIfNodeId] = useState<string | null>(null);
+
+  // Esc exits fullscreen; the listener exists only while the mode is active.
+  useEffect(() => {
+    if (!fullscreen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFullscreen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [fullscreen]);
 
   useEffect(() => {
     let ignore = false;
@@ -243,35 +463,118 @@ export function GraphExplorer() {
     };
   }, [nodeId, getToken, refreshTrigger, depth]);
 
+  // The deterministic "what breaks" set (excluding the removed node itself),
+  // shared by the canvas styling and the simulation banner.
+  const whatIfAffectedSet = useMemo(
+    () => dependentsOf(graphData ?? null, whatIf ? whatIfNodeId : null),
+    [graphData, whatIf, whatIfNodeId],
+  );
+  const whatIfAffectedCount = whatIf ? Math.max(0, whatIfAffectedSet.size - 1) : 0;
+  const whatIfTargetLabel = whatIfNodeId
+    ? (graphData?.nodes.find((n) => n.id === whatIfNodeId)?.label ?? whatIfNodeId)
+    : null;
+
+  const toggleWhatIf = useCallback(() => {
+    setWhatIf((prev) => {
+      if (prev) setWhatIfNodeId(null);
+      return !prev;
+    });
+  }, []);
+
   // Convert graphData into ReactFlow nodes & edges. The node positions come
   // from the selected layout engine (rings / flow / force — see
   // lib/graph-layouts.ts); edges are layout-independent, so they are built
-  // once here with the traveling-dash overlay + directional arrows.
+  // once here with the traveling-dash overlay + directional arrows. The same
+  // memo also applies the hover spotlight and the what-if simulation styling.
   const { rfNodes, rfEdges } = useMemo(() => {
     if (!graphData) return { rfNodes: [], rfEdges: [] };
 
-    const nodes = layoutGraph(graphData, depth, layout);
+    // Direct neighbors of the hovered node (both directions) — the "lit" set.
+    const neighborSet = directNeighbors(graphData, hoveredNodeId);
+
+    const whatIfAffected = whatIfAffectedSet;
+
+    // Start from the layout engine's arrangement, then let any user drags win
+    // (only for the current arrangement — stale drags are ignored).
+    const activeOverrides =
+      nodeOverrides && nodeOverrides.key === arrangementKey ? nodeOverrides.positions : {};
+    const nodes = layoutGraph(graphData, depth, layout).map((n) => {
+      const override = activeOverrides[n.id];
+      const position = override ?? n.position;
+
+      // What-if simulation wins over the hover spotlight.
+      if (whatIf && whatIfAffected) {
+        if (n.id === whatIfNodeId) {
+          return {
+            ...n,
+            position,
+            style: { opacity: 0.45, transition: 'opacity 200ms' },
+            data: { ...n.data, whatIfStatus: 'removed' },
+          };
+        }
+        if (whatIfAffected.has(n.id)) {
+          return {
+            ...n,
+            position,
+            data: { ...n.data, whatIfStatus: 'affected' },
+          };
+        }
+      } else if (hoveredNodeId) {
+        const lit = hoveredNodeId === n.id || n.id === graphData.root.id || neighborSet.has(n.id);
+        if (!lit) {
+          return { ...n, position, style: { opacity: 0.3, transition: 'opacity 200ms' } };
+        }
+      }
+      return { ...n, position };
+    });
 
     const edges: Edge[] = graphData.edges.map((e) => {
       const color = REL_TYPE_HEX[e.type] ?? '#94a3b8';
+      let dimmed = false;
+      let red = false;
+      if (whatIf && whatIfAffected) {
+        // Dependency chains INTO the removed node are part of the breakage.
+        red =
+          e.source !== whatIfNodeId &&
+          whatIfAffected.has(e.source) &&
+          (e.target === whatIfNodeId || whatIfAffected.has(e.target));
+      } else if (hoveredNodeId) {
+        dimmed = e.source !== hoveredNodeId && e.target !== hoveredNodeId;
+      }
+      const stroke = red ? '#f43f5e' : color;
       return {
         id: e.id,
         source: e.source,
         target: e.target,
         type: 'flow',
-        data: { color, label: e.type },
-        style: { stroke: color, strokeWidth: 1.5, opacity: 0.55 },
+        data: { color: stroke, label: e.type, dimmed },
+        style: {
+          stroke,
+          strokeWidth: red ? 2 : 1.5,
+          opacity: dimmed ? 0.12 : hoveredNodeId && !whatIf ? 0.9 : red ? 0.85 : 0.55,
+          transition: 'opacity 200ms',
+        },
         markerEnd: {
           type: MarkerType.ArrowClosed,
           width: 14,
           height: 14,
-          color,
+          color: stroke,
         },
       };
     });
 
     return { rfNodes: nodes, rfEdges: edges };
-  }, [graphData, depth, layout]);
+  }, [
+    graphData,
+    depth,
+    layout,
+    nodeOverrides,
+    arrangementKey,
+    hoveredNodeId,
+    whatIf,
+    whatIfNodeId,
+    whatIfAffectedSet,
+  ]);
 
   const presentNodeTypes = useMemo(
     () => Array.from(new Set(graphData?.nodes.map((n) => n.type) ?? [])),
@@ -320,16 +623,53 @@ export function GraphExplorer() {
       .filter((p): p is string => Boolean(p));
   }, [graphData, selectedIds]);
 
-  const handleNodeClick = (_: React.MouseEvent, node: Node) => {
-    const gn = graphData?.nodes.find((n) => n.id === node.id);
-    if (gn) {
+  const handleNodeClick = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      const gn = graphData?.nodes.find((n) => n.id === node.id);
+      if (!gn) return;
       setSelectedNode(gn);
-    }
-  };
+      // In what-if mode a click picks (or unpicks) the simulated removal target.
+      if (whatIf) {
+        setWhatIfNodeId((prev) => (prev === node.id ? null : node.id));
+      }
+    },
+    [graphData, whatIf],
+  );
 
   const handleNodeDoubleClick = (_: React.MouseEvent, node: Node) => {
     router.push(`/graph?node=${encodeURIComponent(node.id)}`);
   };
+
+  const handleNodeMouseEnter = useCallback((_: React.MouseEvent, node: Node) => {
+    setHoveredNodeId(node.id);
+  }, []);
+
+  const handleNodeMouseLeave = useCallback(() => {
+    setHoveredNodeId(null);
+  }, []);
+
+  // Persist the final dragged position so the rearrangement survives re-renders
+  // (selection, details panel, etc.) instead of snapping back to the layout.
+  // xyflow's onNodeDragStop takes the DOM event type (its click handlers take
+  // the React synthetic one — inconsistent upstream typings). The event is
+  // typed explicitly here and never actually used.
+  const handleNodeDragStop = useCallback(
+    (_: MouseEvent | TouchEvent, node: Node) => {
+      setNodeOverrides((prev) => ({
+        key: arrangementKey,
+        positions: {
+          // Keep drags from this arrangement; discard any from older ones.
+          ...(prev && prev.key === arrangementKey ? prev.positions : {}),
+          [node.id]: { x: node.position.x, y: node.position.y },
+        },
+      }));
+    },
+    [arrangementKey],
+  );
+
+  const hasNodeOverrides = Boolean(
+    nodeOverrides && nodeOverrides.key === arrangementKey && Object.keys(nodeOverrides.positions).length > 0,
+  );
 
   const isEmpty = !loading && !error && graphData !== null && graphData.nodes.length === 0;
 
@@ -341,6 +681,172 @@ export function GraphExplorer() {
       return () => window.clearTimeout(t);
     }
   }, [graphData, loading, depth, layout, fitView]);
+
+  // ── Fullscreen mode: the explorer replaces the page chrome with a
+  // viewport-filling canvas + floating controls. The page header is not
+  // rendered at all here, so there are no duplicate controls behind the
+  // overlay.
+  if (fullscreen && graphData && !loading && !error && !isEmpty) {
+    return (
+      <div
+        role="region"
+        aria-label="Graph Explorer fullscreen"
+        className="fixed inset-0 z-50 flex flex-col bg-background"
+      >
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(56,189,248,0.06),transparent_65%)]"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent"
+        />
+
+        {/* Canvas fills the whole viewport */}
+        <div className="absolute inset-0">
+          <GraphCanvas
+            nodes={rfNodes}
+            edges={rfEdges}
+            onNodeClick={handleNodeClick}
+            onNodeDoubleClick={handleNodeDoubleClick}
+            onNodeMouseEnter={handleNodeMouseEnter}
+            onNodeMouseLeave={handleNodeMouseLeave}
+            onSelectionChange={handleSelectionChange}
+            onNodeDragStop={handleNodeDragStop}
+          />
+        </div>
+
+        {/* What-if simulation banner */}
+        {whatIf ? (
+          <div
+            role="status"
+            className="absolute left-1/2 top-14 z-20 flex w-full max-w-xl -translate-x-1/2 items-center justify-between gap-3 rounded-lg border border-rose-500/30 bg-background/90 px-3 py-2 backdrop-blur"
+          >
+            <p className="truncate text-xs text-foreground/90">
+              {whatIfNodeId ? (
+                <>
+                  Removing{' '}
+                  <code className="rounded bg-rose-500/10 px-1.5 py-0.5 font-mono text-rose-300">
+                    {whatIfTargetLabel}
+                  </code>{' '}
+                  — <span className="font-medium text-rose-300">{whatIfAffectedCount}</span>{' '}
+                  {whatIfAffectedCount === 1 ? 'node' : 'nodes'} would break
+                </>
+              ) : (
+                <>Pick a node to simulate its removal</>
+              )}
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleWhatIf}
+              className="h-7 shrink-0 text-xs gap-1.5 text-rose-300 hover:bg-rose-500/10 hover:text-rose-200"
+            >
+              Stop
+            </Button>
+          </div>
+        ) : null}
+
+        {/* Floating control bar */}
+        <div className="absolute left-1/2 top-3 z-20 flex w-full max-w-2xl -translate-x-1/2 flex-wrap items-center justify-center gap-2 px-3">
+          <LayoutSelector layout={layout} onChange={setLayout} />
+          <DepthSelector depth={depth} onChange={setDepth} />
+          {hasNodeOverrides ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setNodeOverrides(null)}
+              className="h-8 text-xs gap-1.5 bg-background/80 backdrop-blur"
+              title="Restore the auto-layout positions"
+            >
+              <RotateCcw className="size-3.5" />
+              Reset layout
+            </Button>
+          ) : null}
+          <Button
+            variant={whatIf ? 'default' : 'outline'}
+            size="sm"
+            onClick={toggleWhatIf}
+            aria-pressed={whatIf}
+            className="h-8 text-xs gap-1.5 bg-background/80 backdrop-blur"
+            title="Simulate removing a node — everything that would break glows red"
+          >
+            <FlaskConical className="size-3.5" />
+            What-if
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSearchOpen(true)}
+            className="h-8 text-xs gap-1.5 bg-background/80 backdrop-blur"
+          >
+            <Search className="size-3.5" />
+            Search
+          </Button>
+        </div>
+
+        {/* Meta + exit */}
+        <div className="absolute right-3 top-3 z-20 flex items-center gap-2">
+          <span className="rounded-md border border-border/50 bg-card/85 px-2 py-1 font-mono text-[10px] text-muted-foreground backdrop-blur-sm">
+            {graphData.nodes.length} nodes · {graphData.edges.length} relationships
+          </span>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setFullscreen(false)}
+            aria-label="Exit fullscreen"
+            title="Exit fullscreen (Esc)"
+            className="size-8 bg-background/85 backdrop-blur"
+          >
+            <Minimize className="size-4" />
+          </Button>
+        </div>
+
+        {/* Node details panel floats bottom-right */}
+        {selectedNode ? (
+          <div className="absolute bottom-4 right-4 z-20 w-80 max-w-[calc(100%-2rem)]">
+            <NodeDetailsPanel node={selectedNode} onClose={() => setSelectedNode(null)} />
+          </div>
+        ) : null}
+
+        {/* Compact legend bottom-center */}
+        <div className="absolute bottom-4 left-1/2 z-20 hidden -translate-x-1/2 flex-wrap items-center justify-center gap-x-5 gap-y-1 rounded-md border border-border/50 bg-card/85 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground backdrop-blur-sm md:flex">
+          {presentNodeTypes.map((t) => (
+            <span key={t} className="flex items-center gap-1.5">
+              <span
+                className="size-2 rounded-full"
+                style={{ background: NODE_TYPE_HEX[t] ?? '#94a3b8' }}
+              />
+              {t}
+            </span>
+          ))}
+          {presentNodeTypes.length > 0 && presentRelTypes.length > 0 ? (
+            <span aria-hidden className="hidden h-3 w-px bg-border sm:block" />
+          ) : null}
+          {presentRelTypes.map((t) => (
+            <span key={t} className="flex items-center gap-1.5">
+              <span
+                className="h-0.5 w-3 rounded-full"
+                style={{ background: REL_TYPE_HEX[t] ?? '#94a3b8' }}
+              />
+              {t}
+            </span>
+          ))}
+        </div>
+
+        {/* Escape hint */}
+        <p className="absolute bottom-4 left-4 z-20 hidden rounded-md border border-border/50 bg-card/85 px-2 py-1 font-mono text-[10px] text-muted-foreground backdrop-blur-sm lg:block">
+          Esc to exit · Drag nodes · Scroll zoom
+        </p>
+
+        <EntitySearchDialog
+          open={searchOpen}
+          onOpenChange={setSearchOpen}
+          onSelect={(id) => router.push(`/graph?node=${encodeURIComponent(id)}`)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -363,60 +869,21 @@ export function GraphExplorer() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Layout selector */}
-          <div
-            role="group"
-            aria-label="Graph layout"
-            className="flex items-center rounded-md border border-border/60 bg-muted/40 p-0.5 text-xs shrink-0"
-          >
-            <LayoutGrid className="mx-1.5 size-3.5 text-muted-foreground/70" aria-hidden />
-            {GRAPH_LAYOUTS.map(({ key, label, title }) => {
-              const Icon = key === 'rings' ? Target : key === 'flow' ? Layers : Orbit;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setLayout(key)}
-                  aria-pressed={layout === key}
-                  title={title}
-                  aria-label={`${label} layout`}
-                  className={`flex items-center gap-1.5 rounded px-2.5 py-1 transition-colors ${
-                    layout === key
-                      ? 'bg-background font-medium text-foreground shadow-xs'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <Icon className="size-3.5" aria-hidden />
-                  <span className="hidden sm:inline">{label}</span>
-                </button>
-              );
-            })}
-          </div>
+          <LayoutSelector layout={layout} onChange={setLayout} />
+          <DepthSelector depth={depth} onChange={setDepth} />
 
-          {/* Depth selector */}
-          <div
-            role="group"
-            aria-label="Traversal depth"
-            className="flex items-center rounded-md border border-border/60 bg-muted/40 p-0.5 text-xs shrink-0"
-          >
-            <GitFork className="mx-1.5 size-3.5 text-muted-foreground/70" aria-hidden />
-            {[1, 2, 3].map((d) => (
-              <button
-                key={d}
-                type="button"
-                onClick={() => setDepth(d)}
-                aria-pressed={depth === d}
-                className={`rounded px-2.5 py-1 transition-colors ${
-                  depth === d
-                    ? 'bg-background font-medium text-foreground shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {d} hop{d > 1 ? 's' : ''}
-              </button>
-            ))}
-          </div>
-
+          {hasNodeOverrides ? (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setNodeOverrides(null)}
+              className="h-8 text-xs gap-1.5"
+              title="Restore the auto-layout positions"
+            >
+              <RotateCcw className="size-3.5" />
+              Reset layout
+            </Button>
+          ) : null}
           <Button
             variant="outline"
             size="sm"
@@ -426,6 +893,31 @@ export function GraphExplorer() {
             <Search className="size-3.5" />
             Search symbol
           </Button>
+          {graphData && !loading && !error && !isEmpty ? (
+            <>
+              <Button
+                variant={whatIf ? 'default' : 'outline'}
+                size="sm"
+                onClick={toggleWhatIf}
+                aria-pressed={whatIf}
+                className="h-8 text-xs gap-1.5"
+                title="Simulate removing a node — everything that would break glows red"
+              >
+                <FlaskConical className="size-3.5" />
+                What-if
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setFullscreen(true)}
+                className="h-8 text-xs gap-1.5"
+                title="Expand the graph to fill the screen (Esc to exit)"
+              >
+                <Maximize className="size-3.5" />
+                Fullscreen
+              </Button>
+            </>
+          ) : null}
           {selectedBlastPaths.length > 1 ? (
             <Link
               href={`/intelligence?blast=${encodeURIComponent(selectedBlastPaths.join(','))}`}
@@ -484,6 +976,41 @@ export function GraphExplorer() {
         </div>
       </div>
 
+      {/* What-if simulation banner */}
+      {whatIf ? (
+        <div
+          role="status"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-500/30 bg-rose-500/5 px-4 py-2.5"
+        >
+          <p className="flex items-center gap-2 text-xs text-foreground/90">
+            <FlaskConical className="size-3.5 shrink-0 text-rose-400" aria-hidden />
+            {whatIfNodeId ? (
+              <>
+                Simulating removal of{' '}
+                <code className="rounded bg-rose-500/10 px-1.5 py-0.5 font-mono text-rose-300">
+                  {whatIfTargetLabel}
+                </code>{' '}
+                — <span className="font-medium text-rose-300">{whatIfAffectedCount}</span> visible{' '}
+                {whatIfAffectedCount === 1 ? 'node' : 'nodes'} would break. Click another node to
+                switch targets.
+              </>
+            ) : (
+              <>
+                Pick a node to simulate its removal — everything that would break glows red.
+              </>
+            )}
+          </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleWhatIf}
+            className="h-7 text-xs gap-1.5 text-rose-300 hover:bg-rose-500/10 hover:text-rose-200"
+          >
+            Stop simulation
+          </Button>
+        </div>
+      ) : null}
+
       {/* Main Visual Canvas Container — height expands with traversal depth */}
       <div className="overflow-hidden rounded-2xl border border-border/80 bg-background/50 shadow-inner">
         <div
@@ -541,28 +1068,16 @@ export function GraphExplorer() {
               />
 
               <div className="absolute inset-0">
-                <ReactFlow
+                <GraphCanvas
                   nodes={rfNodes}
                   edges={rfEdges}
-                  nodeTypes={nodeTypes}
-                  edgeTypes={edgeTypes}
                   onNodeClick={handleNodeClick}
                   onNodeDoubleClick={handleNodeDoubleClick}
+                  onNodeMouseEnter={handleNodeMouseEnter}
+                  onNodeMouseLeave={handleNodeMouseLeave}
                   onSelectionChange={handleSelectionChange}
-                  fitView
-                  fitViewOptions={{ padding: 0.2 }}
-                  minZoom={0.2}
-                  maxZoom={2}
-                  aria-label="Codebase neighborhood graph"
-                >
-                  <Background color="var(--border)" gap={24} size={1} />
-                  <Controls className="!bg-card/90 !border-border !rounded-lg !shadow-md [&_button]:!bg-card/90 [&_button]:!text-muted-foreground [&_button:hover]:!bg-muted/60" />
-                  <MiniMap
-                    className="!bg-card/90 !border-border !rounded-lg"
-                    nodeColor={(n) => NODE_TYPE_HEX[(n.data.node as GraphNode)?.type] ?? '#94a3b8'}
-                    maskColor="rgba(0, 0, 0, 0.55)"
-                  />
-                </ReactFlow>
+                  onNodeDragStop={handleNodeDragStop}
+                />
               </div>
 
               {/* Floating metadata chips */}
@@ -570,7 +1085,7 @@ export function GraphExplorer() {
                 {graphData?.nodes.length ?? 0} nodes · {graphData?.edges.length ?? 0} relationships
               </div>
               <div className="pointer-events-none absolute right-3 top-3 z-10 hidden rounded-md border border-border/50 bg-card/85 px-2 py-1 font-mono text-[10px] text-muted-foreground backdrop-blur-sm md:block">
-                Click inspect · Shift-click select · Double-click focus · Drag pan · Scroll zoom
+                Click inspect · Drag nodes · Shift-click select · Double-click focus · Drag pan · Scroll zoom
               </div>
 
               {/* Float details panel on the bottom-right */}

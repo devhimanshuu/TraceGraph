@@ -29,12 +29,19 @@ function SidebarContent({ collapsed }: { collapsed: boolean }) {
         <SidebarNav collapsed={collapsed} />
       </div>
 
-      <div className={cn('flex flex-col gap-3 border-t border-border/60 py-4', collapsed ? 'items-center px-2' : 'px-4')}>
-        <div className={cn('flex flex-col gap-0.5', collapsed ? 'w-full' : '')}>
+      <div className={cn('flex flex-col gap-3 border-t border-sidebar-border py-4', collapsed ? 'items-center px-2' : 'px-4')}>
+        {/* Account + connectivity live in one soft panel when expanded; the
+            icon rail stays flat so the narrow width keeps breathing room. */}
+        <div
+          className={cn(
+            'flex w-full flex-col gap-2.5',
+            !collapsed && 'rounded-xl border border-border/60 bg-card/40 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]',
+          )}
+        >
           <GitHubUserMenu collapsed={collapsed} />
-        </div>
-        <div className={collapsed ? 'px-0' : 'px-1'}>
-          <SystemStatus collapsed={collapsed} />
+          <div className={collapsed ? 'mt-0.5' : 'px-1'}>
+            <SystemStatus collapsed={collapsed} />
+          </div>
         </div>
       </div>
     </div>
@@ -95,10 +102,22 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Desktop sidebar — hidden when printing the impact report */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-30 hidden border-r border-border/60 bg-card/30 transition-[width] duration-200 ease-out lg:block print:hidden',
+          'fixed inset-y-0 left-0 z-30 hidden border-r border-sidebar-border bg-sidebar transition-[width] duration-200 ease-out lg:block print:hidden',
           effectiveCollapsed ? 'w-16' : 'w-60',
         )}
       >
+        {/* Ambient glow bleeding from the top + a gradient hairline on the
+            inner edge — the same glow language as the graph canvas and the
+            shell's top highlight, so the rail reads as one surface. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-44 bg-[radial-gradient(ellipse_at_top,rgba(56,189,248,0.08),transparent_65%)]"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent"
+        />
+
         <SidebarContent collapsed={effectiveCollapsed} />
 
         {/* Collapse toggle — rides the rail's inner edge. Pinned disabled on
@@ -117,8 +136,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                 : 'Collapse sidebar'
           }
           className={cn(
-            'absolute top-4 -right-3 z-10 size-6 rounded-full border border-border/60 bg-background text-muted-foreground shadow-sm hover:text-foreground',
-            forcedCollapsed && 'cursor-not-allowed opacity-40 hover:text-muted-foreground',
+            'absolute top-4 -right-3 z-10 size-6 rounded-full border border-border/60 bg-background text-muted-foreground shadow-sm transition-all hover:border-sky-500/50 hover:text-foreground hover:shadow-[0_0_10px_-3px_rgba(56,189,248,0.6)]',
+            forcedCollapsed && 'cursor-not-allowed opacity-40 hover:border-border/60 hover:text-muted-foreground hover:shadow-none',
           )}
         >
           {effectiveCollapsed ? <PanelLeftOpen className="size-3.5" /> : <PanelLeftClose className="size-3.5" />}
@@ -142,7 +161,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           />
           <Dialog.Portal>
             <Dialog.Backdrop className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" />
-            <Dialog.Popup className="fixed inset-y-0 left-0 z-50 w-72 border-r border-border/60 bg-background shadow-xl outline-none animate-in slide-in-from-left duration-200">
+            <Dialog.Popup className="fixed inset-y-0 left-0 z-50 w-72 border-r border-sidebar-border bg-sidebar shadow-xl outline-none animate-in slide-in-from-left duration-200">
               <SidebarContent collapsed={false} />
               <Dialog.Close
                 render={

@@ -98,13 +98,10 @@ export function GitHubSessionProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async (): Promise<void> => {
     const token = typeof window !== 'undefined' ? window.localStorage.getItem(TOKEN_KEY) : null;
-    // Local sign-out is IMMEDIATE — the user is signed out before any network
-    // call. The server revocation is best-effort and time-boxed so a slow or
-    // unreachable API (serverless cold start, DB hiccup) can never block the
-    // navigation or leave the user looking signed in.
+    // Local sign-out is IMMEDIATE — token and state are cleared before any network call.
     window.localStorage.removeItem(TOKEN_KEY);
     setUser(null);
-    router.push('/');
+
     if (token) {
       try {
         await fetch(`${apiBaseUrl}/auth/logout`, {
@@ -115,12 +112,17 @@ export function GitHubSessionProvider({ children }: { children: ReactNode }) {
           },
           credentials: 'include',
           cache: 'no-store',
-          // The server also clears the httpOnly cookie; never wait forever.
-          signal: AbortSignal.timeout(5_000),
+          // The server also clears the httpOnly cookie; bounded timeout prevents hanging.
+          signal: AbortSignal.timeout(3_000),
         });
       } catch {
         // Best-effort server revocation — the session also dies at JWT expiry.
       }
+    }
+
+    router.push('/');
+    if (typeof window !== 'undefined' && window.location.pathname !== '/') {
+      window.location.href = '/';
     }
   }, [router]);
 

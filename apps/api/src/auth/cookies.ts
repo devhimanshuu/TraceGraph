@@ -41,6 +41,9 @@ export function setCookie(
   const parts = [`${name}=${encodeURIComponent(value)}`];
   if (options.maxAge !== undefined) {
     parts.push(`Max-Age=${Math.floor(options.maxAge)}`);
+    if (options.maxAge === 0) {
+      parts.push('Expires=Thu, 01 Jan 1970 00:00:00 GMT');
+    }
   }
   if (options.httpOnly) {
     parts.push('HttpOnly');

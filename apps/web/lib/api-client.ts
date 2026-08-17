@@ -172,35 +172,59 @@ export const apiClient = {
   setActiveRepository: (repoId: string, token?: string | null) =>
     mutate<SetActiveRepositoryResult>('/repository/active', 'POST', token, { repoId }),
 
-  // Node details & relationship summary
+  // Node details & relationship summary. The entity id is always a query
+  // parameter (never a path segment): ids embed file paths with slashes
+  // (`fn:src/...`), and the deployed AWS HTTP API decodes `%2F` inside path
+  // segments before the Lambda sees them, which breaks `:id` routing.
   getNode: (id: string, token?: string | null) =>
-    request<GraphNode>(`/nodes/${encodeURIComponent(id)}`, token),
+    request<GraphNode>(`/nodes?id=${encodeURIComponent(id)}`, token),
   getRelationshipSummary: (id: string, token?: string | null) =>
-    request<RelationshipSummary>(`/nodes/${encodeURIComponent(id)}/relationship-summary`, token),
+    request<RelationshipSummary>(`/nodes/relationship-summary?id=${encodeURIComponent(id)}`, token),
   getRelationships: (id: string, limit = 100, token?: string | null) =>
-    request<NodeRelationships>(`/nodes/${encodeURIComponent(id)}/relationships?limit=${limit}`, token),
+    request<NodeRelationships>(`/nodes/relationships?id=${encodeURIComponent(id)}&limit=${limit}`, token),
 
   // Dependencies & dependents
   getDependencies: (id: string, limit = 100, token?: string | null) =>
-    request<DependencyTarget[]>(`/nodes/${encodeURIComponent(id)}/dependencies?limit=${limit}`, token),
+    request<DependencyTarget[]>(
+      `/nodes/dependencies?id=${encodeURIComponent(id)}&limit=${limit}`,
+      token,
+    ),
   getDependents: (id: string, limit = 100, token?: string | null) =>
-    request<DependencyTarget[]>(`/nodes/${encodeURIComponent(id)}/dependents?limit=${limit}`, token),
+    request<DependencyTarget[]>(
+      `/nodes/dependents?id=${encodeURIComponent(id)}&limit=${limit}`,
+      token,
+    ),
   getCallers: (id: string, limit = 100, token?: string | null) =>
-    request<DependencyTarget[]>(`/nodes/${encodeURIComponent(id)}/callers?limit=${limit}`, token),
+    request<DependencyTarget[]>(
+      `/nodes/callers?id=${encodeURIComponent(id)}&limit=${limit}`,
+      token,
+    ),
   getCallees: (id: string, limit = 100, token?: string | null) =>
-    request<DependencyTarget[]>(`/nodes/${encodeURIComponent(id)}/callees?limit=${limit}`, token),
+    request<DependencyTarget[]>(
+      `/nodes/callees?id=${encodeURIComponent(id)}&limit=${limit}`,
+      token,
+    ),
 
   // Tests
   getTests: (id: string, limit = 100, token?: string | null) =>
-    request<TestCoverage[]>(`/nodes/${encodeURIComponent(id)}/tests?limit=${limit}`, token),
+    request<TestCoverage[]>(`/nodes/tests?id=${encodeURIComponent(id)}&limit=${limit}`, token),
 
-  // History
+  // History (dedicated prefix — shares no route with the nodes controller)
   getCommits: (id: string, limit = 50, token?: string | null) =>
-    request<HistoryCommit[]>(`/nodes/${encodeURIComponent(id)}/commits?limit=${limit}`, token),
+    request<HistoryCommit[]>(
+      `/node-history/commits?id=${encodeURIComponent(id)}&limit=${limit}`,
+      token,
+    ),
   getPullRequests: (id: string, limit = 50, token?: string | null) =>
-    request<HistoryPullRequest[]>(`/nodes/${encodeURIComponent(id)}/pull-requests?limit=${limit}`, token),
+    request<HistoryPullRequest[]>(
+      `/node-history/pull-requests?id=${encodeURIComponent(id)}&limit=${limit}`,
+      token,
+    ),
   getIssues: (id: string, limit = 50, token?: string | null) =>
-    request<HistoryIssue[]>(`/nodes/${encodeURIComponent(id)}/issues?limit=${limit}`, token),
+    request<HistoryIssue[]>(
+      `/node-history/issues?id=${encodeURIComponent(id)}&limit=${limit}`,
+      token,
+    ),
 
   // Multi-hop Traversal
   getTraversal: (
@@ -213,11 +237,9 @@ export const apiClient = {
     if (options?.direction) params.set('direction', options.direction);
     if (options?.limit) params.set('limit', String(options.limit));
     if (options?.types?.length) params.set('types', options.types.join(','));
+    params.set('id', id);
     const qs = params.toString();
-    return request<TraversalResult>(
-      `/traversal/${encodeURIComponent(id)}${qs ? `?${qs}` : ''}`,
-      token,
-    );
+    return request<TraversalResult>(`/traversal?${qs}`, token);
   },
 
   // Search
@@ -237,18 +259,15 @@ export const apiClient = {
   // Impact Analysis
   getImpact: (id: string, options?: { depth?: number; limit?: number }, token?: string | null) => {
     const params = new URLSearchParams();
+    params.set('id', id);
     if (options?.depth) params.set('depth', String(options.depth));
     if (options?.limit) params.set('limit', String(options.limit));
-    const qs = params.toString();
-    return request<ImpactResponse>(
-      `/impact/${encodeURIComponent(id)}${qs ? `?${qs}` : ''}`,
-      token,
-    );
+    return request<ImpactResponse>(`/impact?${params.toString()}`, token);
   },
 
   // AI explanation — evidence-backed explanation of the impact analysis.
   explainImpact: (id: string, depth: number, token?: string | null) =>
-    mutate<ImpactExplanation>(`/impact/${encodeURIComponent(id)}/explain`, 'POST', token, {
+    mutate<ImpactExplanation>(`/impact/explain?id=${encodeURIComponent(id)}`, 'POST', token, {
       depth,
     }),
 

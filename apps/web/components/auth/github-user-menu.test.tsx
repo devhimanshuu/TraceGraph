@@ -54,4 +54,15 @@ describe('GitHubUserMenu', () => {
 
     expect(screen.getByRole('menuitem', { name: /Sign out/i })).toBeInTheDocument();
   });
+
+  it('invokes signOut directly when clicking the sidebar Sign out button', () => {
+    render(<GitHubUserMenu />);
+
+    const signOutBtn = screen.getByRole('button', { name: 'Sign out' });
+    expect(signOutBtn).toBeInTheDocument();
+
+    fireEvent.click(signOutBtn);
+    expect(signOut).toHaveBeenCalledTimes(1);
+  });
 });
+
