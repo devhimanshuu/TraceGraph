@@ -175,22 +175,22 @@ describe('Assessment scenario (e2e) — the full demo flow', () => {
   });
 
   it('4. Node inspector: details load for the selected entity', async () => {
-    const res = await authed('get', `/api/nodes/${ENCODED}`).expect(200);
+    const res = await authed('get', `/api/nodes?id=${ENCODED}`).expect(200);
     expect(res.body.id).toBe(PAYMENT_ID);
     expect(res.body.label).toBe('PaymentService');
     expect(res.body.type).toBe('Class');
   });
 
   it('5. Dependency explorer: dependencies and dependents load', async () => {
-    const deps = await authed('get', `/api/nodes/${ENCODED}/dependencies`).expect(200);
-    const dependents = await authed('get', `/api/nodes/${ENCODED}/dependents`).expect(200);
+    const deps = await authed('get', `/api/nodes/dependencies?id=${ENCODED}`).expect(200);
+    const dependents = await authed('get', `/api/nodes/dependents?id=${ENCODED}`).expect(200);
     // PaymentService has no outgoing deps in the fixture; CheckoutService calls it.
     expect(Array.isArray(deps.body)).toBe(true);
     expect(dependents.body.some((d: { id: string }) => d.id === CHECKOUT_REF.id)).toBe(true);
   });
 
   it('6. Impact analysis: direct + indirect + tests + paths', async () => {
-    const res = await authed('get', `/api/impact/${ENCODED}?depth=2`).expect(200);
+    const res = await authed('get', `/api/impact?id=${ENCODED}&depth=2`).expect(200);
     expect(res.body.root.id).toBe(PAYMENT_ID);
     expect(res.body.summary).toMatchObject({ direct: 1, indirect: 1, tests: 1 });
     expect(res.body.directImpact[0].label).toBe('CheckoutService');
@@ -223,7 +223,7 @@ describe('Assessment scenario (e2e) — the full demo flow', () => {
   });
 
   it('8. AI explanation: grounded evidence, every reference resolves', async () => {
-    const res = await authed('post', `/api/impact/${ENCODED}/explain`, { depth: 2 }).expect(200);
+    const res = await authed('post', `/api/impact/explain?id=${ENCODED}`, { depth: 2 }).expect(200);
     expect(res.body.summary).toContain('CheckoutService is directly affected');
     expect(res.body.evidenceReferences).toEqual(['E1', 'E2']);
     expect(res.body.grounding).toEqual({ source: 'cognodb-impact-analysis' });
@@ -238,7 +238,7 @@ describe('Assessment scenario (e2e) — the full demo flow', () => {
   });
 
   it('9. Evidence path: multi-hop traversal explains the chain', async () => {
-    const res = await authed('get', `/api/traversal/${ENCODED}?depth=2&direction=in`).expect(200);
+    const res = await authed('get', `/api/traversal?id=${ENCODED}&depth=2&direction=in`).expect(200);
     expect(res.body.paths.length).toBeGreaterThan(0);
   });
 
@@ -248,14 +248,14 @@ describe('Assessment scenario (e2e) — the full demo flow', () => {
   });
 
   it('11. Negative: unknown node → 404 with the standard error shape', async () => {
-    const res = await authed('get', '/api/nodes/definitely-not-a-node').expect(404);
+    const res = await authed('get', '/api/nodes?id=definitely-not-a-node').expect(404);
     expect(res.body.code).toBe('NOT_FOUND');
     expect(res.body.statusCode).toBe(404);
     expect(typeof res.body.timestamp).toBe('string');
   });
 
   it('12. Negative: invalid depth → 400', async () => {
-    const res = await authed('get', `/api/impact/${ENCODED}?depth=99`).expect(400);
+    const res = await authed('get', `/api/impact?id=${ENCODED}&depth=99`).expect(400);
     expect(res.body.statusCode).toBe(400);
   });
 });

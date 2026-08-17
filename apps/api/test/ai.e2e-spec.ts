@@ -139,9 +139,9 @@ describe('AI explain API (e2e, in-memory fakes)', () => {
     await app.close();
   });
 
-  describe('POST /api/impact/:id/explain', () => {
+  describe('POST /api/impact/explain?id=', () => {
     it('returns a grounded explanation with evidence, model and grounding', async () => {
-      const res = await authedPost(server, `/api/impact/${ENCODED}/explain`, { depth: 2 }).expect(200);
+      const res = await authedPost(server, `/api/impact/explain?id=${ENCODED}`, { depth: 2 }).expect(200);
       const body = res.body;
       expect(body.summary).toContain('CheckoutService');
       expect(body.keyFindings).toHaveLength(1);
@@ -165,32 +165,32 @@ describe('AI explain API (e2e, in-memory fakes)', () => {
     });
 
     it('defaults depth to the impact default when omitted', async () => {
-      await authedPost(server, `/api/impact/${ENCODED}/explain`).expect(200);
+      await authedPost(server, `/api/impact/explain?id=${ENCODED}`).expect(200);
       expect(provider.generateExplanation).toHaveBeenCalled();
     });
 
     it('rejects depth=0 with 400', async () => {
-      const res = await authedPost(server, `/api/impact/${ENCODED}/explain`, { depth: 0 }).expect(400);
+      const res = await authedPost(server, `/api/impact/explain?id=${ENCODED}`, { depth: 0 }).expect(400);
       expect((res.body as ApiError).code).toBe('VALIDATION_ERROR');
     });
 
     it('rejects depth above the maximum with 400', async () => {
-      await authedPost(server, `/api/impact/${ENCODED}/explain`, { depth: 9 }).expect(400);
+      await authedPost(server, `/api/impact/explain?id=${ENCODED}`, { depth: 9 }).expect(400);
     });
 
     it('rejects unknown body fields (whitelist)', async () => {
-      await authedPost(server, `/api/impact/${ENCODED}/explain`, { evidence: [{ fake: true }] }).expect(400);
+      await authedPost(server, `/api/impact/explain?id=${ENCODED}`, { evidence: [{ fake: true }] }).expect(400);
     });
 
     it('404s for an unknown node', async () => {
-      const res = await authedPost(server, '/api/impact/missing/explain', { depth: 2 }).expect(404);
+      const res = await authedPost(server, '/api/impact/explain?id=missing', { depth: 2 }).expect(404);
       expect((res.body as ApiError).code).toBe('NOT_FOUND');
     });
 
     it('returns a grounded explanation even for an empty impact (no dependents)', async () => {
       const res = await authedPost(
         server,
-        `/api/impact/${encodeURIComponent('repo:commerce-platform')}/explain`,
+        `/api/impact/explain?id=${encodeURIComponent('repo:commerce-platform')}`,
         { depth: 2 },
       ).expect(200);
       expect(res.body.grounding.source).toBe('cognodb-impact-analysis');
@@ -202,7 +202,7 @@ describe('AI explain API (e2e, in-memory fakes)', () => {
       (provider.generateExplanation as jest.Mock).mockImplementationOnce(async () => {
         throw new AiProviderError('AI provider is unreachable');
       });
-      const res = await authedPost(server, `/api/impact/${ENCODED}/explain`, { depth: 2 }).expect(502);
+      const res = await authedPost(server, `/api/impact/explain?id=${ENCODED}`, { depth: 2 }).expect(502);
       expect((res.body as ApiError).code).toBe('AI_UNAVAILABLE');
       expect(JSON.stringify(res.body)).not.toContain('gsk_test');
     });
@@ -212,13 +212,13 @@ describe('AI explain API (e2e, in-memory fakes)', () => {
         content: '{"summary":"x","evidenceReferences":["E99"]}',
         model: 'model-e2e',
       }));
-      const res = await authedPost(server, `/api/impact/${ENCODED}/explain`, { depth: 2 }).expect(502);
+      const res = await authedPost(server, `/api/impact/explain?id=${ENCODED}`, { depth: 2 }).expect(502);
       expect((res.body as ApiError).code).toBe('AI_INVALID_RESPONSE');
     });
 
     it('requires authentication (fail closed without a session)', async () => {
       const res = await request(server)
-        .post(`/api/impact/${ENCODED}/explain`)
+        .post(`/api/impact/explain?id=${ENCODED}`)
         .send({ depth: 2 })
         .expect(401);
       expect((res.body as ApiError).code).toBe('UNAUTHORIZED');
@@ -242,7 +242,7 @@ describe('AI explain API — AI disabled (e2e)', () => {
   });
 
   it('returns 503 AI_DISABLED and never calls the provider', async () => {
-    const res = await authedPost(server, `/api/impact/${ENCODED}/explain`, { depth: 2 }).expect(503);
+    const res = await authedPost(server, `/api/impact/explain?id=${ENCODED}`, { depth: 2 }).expect(503);
     expect((res.body as ApiError).code).toBe('AI_DISABLED');
   });
 });

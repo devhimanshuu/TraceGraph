@@ -100,9 +100,9 @@ describe('Impact API (e2e, in-memory fakes)', () => {
     await app.close();
   });
 
-  describe('GET /api/impact/:id', () => {
+  describe('GET /api/impact?id=', () => {
     it('returns direct + indirect impact with paths, tests and history', async () => {
-      const res = await authedGet(`/api/impact/${ENCODED}?depth=2`).expect(200);
+      const res = await authedGet(`/api/impact?id=${ENCODED}&depth=2`).expect(200);
       const body = res.body;
       expect(body.root).toEqual({ id: PAYMENT_ID, type: 'Class', label: 'PaymentService' });
       expect(body.depth).toBe(2);
@@ -124,7 +124,7 @@ describe('Impact API (e2e, in-memory fakes)', () => {
 
     it('returns an empty impact result for a node without dependents', async () => {
       // The repository node exists but nothing reaches it — clean empty state.
-      const res = await authedGet(`/api/impact/${encodeURIComponent('repo:commerce-platform')}?depth=2`).expect(200);
+      const res = await authedGet(`/api/impact?id=${encodeURIComponent('repo:commerce-platform')}&depth=2`).expect(200);
       expect(res.body.summary.direct).toBe(0);
       expect(res.body.summary.indirect).toBe(0);
       expect(res.body.directImpact).toEqual([]);
@@ -132,26 +132,26 @@ describe('Impact API (e2e, in-memory fakes)', () => {
     });
 
     it('404s for an unknown node', async () => {
-      const res = await authedGet('/api/impact/missing').expect(404);
+      const res = await authedGet('/api/impact?id=missing').expect(404);
       expect((res.body as ApiError).code).toBe('NOT_FOUND');
     });
 
     it('rejects depth=0 with 400', async () => {
-      const res = await authedGet(`/api/impact/${ENCODED}?depth=0`).expect(400);
+      const res = await authedGet(`/api/impact?id=${ENCODED}&depth=0`).expect(400);
       expect((res.body as ApiError).code).toBe('VALIDATION_ERROR');
     });
 
     it('rejects depth above the maximum with 400', async () => {
-      await authedGet(`/api/impact/${ENCODED}?depth=9`).expect(400);
+      await authedGet(`/api/impact?id=${ENCODED}&depth=9`).expect(400);
     });
 
     it('rejects an invalid limit with 400', async () => {
-      const res = await authedGet(`/api/impact/${ENCODED}?limit=-5`).expect(400);
+      const res = await authedGet(`/api/impact?id=${ENCODED}&limit=-5`).expect(400);
       expect((res.body as ApiError).code).toBe('VALIDATION_ERROR');
     });
 
     it('rejects an unknown query parameter (whitelist)', async () => {
-      await authedGet(`/api/impact/${ENCODED}?types=CALLS`).expect(400);
+      await authedGet(`/api/impact?id=${ENCODED}&types=CALLS`).expect(400);
     });
   });
 });

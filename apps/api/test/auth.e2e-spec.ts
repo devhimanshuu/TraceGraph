@@ -89,7 +89,7 @@ describe('Authentication (e2e, GitHub session)', () => {
   });
 
   it('applies the guard to graph, search, and traversal routes too', async () => {
-    await request(server).get('/api/nodes/anything').expect(401);
+    await request(server).get('/api/nodes?id=anything').expect(401);
     await request(server).get('/api/graph').expect(401);
     await request(server).get('/api/search?q=pay').expect(401);
   });

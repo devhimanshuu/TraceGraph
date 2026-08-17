@@ -91,9 +91,9 @@ describe('Graph API (e2e, in-memory repository)', () => {
     });
   });
 
-  describe('GET /api/nodes/:id', () => {
+  describe('GET /api/nodes?id=', () => {
     it('returns a node by encoded id', async () => {
-      const res = await authedGet(`/api/nodes/${ENCODED_PAYMENT_ID}`).expect(200);
+      const res = await authedGet(`/api/nodes?id=${ENCODED_PAYMENT_ID}`).expect(200);
       expect(res.body).toMatchObject({
         id: PAYMENT_SERVICE_ID,
         type: 'Class',
@@ -102,7 +102,7 @@ describe('Graph API (e2e, in-memory repository)', () => {
     });
 
     it('returns 404 with the standard error shape for an unknown node', async () => {
-      const res = await authedGet('/api/nodes/missing').expect(404);
+      const res = await authedGet('/api/nodes?id=missing').expect(404);
       const body = res.body as ApiError;
       expect(body.code).toBe('NOT_FOUND');
       expect(body.statusCode).toBe(404);
@@ -110,9 +110,9 @@ describe('Graph API (e2e, in-memory repository)', () => {
     });
   });
 
-  describe('GET /api/nodes/:id/relationships', () => {
+  describe('GET /api/nodes/relationships?id=', () => {
     it('returns incoming and outgoing relationships with endpoint refs', async () => {
-      const res = await authedGet(`/api/nodes/${ENCODED_PAYMENT_ID}/relationships`).expect(200);
+      const res = await authedGet(`/api/nodes/relationships?id=${ENCODED_PAYMENT_ID}`).expect(200);
       expect(res.body.node.id).toBe(PAYMENT_SERVICE_ID);
       expect(res.body.incoming).toHaveLength(1);
       expect(res.body.incoming[0].source.label).toBe('processCheckout');
@@ -122,8 +122,8 @@ describe('Graph API (e2e, in-memory repository)', () => {
   });
 
   describe('dependency endpoints', () => {
-    it('GET /api/nodes/:id/dependencies returns class-level targets with via', async () => {
-      const res = await authedGet(`/api/nodes/${ENCODED_PAYMENT_ID}/dependencies`).expect(200);
+    it('GET /api/nodes/dependencies?id= returns class-level targets with via', async () => {
+      const res = await authedGet(`/api/nodes/dependencies?id=${ENCODED_PAYMENT_ID}`).expect(200);
       expect(res.body[0]).toMatchObject({
         label: 'PaymentRepository',
         relationshipType: 'CALLS',
@@ -131,29 +131,29 @@ describe('Graph API (e2e, in-memory repository)', () => {
       });
     });
 
-    it('GET /api/nodes/:id/dependents returns callers', async () => {
-      const res = await authedGet(`/api/nodes/${ENCODED_PAYMENT_ID}/dependents`).expect(200);
+    it('GET /api/nodes/dependents?id= returns callers', async () => {
+      const res = await authedGet(`/api/nodes/dependents?id=${ENCODED_PAYMENT_ID}`).expect(200);
       expect(res.body[0].label).toBe('CheckoutService');
     });
 
-    it('GET /api/nodes/:id/callers and /callees work for functions', async () => {
+    it('GET /api/nodes/callers and /callees?id= work for functions', async () => {
       const fnId = encodeURIComponent('fn:apps/api/services/payment.service.ts:processPayment');
-      const callers = await authedGet(`/api/nodes/${fnId}/callers`).expect(200);
+      const callers = await authedGet(`/api/nodes/callers?id=${fnId}`).expect(200);
       expect(callers.body[0].type).toBe('Function');
-      const callees = await authedGet(`/api/nodes/${fnId}/callees`).expect(200);
+      const callees = await authedGet(`/api/nodes/callees?id=${fnId}`).expect(200);
       expect(callees.body[0].label).toBe('charge');
     });
 
-    it('GET /api/nodes/:id/tests returns test coverage', async () => {
-      const res = await authedGet(`/api/nodes/${ENCODED_PAYMENT_ID}/tests`).expect(200);
+    it('GET /api/nodes/tests?id= returns test coverage', async () => {
+      const res = await authedGet(`/api/nodes/tests?id=${ENCODED_PAYMENT_ID}`).expect(200);
       expect(res.body[0]).toMatchObject({
         name: 'processPayment succeeds',
         target: { type: 'Function', label: 'processPayment' },
       });
     });
 
-    it('GET /api/nodes/:id/relationship-summary returns one-request counts', async () => {
-      const res = await authedGet(`/api/nodes/${ENCODED_PAYMENT_ID}/relationship-summary`).expect(200);
+    it('GET /api/nodes/relationship-summary?id= returns one-request counts', async () => {
+      const res = await authedGet(`/api/nodes/relationship-summary?id=${ENCODED_PAYMENT_ID}`).expect(200);
       expect(res.body).toEqual({
         relationships: 12,
         dependencies: 2,
@@ -168,35 +168,35 @@ describe('Graph API (e2e, in-memory repository)', () => {
     });
 
     it('relationship-summary 404s for an unknown node', async () => {
-      await authedGet('/api/nodes/missing/relationship-summary').expect(404);
+      await authedGet('/api/nodes/relationship-summary?id=missing').expect(404);
     });
   });
 
   describe('history endpoints', () => {
-    it('GET /api/nodes/:id/commits returns commits with authors', async () => {
-      const res = await authedGet(`/api/nodes/${ENCODED_PAYMENT_ID}/commits`).expect(200);
+    it('GET /api/node-history/commits?id= returns commits with authors', async () => {
+      const res = await authedGet(`/api/node-history/commits?id=${ENCODED_PAYMENT_ID}`).expect(200);
       expect(res.body[0].sha).toBe('8f21ac7');
       expect(res.body[0].author.username).toBe('alex');
     });
 
-    it('GET /api/nodes/:id/pull-requests returns PRs', async () => {
-      const res = await authedGet(`/api/nodes/${ENCODED_PAYMENT_ID}/pull-requests`).expect(200);
+    it('GET /api/node-history/pull-requests?id= returns PRs', async () => {
+      const res = await authedGet(`/api/node-history/pull-requests?id=${ENCODED_PAYMENT_ID}`).expect(200);
       expect(res.body[0].number).toBe(421);
     });
 
-    it('GET /api/nodes/:id/issues returns issues', async () => {
-      const res = await authedGet(`/api/nodes/${ENCODED_PAYMENT_ID}/issues`).expect(200);
+    it('GET /api/node-history/issues?id= returns issues', async () => {
+      const res = await authedGet(`/api/node-history/issues?id=${ENCODED_PAYMENT_ID}`).expect(200);
       expect(res.body[0].number).toBe(912);
     });
 
     it('history endpoints 404 for unknown nodes', async () => {
-      await authedGet('/api/nodes/missing/commits').expect(404);
+      await authedGet('/api/node-history/commits?id=missing').expect(404);
     });
   });
 
-  describe('GET /api/traversal/:id', () => {
+  describe('GET /api/traversal?id=', () => {
     it('returns a bounded traversal with nodes, edges, and paths', async () => {
-      const res = await authedGet(`/api/traversal/${ENCODED_PAYMENT_ID}?depth=2`).expect(200);
+      const res = await authedGet(`/api/traversal?id=${ENCODED_PAYMENT_ID}&depth=2`).expect(200);
       expect(res.body.root.id).toBe(PAYMENT_SERVICE_ID);
       expect(res.body.depth).toBe(2);
       expect(res.body.nodes.length).toBeGreaterThan(0);
@@ -204,27 +204,27 @@ describe('Graph API (e2e, in-memory repository)', () => {
     });
 
     it('rejects depth=0 with 400', async () => {
-      const res = await authedGet(`/api/traversal/${ENCODED_PAYMENT_ID}?depth=0`).expect(400);
+      const res = await authedGet(`/api/traversal?id=${ENCODED_PAYMENT_ID}&depth=0`).expect(400);
       expect((res.body as ApiError).code).toBe('VALIDATION_ERROR');
     });
 
     it('rejects depth above the maximum with 400', async () => {
-      await authedGet(`/api/traversal/${ENCODED_PAYMENT_ID}?depth=9`).expect(400);
+      await authedGet(`/api/traversal?id=${ENCODED_PAYMENT_ID}&depth=9`).expect(400);
     });
 
     it('rejects invalid relationship types with 400', async () => {
-      await authedGet(`/api/traversal/${ENCODED_PAYMENT_ID}?types=NOPE`).expect(400);
+      await authedGet(`/api/traversal?id=${ENCODED_PAYMENT_ID}&types=NOPE`).expect(400);
     });
 
     it('direction=in walks the dependents chain (reverse traversal)', async () => {
-      const res = await authedGet(`/api/traversal/${ENCODED_PAYMENT_ID}?direction=in&depth=2`)
+      const res = await authedGet(`/api/traversal?id=${ENCODED_PAYMENT_ID}&direction=in&depth=2`)
         .expect(200);
       expect(res.body.root.id).toBe(PAYMENT_SERVICE_ID);
       expect(res.body.paths[0].nodes[0]).toBe(PAYMENT_SERVICE_ID);
     });
 
     it('rejects an invalid direction with 400', async () => {
-      await authedGet(`/api/traversal/${ENCODED_PAYMENT_ID}?direction=sideways`).expect(400);
+      await authedGet(`/api/traversal?id=${ENCODED_PAYMENT_ID}&direction=sideways`).expect(400);
     });
   });
 
