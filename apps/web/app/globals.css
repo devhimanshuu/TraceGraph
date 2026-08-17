@@ -175,6 +175,16 @@
     opacity: 0;
   }
 }
+/* Trace mode — the pulse riding the current hop edge toward the next node. */
+@keyframes tg-trace-pulse {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
 @media (prefers-reduced-motion: no-preference) {
   .tg-flow-line {
     animation: tg-flow 1.6s linear infinite;
@@ -184,6 +194,9 @@
   }
   .tg-hub-pulse-delay {
     animation-delay: 1.3s;
+  }
+  .tg-trace-pulse {
+    animation: tg-trace-pulse 0.55s ease-in-out infinite;
   }
 }
 

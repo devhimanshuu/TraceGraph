@@ -189,11 +189,15 @@ as `unresolved` and don't fail the check.
 | `GET /api/health` | Application liveness and status |
 | `GET /api/health/database` | CognoDB connection health |
 | `GET /api/repository` | Repository overview, stats, and activity |
-| `GET /api/nodes/:id` | Entity node details |
-| `GET /api/nodes/:id/dependencies` | Outgoing dependencies (IMPORTS, CALLS, EXTENDS) |
-| `GET /api/nodes/:id/dependents` | Inbound dependents (reverse traversal) |
-| `GET /api/traversal/:id` | Bounded multi-hop traversal with path evidence |
-| `GET /api/impact/:id` | Impact / blast radius analysis for an entity |
+| `GET /api/nodes?id=` | Entity node details |
+| `GET /api/nodes/dependencies?id=` | Outgoing dependencies (IMPORTS, CALLS, EXTENDS) |
+| `GET /api/nodes/dependents?id=` | Inbound dependents (reverse traversal) |
+| `GET /api/traversal?id=` | Bounded multi-hop traversal with path evidence |
+| `GET /api/impact?id=` | Impact / blast radius analysis for an entity |
+
+> Entity ids embed file paths (`fn:src/modules/tools/errors.ts:ToolError`), so they
+> travel as **query parameters** — the AWS HTTP API decodes `%2F` inside path
+> segments before the Lambda sees them, which would shatter `:id` route matching.
 | `GET /api/impact-history` | Stored impact analysis snapshots |
 | `GET /api/intelligence` | Graph-derived smells, orphans, and test gaps |
 | `GET /api/search?q=` | Entity search by name/symbol |

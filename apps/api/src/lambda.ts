@@ -30,9 +30,6 @@ async function bootstrap(): Promise<ServerlessHandler> {
 // (Runtime.CallbackHandlerDeprecated), and @codegenie/serverless-express
 // already returns a pure async (event, context) handler.
 export const handler: Handler = async (event: unknown, context: Context) => {
-  // TEMP DEBUG — remove after diagnosing encoded-path 404s
-  const e = event as { rawPath?: string; requestContext?: { http?: { method?: string } } };
-  console.log('[DEBUG-EVENT]', JSON.stringify({ rawPath: e.rawPath, method: e.requestContext?.http?.method, requestId: context.awsRequestId }));
   server = server ?? (await bootstrap());
   return server(event, context);
 };

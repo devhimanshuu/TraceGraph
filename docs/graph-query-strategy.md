@@ -59,7 +59,9 @@ ORDER BY hops
 LIMIT 250
 ```
 
-Exposed as `GET /api/traversal/:id?depth=2&types=CALLS,IMPORTS`. The response
+Exposed as `GET /api/traversal?id=&depth=2&types=CALLS,IMPORTS` (the id is a query
+param: ids embed file paths with slashes, and the deployed AWS HTTP API decodes
+`%2F` out of path segments before the Lambda sees them). The response
 keeps **evidence paths**, not just a reachable set: impact analysis
 can explain *why* `CheckoutService` is affected by a `PaymentService` change —
 because `processCheckout -[:CALLS]-> processPayment`.

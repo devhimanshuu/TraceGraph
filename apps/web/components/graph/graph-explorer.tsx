@@ -36,10 +36,11 @@ import {
   RotateCcw,
   Search,
   Target,
+  Waypoints,
   Workflow,
 } from 'lucide-react';
 import { useGitHubSession } from '@/hooks/use-github-session';
-import type { GraphNode, GraphResponse } from '@tracegraph/shared';
+import type { GraphNode, GraphResponse, TraversalResult } from '@tracegraph/shared';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SectionError } from '@/components/dashboard/section-error';
@@ -88,6 +89,7 @@ function CustomGraphNode({ data, selected }: NodeProps) {
   const node = data.node as GraphNode;
   const isRoot = Boolean(data.isRoot);
   const whatIfStatus = data.whatIfStatus as 'removed' | 'affected' | undefined;
+  const traceEntry = Boolean(data.traceEntry);
   const typeHex = NODE_TYPE_HEX[node?.type ?? 'Class'] ?? '#94a3b8';
 
   return (
@@ -137,6 +139,8 @@ function CustomGraphNode({ data, selected }: NodeProps) {
           <span className="font-mono text-[9px] font-bold uppercase text-rose-400">
             Would break
           </span>
+        ) : traceEntry ? (
+          <span className="font-mono text-[9px] font-bold uppercase text-cyan-400">Entry</span>
         ) : isRoot ? (
           <span className="font-mono text-[9px] font-bold uppercase text-sky-400">Focus</span>
         ) : null}
@@ -179,6 +183,10 @@ function FlowEdge({
   const label = data?.label as string | undefined;
   // Spotlight dimming (hover) — the traveling-dash overlay fades with the base.
   const dimmed = Boolean(data?.dimmed);
+  // Trace mode: on-path edges glow; the current hop edge carries a pulsing
+  // signal riding the traveling dash toward the next node.
+  const tracePath = Boolean(data?.tracePath);
+  const traceStep = Boolean(data?.traceStep);
 
   return (
     <>
@@ -188,12 +196,25 @@ function FlowEdge({
         d={path}
         fill="none"
         stroke={color}
-        strokeWidth={1.5}
+        strokeWidth={traceStep ? 3 : tracePath ? 2.5 : 1.5}
         strokeLinecap="round"
         strokeDasharray="3 14"
         className="tg-flow-line pointer-events-none"
-        opacity={dimmed ? 0.05 : 0.9}
+        opacity={dimmed ? 0.05 : traceStep ? 1 : tracePath ? 0.85 : 0.9}
+        style={
+          traceStep
+            ? { filter: 'drop-shadow(0 0 6px rgba(34,211,238,0.9))' }
+            : tracePath
+              ? { filter: 'drop-shadow(0 0 3px rgba(34,211,238,0.45))' }
+              : undefined
+        }
       />
+      {/* Pulse riding the current trace hop */}
+      {traceStep ? (
+        <circle r={4} fill="#22d3ee" className="tg-trace-pulse pointer-events-none">
+          <animateMotion dur="0.55s" repeatCount="indefinite" path={path} />
+        </circle>
+      ) : null}
       {label ? (
         <EdgeLabelRenderer>
           <div
@@ -253,6 +274,79 @@ function dependentsOf(graphData: GraphResponse | null, nodeId: string | null): S
     }
   }
   return reachable;
+}
+
+/**
+ * The ordered, deduplicated hop edges of a traversal — the spine the trace
+ * animation walks. Each entry is `{ source, target, step }` where step is the
+ * hop index (0-based) at which the call/import fires, in trace order.
+ * Direction matters: a path A → B only lights the A→B edge, never B→A.
+ */
+function traceHopEdges(traversal: TraversalResult | null): Array<{ source: string; target: string; step: number }> {
+  if (!traversal) return [];
+  const seen = new Set<string>();
+  const hops: Array<{ source: string; target: string; step: number }> = [];
+  for (const path of traversal.paths) {
+    for (let i = 0; i + 1 < path.nodes.length; i += 1) {
+      const source = path.nodes[i];
+      const target = path.nodes[i + 1];
+      const key = `${source}→${target}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        hops.push({ source, target, step: hops.length });
+      }
+    }
+  }
+  return hops;
+}
+
+/** Node ids appearing on any trace path (the "lit" set during a trace). */
+function tracePathNodeIds(traversal: TraversalResult | null): Set<string> {
+  const set = new Set<string>();
+  if (!traversal) return set;
+  for (const path of traversal.paths) {
+    for (const id of path.nodes) set.add(id);
+  }
+  return set;
+}
+
+/**
+ * The trace overlay's extra nodes: path endpoints that the neighborhood query
+ * didn't return (the explorer shows a structural tree; the call path lives at
+ * the function level). They're laid out as a vertical call chain hanging off
+ * the entry node, so the traveling dash always has a spine to ride.
+ */
+function traceOverlayNodes(
+  traversal: TraversalResult | null,
+  existingIds: Set<string>,
+  entryId: string,
+  entryPos: { x: number; y: number },
+): Node[] {
+  if (!traversal) return [];
+  const nodes: Node[] = [];
+  const placed = new Set<string>();
+  const onPath = tracePathNodeIds(traversal);
+  for (const path of traversal.paths) {
+    for (let i = 0; i < path.nodes.length; i += 1) {
+      const id = path.nodes[i];
+      if (existingIds.has(id) || placed.has(id) || id === entryId) continue;
+      placed.add(id);
+      const ref = traversal.nodes.find((n) => n.id === id);
+      nodes.push({
+        id,
+        type: 'custom',
+        position: { x: entryPos.x, y: entryPos.y + 150 + i * 130 },
+        data: {
+          node: ref ?? { id, type: 'Function', label: id.split(':').pop() },
+          isRoot: false,
+          // Keep overlay nodes lit during a trace (the memo dims everything
+          // off-path) and mark them so they can be styled as trace-only.
+          tracePathNode: true,
+        },
+      });
+    }
+  }
+  return nodes;
 }
 
 /** Segmented layout switcher — shared by the page header and the fullscreen bar. */
@@ -420,6 +514,66 @@ export function GraphExplorer() {
   // red (deterministic inbound reachability over the visible neighborhood).
   const [whatIf, setWhatIf] = useState(false);
   const [whatIfNodeId, setWhatIfNodeId] = useState<string | null>(null);
+  // Trace mode: pick an entry point and the actual call path is animated
+  // hop-by-hop through the neighborhood — the traveling dash rides each
+  // dependency edge in order, like a debugger flame path.
+  const [trace, setTrace] = useState(false);
+  const [traceEntryId, setTraceEntryId] = useState<string | null>(null);
+  const [traceResult, setTraceResult] = useState<TraversalResult | null>(null);
+  const [traceStep, setTraceStep] = useState(0);
+  const [traceLoading, setTraceLoading] = useState(false);
+  const [traceError, setTraceError] = useState<string | null>(null);
+
+  // The animation clock — advances one hop every 550ms while a trace is live.
+  const traceHops = useMemo(
+    () => traceHopEdges(traceResult),
+    [traceResult],
+  );
+  useEffect(() => {
+    if (!trace || !traceEntryId || traceHops.length === 0) return;
+    const id = window.setInterval(() => {
+      setTraceStep((s) => (s + 1) % traceHops.length);
+    }, 550);
+    return () => window.clearInterval(id);
+  }, [trace, traceEntryId, traceHops.length]);
+
+  const toggleTrace = useCallback(() => {
+    setTrace((prev) => {
+      if (prev) {
+        setTraceEntryId(null);
+        setTraceResult(null);
+        setTraceError(null);
+        setTraceStep(0);
+      }
+      return !prev;
+    });
+  }, []);
+
+  // Picking an entry point fetches the real multi-hop traversal from the API.
+  const handleTraceEntry = useCallback(
+    async (node: GraphNode) => {
+      setTraceEntryId(node.id);
+      setTraceStep(0);
+      setTraceResult(null);
+      setTraceError(null);
+      setTraceLoading(true);
+      try {
+        const token = await getToken();
+        const result = await apiClient.getTraversal(
+          node.id,
+          { depth, direction: 'out', limit: 40 },
+          token,
+        );
+        setTraceResult(result);
+        setTraceStep(0);
+      } catch (err) {
+        setTraceError(err instanceof Error ? err.message : 'Failed to trace the call path');
+      } finally {
+        setTraceLoading(false);
+      }
+    },
+    [depth, getToken],
+  );
 
   // Esc exits fullscreen; the listener exists only while the mode is active.
   useEffect(() => {
@@ -502,7 +656,7 @@ export function GraphExplorer() {
       const override = activeOverrides[n.id];
       const position = override ?? n.position;
 
-      // What-if simulation wins over the hover spotlight.
+      // What-if simulation wins over the hover spotlight and the trace.
       if (whatIf && whatIfAffected) {
         if (n.id === whatIfNodeId) {
           return {
@@ -519,6 +673,20 @@ export function GraphExplorer() {
             data: { ...n.data, whatIfStatus: 'affected' },
           };
         }
+      } else if (trace && traceEntryId && traceResult) {
+        // Trace: everything off the call path fades so the animation reads.
+        const onPath = tracePathNodeIds(traceResult);
+        if (!onPath.has(n.id)) {
+          return { ...n, position, style: { opacity: 0.22, transition: 'opacity 200ms' } };
+        }
+        if (n.id === traceEntryId) {
+          return {
+            ...n,
+            position,
+            style: { filter: 'drop-shadow(0 0 10px rgba(34,211,238,0.55))' },
+            data: { ...n.data, traceEntry: true },
+          };
+        }
       } else if (hoveredNodeId) {
         const lit = hoveredNodeId === n.id || n.id === graphData.root.id || neighborSet.has(n.id);
         if (!lit) {
@@ -527,6 +695,15 @@ export function GraphExplorer() {
       }
       return { ...n, position };
     });
+
+    // Trace animation state (only meaningful while a trace is live):
+    //   traceActive — the entry point is set and the traversal is in hand;
+    //   onPath / onStep — edge membership in the traced spine / current hop.
+    const traceActive = Boolean(trace && traceEntryId && traceResult);
+    const traceHopsActive = traceActive ? traceHops : [];
+    const traceStepEdge = traceHopsActive[traceStep] ?? null;
+    const hopByEdgeKey = new Map<string, number>();
+    traceHopsActive.forEach((h, i) => hopByEdgeKey.set(`${h.source}→${h.target}`, i));
 
     const edges: Edge[] = graphData.edges.map((e) => {
       const color = REL_TYPE_HEX[e.type] ?? '#94a3b8';
@@ -538,31 +715,114 @@ export function GraphExplorer() {
           e.source !== whatIfNodeId &&
           whatIfAffected.has(e.source) &&
           (e.target === whatIfNodeId || whatIfAffected.has(e.target));
+      } else if (traceActive) {
+        // Trace: only the traced spine stays lit — the current hop glows.
+        dimmed = !hopByEdgeKey.has(`${e.source}→${e.target}`);
       } else if (hoveredNodeId) {
         dimmed = e.source !== hoveredNodeId && e.target !== hoveredNodeId;
       }
       const stroke = red ? '#f43f5e' : color;
+      const traceOnPath = traceActive ? hopByEdgeKey.has(`${e.source}→${e.target}`) : false;
+      const traceOnStep =
+        traceActive &&
+        traceStepEdge !== null &&
+        e.source === traceStepEdge.source &&
+        e.target === traceStepEdge.target;
       return {
         id: e.id,
         source: e.source,
         target: e.target,
         type: 'flow',
-        data: { color: stroke, label: e.type, dimmed },
+        data: { color: stroke, label: e.type, dimmed, tracePath: traceOnPath, traceStep: traceOnStep },
         style: {
-          stroke,
-          strokeWidth: red ? 2 : 1.5,
-          opacity: dimmed ? 0.12 : hoveredNodeId && !whatIf ? 0.9 : red ? 0.85 : 0.55,
+          stroke: traceOnStep ? '#22d3ee' : stroke,
+          strokeWidth: traceOnStep ? 3 : red ? 2 : 1.5,
+          opacity: dimmed ? 0.12 : traceOnStep ? 1 : hoveredNodeId && !whatIf && !traceActive ? 0.9 : red ? 0.85 : 0.55,
           transition: 'opacity 200ms',
+          filter: traceOnStep ? 'drop-shadow(0 0 6px rgba(34,211,238,0.8))' : undefined,
         },
         markerEnd: {
           type: MarkerType.ArrowClosed,
           width: 14,
           height: 14,
-          color: stroke,
+          color: traceOnStep ? '#22d3ee' : stroke,
         },
       };
     });
 
+    // Trace overlay: the neighborhood query only returns structural edges
+    // (e.g. CONTAINS in a directory tree), so the real call path often isn't
+    // drawn. While a trace is live, add the traversal's own edges AND the
+    // path nodes the neighborhood didn't return (function-level call targets),
+    // so the animated spine is always visible.
+    if (traceActive && traceResult) {
+      const entryNode = nodes.find((n) => n.id === traceEntryId);
+      const entryPos = entryNode?.position ?? { x: 0, y: 0 };
+      const existingIds = new Set(nodes.map((n) => n.id));
+      const overlay = traceOverlayNodes(traceResult, existingIds, traceEntryId ?? '', entryPos);
+      const onPath = tracePathNodeIds(traceResult);
+      for (const on of overlay) {
+        // The generic node pass above may have dimmed these as off-path;
+        // overlay nodes ARE the path, so keep them lit with a trace tint.
+        nodes.push({
+          ...on,
+          style: { opacity: 1, filter: 'drop-shadow(0 0 8px rgba(34,211,238,0.4))' },
+          data: { ...on.data, onPath: true },
+        });
+      }
+      // Nodes already in the neighborhood but on the path get a subtle glow.
+      for (const n of nodes) {
+        if (!n.id.startsWith('trace-') && onPath.has(n.id)) {
+          n.data = { ...n.data, onPath: true };
+        }
+      }
+    }
+
+    // Trace overlay edges: merge the traversal's CALLS edges in so the
+    // animated spine is always visible — even when its endpoints are the
+    // freshly added overlay nodes.
+    if (traceActive && traceResult) {
+      const existingKeys = new Set(edges.map((e) => `${e.source}→${e.target}`));
+      let traceEdgeIdx = 0;
+      for (const te of traceResult.edges) {
+        const key = `${te.source}→${te.target}`;
+        if (existingKeys.has(key)) continue;
+        existingKeys.add(key);
+        const color = REL_TYPE_HEX[te.type] ?? '#94a3b8';
+        const traceOnPath = hopByEdgeKey.has(key);
+        const traceOnStep =
+          traceStepEdge !== null && te.source === traceStepEdge.source && te.target === traceStepEdge.target;
+        // Unique ids — traversal edge ids collide with neighborhood ids, and
+        // duplicate React keys break edge rendering.
+        traceEdgeIdx += 1;
+        edges.push({
+          id: `trace-${te.id}-${traceEdgeIdx}`,
+          source: te.source,
+          target: te.target,
+          type: 'flow',
+          data: { color, label: te.type, dimmed: false, tracePath: traceOnPath, traceStep: traceOnStep },
+          style: {
+            stroke: traceOnStep ? '#22d3ee' : color,
+            strokeWidth: traceOnStep ? 3 : 1.5,
+            opacity: traceOnStep ? 1 : 0.85,
+            transition: 'opacity 200ms',
+            filter: traceOnStep ? 'drop-shadow(0 0 6px rgba(34,211,238,0.8))' : undefined,
+          },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            width: 14,
+            height: 14,
+            color: traceOnStep ? '#22d3ee' : color,
+          },
+        });
+      }
+    }
+
+    if (traceActive) {
+      // TEMP DEBUG
+      console.log('[TRACE-EDGES]', edges.map((e) => e.id).join(', '));
+      console.log('[TRACE-NODES]', nodes.map((n) => n.id).join(', '));
+    }
     return { rfNodes: nodes, rfEdges: edges };
   }, [
     graphData,
@@ -574,6 +834,11 @@ export function GraphExplorer() {
     whatIf,
     whatIfNodeId,
     whatIfAffectedSet,
+    trace,
+    traceEntryId,
+    traceResult,
+    traceStep,
+    traceHops,
   ]);
 
   const presentNodeTypes = useMemo(
@@ -632,8 +897,19 @@ export function GraphExplorer() {
       if (whatIf) {
         setWhatIfNodeId((prev) => (prev === node.id ? null : node.id));
       }
+      // In trace mode a click picks the entry point and starts the animation.
+      if (trace) {
+        if (traceEntryId === node.id) {
+          setTraceEntryId(null);
+          setTraceResult(null);
+          setTraceError(null);
+          setTraceStep(0);
+        } else {
+          void handleTraceEntry(gn);
+        }
+      }
     },
-    [graphData, whatIf],
+    [graphData, whatIf, trace, traceEntryId, handleTraceEntry],
   );
 
   const handleNodeDoubleClick = (_: React.MouseEvent, node: Node) => {
@@ -764,6 +1040,17 @@ export function GraphExplorer() {
             </Button>
           ) : null}
           <Button
+            variant={trace ? 'default' : 'outline'}
+            size="sm"
+            onClick={toggleTrace}
+            aria-pressed={trace}
+            className="h-8 text-xs gap-1.5 bg-background/80 backdrop-blur data-[pressed=true]:bg-cyan-500/15 data-[pressed=true]:text-cyan-300 data-[pressed=true]:border-cyan-500/40"
+            title="Trace the call path from an entry point — animates hop by hop"
+          >
+            <Waypoints className="size-3.5" />
+            Trace
+          </Button>
+          <Button
             variant={whatIf ? 'default' : 'outline'}
             size="sm"
             onClick={toggleWhatIf}
@@ -784,6 +1071,50 @@ export function GraphExplorer() {
             Search
           </Button>
         </div>
+
+        {/* Trace animation banner */}
+        {trace ? (
+          <div
+            role="status"
+            className="absolute left-1/2 top-14 z-20 flex w-full max-w-xl -translate-x-1/2 items-center justify-between gap-3 rounded-lg border border-cyan-500/30 bg-background/90 px-3 py-2 backdrop-blur"
+          >
+            <p className="flex items-center gap-2 truncate text-xs text-foreground/90">
+              <Waypoints className="size-3.5 shrink-0 text-cyan-400" aria-hidden />
+              {traceError ? (
+                <span className="text-rose-300">Could not trace the call path.</span>
+              ) : traceLoading ? (
+                <span>Resolving call path from the entry point…</span>
+              ) : !traceEntryId ? (
+                <span>Pick an entry point — its call path animates hop by hop.</span>
+              ) : traceResult && traceHops.length === 0 ? (
+                <span>
+                  No outgoing call path from{' '}
+                  <code className="rounded bg-cyan-500/10 px-1.5 py-0.5 font-mono text-cyan-300">
+                    {traceResult.root.label}
+                  </code>{' '}
+                  at {depth} hop{depth === 1 ? '' : 's'}.
+                </span>
+              ) : traceResult ? (
+                <span>
+                  Tracing{' '}
+                  <code className="rounded bg-cyan-500/10 px-1.5 py-0.5 font-mono text-cyan-300">
+                    {traceResult.root.label}
+                  </code>{' '}
+                  — step <span className="font-medium text-cyan-300">{traceStep + 1}</span>/
+                  {traceHops.length}
+                </span>
+              ) : null}
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleTrace}
+              className="h-7 shrink-0 text-xs gap-1.5 text-cyan-300 hover:bg-cyan-500/10 hover:text-cyan-200"
+            >
+              Stop
+            </Button>
+          </div>
+        ) : null}
 
         {/* Meta + exit */}
         <div className="absolute right-3 top-3 z-20 flex items-center gap-2">
@@ -896,6 +1227,17 @@ export function GraphExplorer() {
           {graphData && !loading && !error && !isEmpty ? (
             <>
               <Button
+                variant={trace ? 'default' : 'outline'}
+                size="sm"
+                onClick={toggleTrace}
+                aria-pressed={trace}
+                className={`h-8 text-xs gap-1.5 ${trace ? 'border-cyan-500/40 bg-cyan-500/15 text-cyan-300 hover:bg-cyan-500/20 hover:text-cyan-200' : ''}`}
+                title="Trace the call path from an entry point — animates hop by hop"
+              >
+                <Waypoints className="size-3.5" />
+                Trace
+              </Button>
+              <Button
                 variant={whatIf ? 'default' : 'outline'}
                 size="sm"
                 onClick={toggleWhatIf}
@@ -975,6 +1317,53 @@ export function GraphExplorer() {
           ) : null}
         </div>
       </div>
+
+      {/* Trace animation banner */}
+      {trace ? (
+        <div
+          role="status"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-cyan-500/30 bg-cyan-500/5 px-4 py-2.5"
+        >
+          <p className="flex items-center gap-2 text-xs text-foreground/90">
+            <Waypoints className="size-3.5 shrink-0 text-cyan-400" aria-hidden />
+            {traceError ? (
+              <span className="text-rose-300">Could not trace the call path.</span>
+            ) : traceLoading ? (
+              <span>Resolving call path from the entry point…</span>
+            ) : !traceEntryId ? (
+              <>
+                Pick an entry point — its <span className="font-medium text-cyan-300">actual call path</span>{' '}
+                animates hop by hop ({depth} hop{depth === 1 ? '' : 's'} deep). Click a node to start.
+              </>
+            ) : traceResult && traceHops.length === 0 ? (
+              <>
+                No outgoing call path from{' '}
+                <code className="rounded bg-cyan-500/10 px-1.5 py-0.5 font-mono text-cyan-300">
+                  {traceResult.root.label}
+                </code>{' '}
+                at {depth} hop{depth === 1 ? '' : 's'}.
+              </>
+            ) : traceResult ? (
+              <>
+                Tracing{' '}
+                <code className="rounded bg-cyan-500/10 px-1.5 py-0.5 font-mono text-cyan-300">
+                  {traceResult.root.label}
+                </code>{' '}
+                — step <span className="font-medium text-cyan-300">{traceStep + 1}</span>/
+                {traceHops.length}. Click another node to switch the entry point.
+              </>
+            ) : null}
+          </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleTrace}
+            className="h-7 text-xs gap-1.5 text-cyan-300 hover:bg-cyan-500/10 hover:text-cyan-200"
+          >
+            Stop trace
+          </Button>
+        </div>
+      ) : null}
 
       {/* What-if simulation banner */}
       {whatIf ? (

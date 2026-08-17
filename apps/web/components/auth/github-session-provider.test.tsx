@@ -88,8 +88,8 @@ describe('GitHubSessionProvider sign-out', () => {
 
   it('still signs the user out locally when the logout API is unreachable', async () => {
     window.localStorage.setItem('tg_session_token', 'stored-token');
-    const fetchMock = vi.fn().mockImplementation((url: string) => {
-      if (url.includes('/auth/session')) {
+    const fetchMock = vi.fn().mockImplementation((_url: string, init?: RequestInit) => {
+      if (_url.includes('/auth/session')) {
         return Promise.resolve({
           ok: true,
           json: () =>
@@ -99,9 +99,14 @@ describe('GitHubSessionProvider sign-out', () => {
             }),
         });
       }
-      // Simulate a stalled/unreachable API: the request never resolves, but the
-      // bounded timeout must not block the local sign-out from completing.
-      return new Promise<Response>(() => {});
+      // Simulate a stalled/unreachable API: the request only settles when its
+      // AbortSignal fires — the bounded timeout must not block the local
+      // sign-out from completing.
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () =>
+          reject(new DOMException('Aborted', 'AbortError')),
+        );
+      });
     });
     vi.stubGlobal('fetch', fetchMock);
 
@@ -110,9 +115,11 @@ describe('GitHubSessionProvider sign-out', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
 
+    // Local sign-out is immediate; the redirect waits on the bounded timeout
+    // (3s AbortSignal) that unblocks the stalled revocation call.
     await waitFor(() => expect(screen.getByTestId('signed-in')).toHaveTextContent('no'));
     expect(window.localStorage.getItem('tg_session_token')).toBeNull();
-    expect(push).toHaveBeenCalledWith('/');
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/'), { timeout: 5000 });
     vi.unstubAllGlobals();
   });
 });

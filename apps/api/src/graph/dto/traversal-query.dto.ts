@@ -18,12 +18,16 @@ const csv = ({ value }: { value: unknown }): unknown =>
     : value;
 
 /**
- * `GET /api/traversal/:id?depth=&types=&limit=&direction=` — bounded
+ * `GET /api/traversal?id=&depth=&types=&limit=&direction=` — bounded
  * multi-hop reachability. `direction=out` (default) walks what the root
  * reaches; `direction=in` walks everything that reaches the root (the
  * dependents chain), which the Dependency Explorer's multi-hop preview uses.
  */
 export class TraversalQueryDto {
+  @IsOptional()
+  @IsString()
+  id?: string;
+
   @IsOptional()
   @Type(() => Number)
   @IsInt()

@@ -497,11 +497,15 @@ export class GraphRepository {
         edgeByKey.set(key, edge);
       }
     }
+    // The two traversals each number their edges `e-1, e-2, …`, so a merged
+    // neighborhood would ship DUPLICATE edge ids — React Flow treats ids as
+    // keys and silently drops the duplicates. Re-key globally unique here.
+    const edges = [...edgeByKey.values()].map((edge, i) => ({ ...edge, id: `e-${i + 1}` }));
     return {
       root: a.root,
       depth: Math.max(a.depth, b.depth),
       nodes: [...nodeById.values()],
-      edges: [...edgeByKey.values()],
+      edges,
       paths: a.paths,
     };
   }

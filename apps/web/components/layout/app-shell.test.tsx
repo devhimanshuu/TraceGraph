@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { RepositoryProvider } from '@/components/layout/repository-provider';
+import { ThemeProvider } from '@/components/theme-provider';
 import { repositoryService } from '@/lib/services/repository.service';
 import { AppShell } from './app-shell';
 
@@ -38,11 +39,13 @@ const overview = {
 
 function renderShell() {
   return render(
-    <RepositoryProvider>
-      <AppShell>
-        <p>Shell content</p>
-      </AppShell>
-    </RepositoryProvider>,
+    <ThemeProvider>
+      <RepositoryProvider>
+        <AppShell>
+          <p>Shell content</p>
+        </AppShell>
+      </RepositoryProvider>
+    </ThemeProvider>,
   );
 }
 

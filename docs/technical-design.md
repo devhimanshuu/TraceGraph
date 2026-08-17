@@ -397,11 +397,11 @@ apps/api/src/
 │   ├── graph.repository.ts       # Cypher for node queries + graph fetch
 │   └── relationship.repository.ts# Cypher for dependency/dependent/caller/test queries
 ├── impact/
-│   ├── impact.controller.ts      # GET /impact/:id
+│   ├── impact.controller.ts      # GET /impact?id=
 │   ├── impact.service.ts         # orchestration + grouping/ranking logic
 │   └── impact.repository.ts      # Cypher: traversal, tests, PRs, issues
 └── history/
-    ├── history.controller.ts     # GET /nodes/:id/history
+    ├── history.controller.ts     # GET /node-history/commits|pull-requests|issues?id=
     ├── history.service.ts
     └── history.repository.ts     # Cypher: commits, PRs, issues
 ```
@@ -1008,7 +1008,7 @@ Format template: **"{OwnerName} is affected because {path string} ({hops} hop(s)
 
 ### 14.4 Impact endpoint behavior
 
-- `GET /api/impact/:id?depth=3` — idempotent, cacheable.
+- `GET /api/impact?id=&depth=3` — idempotent, cacheable.
 - Service orchestration: Q12 (traversal) → Q13 (tests) → Q14 (history) → group/rank in JS → response DTO. Two DB round-trips max (Q12+Q13 can share one, then Q14).
 - Guardrails: unknown id → 404 before traversal; empty result → `impact: []` (not an error — honest "no impact within depth N").
 - Complexity cap: depth 5 + `LIMIT` guards in Q12 (e.g., return top 200 affected functions) to protect CognoDB free tier.
@@ -1025,16 +1025,16 @@ Format template: **"{OwnerName} is affected because {path string} ({hops} hop(s)
 | GET | `/api/health/database` | CognoDB connectivity | — | — | `{ status: "ok"\|"degraded", latencyMs }` | 503 when degraded |
 | GET | `/api/repository` | Repo overview + stats | — | — | `{ repository: {...}, stats: { directoryCount, fileCount, classCount, functionCount, testCount, commitCount, prCount, issueCount } }` | 503 DB down |
 | GET | `/api/graph` | Code subgraph for canvas/thumbnail | `?scope=code` | — | `{ nodes: [...], edges: [...] }` | 503 |
-| GET | `/api/nodes/:id` | Entity details | — | — | `{ id, labels, properties }` | 404, 400 (bad id) |
-| GET | `/api/nodes/:id/neighborhood` | 1-hop in/out relationships | `?depth=1` | — | `{ relationships: [...] }` (Q4) | 404, 503 |
-| GET | `/api/nodes/:id/dependencies` | Outgoing CALLS/IMPORTS, collapsed | — | — | `{ dependencies: [...] }` (Q5) | 404, 503 |
-| GET | `/api/nodes/:id/dependents` | Incoming CALLS/IMPORTS, collapsed | — | — | `{ dependents: [...] }` (Q6) | 404, 503 |
-| GET | `/api/nodes/:id/callers` | Incoming CALLS aggregated to classes | — | — | `{ callers: [...] }` (Q7) | 404, 503 |
-| GET | `/api/nodes/:id/tests` | Direct tests | — | — | `{ tests: [...] }` (Q8) | 404, 503 |
-| GET | `/api/nodes/:id/history` | Commits, PRs, issues touching entity | — | — | `{ commits: [...], pullRequests: [...], issues: [...] }` (Q9–Q11) | 404, 503 |
-| GET | `/api/impact/:id` | **Analyze Impact** | `?depth=3` (1–5) | — | `{ source: {...}, impact: { high: [...], medium: [...], low: [...] }, tests: [...], pullRequests: [...], issues: [...] }` (§14.2) | 404, 400 (depth), 503 |
+| GET | `/api/nodes?id=` | Entity details | — | — | `{ id, labels, properties }` | 404, 400 (bad id) |
+| GET | `/api/nodes/relationships?id=` | 1-hop in/out relationships | `?limit=` | — | `{ relationships: [...] }` (Q4) | 404, 503 |
+| GET | `/api/nodes/dependencies?id=` | Outgoing CALLS/IMPORTS, collapsed | — | — | `{ dependencies: [...] }` (Q5) | 404, 503 |
+| GET | `/api/nodes/dependents?id=` | Incoming CALLS/IMPORTS, collapsed | — | — | `{ dependents: [...] }` (Q6) | 404, 503 |
+| GET | `/api/nodes/callers?id=` | Incoming CALLS aggregated to classes | — | — | `{ callers: [...] }` (Q7) | 404, 503 |
+| GET | `/api/nodes/tests?id=` | Direct tests | — | — | `{ tests: [...] }` (Q8) | 404, 503 |
+| GET | `/api/node-history/commits?id=` | Commits, PRs, issues touching entity | — | — | `{ commits: [...], pullRequests: [...], issues: [...] }` (Q9–Q11) | 404, 503 |
+| GET | `/api/impact?id=` | **Analyze Impact** | `?depth=3` (1–5) | — | `{ source: {...}, impact: { high: [...], medium: [...], low: [...] }, tests: [...], pullRequests: [...], issues: [...] }` (§14.2) | 404, 400 (depth), 503 |
 
-> **Decision → Reason** — REST with explicit resource endpoints (vs. a single generic `/graph` RPC). The explicit set maps 1:1 to UI tabs, is trivially demonstrable in the demo, and keeps DTO validation per-endpoint. `GET /impact/:id` is idempotent — no POST needed (no state mutation). Search is deliberately **not** in the P0 contract (P1: `GET /api/search?q=`).
+> **Decision → Reason** — REST with explicit resource endpoints (vs. a single generic `/graph` RPC). The explicit set maps 1:1 to UI tabs, is trivially demonstrable in the demo, and keeps DTO validation per-endpoint. `GET /impact?id=` is idempotent — no POST needed (no state mutation). Entity ids embed file paths with slashes, so they travel as **query params** (the AWS HTTP API decodes `%2F` out of path segments before the Lambda sees them). Search is deliberately **not** in the P0 contract (P1: `GET /api/search?q=`).
 
 ---
 
@@ -1216,7 +1216,7 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:3001/api
 | Graph repository | `getNodeById`, `getDependencies`, `getCallers`, `getTestsForEntity` return expected fixtures | Jest + real DB | Must |
 | Dependency traversal | `PaymentService` callers/dependents match fixture assertions | Jest + real DB | Must |
 | Impact analysis | `PaymentService` @depth 3 → HIGH contains CheckoutService/RefundService; MEDIUM contains OrderService; test count + PR/issue counts match; path explanation present | Jest + real DB | Must |
-| Critical endpoints | `GET /api/repository`, `GET /api/nodes/:id`, `GET /api/impact/:id` (status + shape) | Nest e2e (supertest) | Must |
+| Critical endpoints | `GET /api/repository`, `GET /api/nodes?id=`, `GET /api/impact?id=` (status + shape) | Nest e2e (supertest) | Must |
 | Validation & errors | Bad depth → 400; unknown id → 404; DB down → 503 sanitized (no credentials in body) | Jest e2e | Must |
 | Config | Missing env var → boot failure with message | Unit | Should |
 | Frontend | One smoke: explorer renders ErrorState on 503; LoadingState renders skeletons (Testing Library) | Vitest + Testing Library | If time |
@@ -1282,7 +1282,7 @@ Every item is objective — **done** means verifiable by the stated check.
 
 ### Graph requirements
 - [ ] 10 labeled node types and 8 typed relationships implemented — verify: seed script output.
-- [ ] Properties on all node types per §11 — verify: `GET /api/nodes/:id` returns them.
+- [ ] Properties on all node types per §11 — verify: `GET /api/nodes?id=` returns them.
 - [ ] Multi-hop traversal: `GET /api/impact/class:PaymentService?depth=3` returns ≥1 node at 2 hops and ≥1 at 3 hops.
 - [ ] Relational-awkwardness query exists and is documented: Q12 in the catalog + §2.3 in the README.
 - [ ] Every Cypher query parameterized — verify: code review of repository layer (no string-built values; only whitelisted depth literal).

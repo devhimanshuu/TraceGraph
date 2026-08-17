@@ -1,6 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
+import { ThemeProvider } from '@/components/theme-provider';
 import { GitHubUserMenu } from './github-user-menu';
+
+// The menu toggles the app theme, which needs the ThemeProvider context.
+function renderMenu(props?: Parameters<typeof GitHubUserMenu>[0]) {
+  return render(
+    <ThemeProvider>
+      <GitHubUserMenu {...props} />
+    </ThemeProvider>,
+  );
+}
 
 // The global vitest.setup mocks useGitHubSession with a signed-in user and a
 // stable signOut; override it here so each test controls the signOut spy.
@@ -21,7 +31,7 @@ describe('GitHubUserMenu', () => {
   });
 
   it('shows the verified identity (avatar initial + name + handle)', () => {
-    render(<GitHubUserMenu />);
+    renderMenu();
 
     expect(screen.getByRole('button', { name: 'Account menu' })).toBeInTheDocument();
     expect(screen.getByText('Audit User')).toBeInTheDocument();
@@ -29,7 +39,7 @@ describe('GitHubUserMenu', () => {
   });
 
   it('opens the menu and invokes signOut from the Sign out item', () => {
-    render(<GitHubUserMenu />);
+    renderMenu();
 
     fireEvent.click(screen.getByRole('button', { name: 'Account menu' }));
 
@@ -42,7 +52,7 @@ describe('GitHubUserMenu', () => {
   });
 
   it('header variant renders a compact pill and opens the menu', () => {
-    render(<GitHubUserMenu variant="header" />);
+    renderMenu({ variant: 'header' });
 
     const trigger = screen.getByRole('button', { name: 'Account menu' });
     expect(trigger).toBeInTheDocument();
@@ -55,14 +65,19 @@ describe('GitHubUserMenu', () => {
     expect(screen.getByRole('menuitem', { name: /Sign out/i })).toBeInTheDocument();
   });
 
-  it('invokes signOut directly when clicking the sidebar Sign out button', () => {
-    render(<GitHubUserMenu />);
+  it('renders rich profile options (GitHub profile link, navigation shortcuts, theme toggle, sign out) when opened', () => {
+    renderMenu();
 
-    const signOutBtn = screen.getByRole('button', { name: 'Sign out' });
-    expect(signOutBtn).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Account menu' }));
 
-    fireEvent.click(signOutBtn);
-    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('GitHub Profile')).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Overview/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Graph View/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Dependencies/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Impact Radar/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Intelligence/i })).toBeInTheDocument();
+    expect(screen.getByText('Theme')).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /Sign out/i })).toBeInTheDocument();
   });
 });
 

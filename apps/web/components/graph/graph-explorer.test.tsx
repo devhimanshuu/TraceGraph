@@ -94,6 +94,7 @@ vi.mock('@/lib/api-client', () => ({
   apiClient: {
     getGraph: vi.fn(),
     getNode: vi.fn(),
+    getTraversal: vi.fn(),
   },
   ApiRequestError: class extends Error {
     status: number;
@@ -161,6 +162,18 @@ beforeEach(() => {
   reactFlowEdges.splice(0, reactFlowEdges.length);
   vi.mocked(apiClient.getGraph).mockResolvedValue(graphResponse());
   vi.mocked(apiClient.getNode).mockResolvedValue(ROOT);
+  vi.mocked(apiClient.getTraversal).mockResolvedValue({
+    root: { id: ROOT.id, type: ROOT.type, label: ROOT.label },
+    depth: 1,
+    nodes: [
+      { ...ROOT, hops: 0 },
+      { ...NEIGHBOR, hops: 1 },
+    ],
+    edges: [
+      { id: 't1', source: ROOT.id, target: NEIGHBOR.id, type: 'CALLS', properties: {} },
+    ],
+    paths: [{ nodes: [ROOT.id, NEIGHBOR.id], relTypes: ['CALLS'] }],
+  });
 });
 
 describe('GraphExplorer', () => {
@@ -455,6 +468,80 @@ describe('GraphExplorer', () => {
     await waitFor(() => {
       const root = reactFlowNodePositions.find((n) => n.id === ROOT.id)!;
       expect((root.data as { whatIfStatus?: string }).whatIfStatus).toBeUndefined();
+    });
+  });
+
+  it('traces the call path from an entry point and animates the hop edges', async () => {
+    const C: GraphNode = { id: 'fn:c.ts:C', type: 'Function', label: 'C', properties: {} };
+    const resp = graphResponse([ROOT, NEIGHBOR, C]);
+    // The neighborhood must contain the whole spine for the trace to light it.
+    resp.edges.push({ id: 'e2', source: NEIGHBOR.id, target: C.id, type: 'CALLS', properties: {} });
+    vi.mocked(apiClient.getGraph).mockResolvedValue(resp);
+    // Two-hop spine: Root → Neighbor → C.
+    vi.mocked(apiClient.getTraversal).mockResolvedValue({
+      root: { id: ROOT.id, type: ROOT.type, label: ROOT.label },
+      depth: 2,
+      nodes: [
+        { ...ROOT, hops: 0 },
+        { ...NEIGHBOR, hops: 1 },
+        { ...C, hops: 2 },
+      ],
+      edges: [
+        { id: 't1', source: ROOT.id, target: NEIGHBOR.id, type: 'CALLS', properties: {} },
+        { id: 't2', source: NEIGHBOR.id, target: C.id, type: 'CALLS', properties: {} },
+      ],
+      paths: [{ nodes: [ROOT.id, NEIGHBOR.id, C.id], relTypes: ['CALLS', 'CALLS'] }],
+    });
+    render(<GraphExplorer />);
+    await waitFor(() => expect(reactFlowNodePositions.length).toBeGreaterThan(0));
+
+    // Enter trace mode: the canvas waits for an entry point.
+    fireEvent.click(screen.getByRole('button', { name: /Trace/ }));
+    expect(screen.getByText(/Pick an entry point/)).toBeInTheDocument();
+
+    // Click the Root as the entry point → the real traversal is fetched.
+    fireEvent.click(within(screen.getByTestId('react-flow')).getByText('Root'));
+    await waitFor(() =>
+      expect(apiClient.getTraversal).toHaveBeenCalledWith(
+        ROOT.id,
+        expect.objectContaining({ depth: 1, direction: 'out' }),
+        'test-token',
+      ),
+    );
+
+    // Step 1: the first hop (Root→Neighbor) glows as the active trace step;
+    // the second hop edge is on the path but not yet lit.
+    await waitFor(() => {
+      const e1 = reactFlowEdges.find((e) => e.source === ROOT.id && e.target === NEIGHBOR.id)!;
+      expect((e1.data as { traceStep?: boolean }).traceStep).toBe(true);
+      expect((e1.data as { tracePath?: boolean }).tracePath).toBe(true);
+    });
+    const e2 = reactFlowEdges.find((e) => e.source === NEIGHBOR.id && e.target === C.id)!;
+    expect((e2.data as { tracePath?: boolean }).tracePath).toBe(true);
+    expect((e2.data as { traceStep?: boolean }).traceStep).toBe(false);
+    // The banner reports the animation position (text split across elements).
+    const statuses = screen.getAllByRole('status');
+    const banner = statuses.map((s) => s.textContent).join(' ');
+    expect(banner).toMatch(/Tracing Root/);
+    expect(banner).toMatch(/step 1\/2/);
+
+    // The animation clock advances the glow to the second hop.
+    await waitFor(
+      () => {
+        const e2b = reactFlowEdges.find((e) => e.source === NEIGHBOR.id && e.target === C.id)!;
+        expect((e2b.data as { traceStep?: boolean }).traceStep).toBe(true);
+      },
+      { timeout: 2000 },
+    );
+    const e1b = reactFlowEdges.find((e) => e.source === ROOT.id && e.target === NEIGHBOR.id)!;
+    expect((e1b.data as { traceStep?: boolean }).traceStep).toBe(false);
+
+    // Stopping the trace restores the canvas and clears the animation.
+    fireEvent.click(screen.getByRole('button', { name: /Stop trace/ }));
+    await waitFor(() => {
+      const e1c = reactFlowEdges.find((e) => e.source === ROOT.id && e.target === NEIGHBOR.id)!;
+      expect((e1c.data as { tracePath?: boolean }).tracePath).toBe(false);
+      expect((e1c.data as { traceStep?: boolean }).traceStep).toBe(false);
     });
   });
 
