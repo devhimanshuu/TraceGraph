@@ -24,8 +24,8 @@ export interface VerifiedSession {
 
 /**
  * Minimal standard-conforming HS256 JWT (RFC 7519) built on `node:crypto` —
- * deliberately dependency-free so the CJS Jest environment and the Next.js
- * edge middleware (which verifies with `jose`) agree on the exact same format.
+ * deliberately dependency-free. The CJS Jest environment and the browser
+ * (via `GET /api/auth/session`) both consume this exact format.
  */
 const HEADER = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
 

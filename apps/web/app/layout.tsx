@@ -9,6 +9,9 @@ import './globals.css';
 // so the family names are available to the Tailwind theme tokens.
 
 export const metadata: Metadata = {
+  // Canonical origin for OpenGraph/social share images; localhost in dev,
+  // overridden by NEXT_PUBLIC_APP_URL in production (see apps/web/.env.example).
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'),
   title: {
     default: 'TraceGraph — Understand your codebase through relationships',
     template: '%s · TraceGraph',

@@ -32,10 +32,16 @@ MATCH (r:Repository)
 SET r.active = (r.id = $repoId)
 `;
 
-/** Marks the given repository active after an import (non-atomic, called after writes). */
+/**
+ * Marks the given repository active after an import and every other one
+ * inactive — the same atomic semantics as SET_ACTIVE_REPOSITORY. Without the
+ * "deactivate others" half, two repositories end up active and
+ * FIND_DEFAULT_REPOSITORY (oldest active wins) keeps surfacing the previous
+ * repo instead of the freshly imported one.
+ */
 export const MARK_REPOSITORY_ACTIVE = `
-MATCH (r:Repository {id: $repoId})
-SET r.active = true
+MATCH (r:Repository)
+SET r.active = (r.id = $repoId)
 `;
 
 /**

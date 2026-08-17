@@ -20,7 +20,7 @@ describe('AuthController (OAuth callback redirect)', () => {
     exchangeCode: jest.Mock;
     fetchUser: jest.Mock;
   };
-  let sessions: { configured: boolean; createSession: jest.Mock };
+  let sessions: { configured: boolean; createSession: jest.Mock; revoke: jest.Mock };
   let res: { setHeader: jest.Mock; redirect: jest.Mock };
 
   beforeEach(async () => {
@@ -37,6 +37,7 @@ describe('AuthController (OAuth callback redirect)', () => {
     sessions = {
       configured: true,
       createSession: jest.fn().mockResolvedValue('signed-session-token'),
+      revoke: jest.fn().mockResolvedValue(undefined),
     };
     res = { setHeader: jest.fn(), redirect: jest.fn() };
 
@@ -96,5 +97,36 @@ describe('AuthController (OAuth callback redirect)', () => {
     );
 
     expect(res.redirect).toHaveBeenCalledWith('http://localhost:3001/?auth_error=not_configured');
+  });
+
+  it('clears the session cookie and revokes the token on logout', async () => {
+    const req = {
+      headers: { authorization: 'Bearer signed-session-token' },
+    } as unknown as Request;
+    const res = { setHeader: jest.fn() } as unknown as Response;
+
+    await controller.logout(req, res);
+
+    expect(sessions.revoke).toHaveBeenCalledWith('signed-session-token');
+    expect(res.setHeader).toHaveBeenCalledWith(
+      'Set-Cookie',
+      expect.stringContaining('tg_session=; Max-Age=0'),
+    );
+  });
+
+  it('still clears the cookie when server-side revocation fails (database down)', async () => {
+    sessions.revoke = jest.fn().mockRejectedValue(new Error('CognoDB unavailable'));
+    const req = {
+      headers: { authorization: 'Bearer signed-session-token' },
+    } as unknown as Request;
+    const res = { setHeader: jest.fn() } as unknown as Response;
+
+    // Must resolve (never 500) and still clear the browser session cookie.
+    await expect(controller.logout(req, res)).resolves.toBeUndefined();
+    expect(sessions.revoke).toHaveBeenCalled();
+    expect(res.setHeader).toHaveBeenCalledWith(
+      'Set-Cookie',
+      expect.stringContaining('tg_session=; Max-Age=0'),
+    );
   });
 });

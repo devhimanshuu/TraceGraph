@@ -262,7 +262,11 @@ export function ImpactExplorer() {
           />
         </div>
 
-        <EntitySearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+        <EntitySearchDialog
+          open={searchOpen}
+          onOpenChange={setSearchOpen}
+          onSelect={(id) => router.push(`/impact?node=${encodeURIComponent(id)}&depth=${depth}`)}
+        />
       </div>
     );
   }
@@ -284,7 +288,11 @@ export function ImpactExplorer() {
             Open Graph
           </Link>
         </div>
-        <EntitySearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+        <EntitySearchDialog
+          open={searchOpen}
+          onOpenChange={setSearchOpen}
+          onSelect={(id) => router.push(`/impact?node=${encodeURIComponent(id)}&depth=${depth}`)}
+        />
       </div>
     );
   }
@@ -571,7 +579,11 @@ export function ImpactExplorer() {
         </section>
       ) : null}
 
-      <EntitySearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+      <EntitySearchDialog
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        onSelect={(id) => router.push(`/impact?node=${encodeURIComponent(id)}&depth=${depth}`)}
+      />
     </div>
   );
 }

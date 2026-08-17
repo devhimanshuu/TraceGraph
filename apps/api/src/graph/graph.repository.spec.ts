@@ -390,6 +390,47 @@ describe('GraphRepository', () => {
     ]);
   });
 
+  /** Runs a captured executeWrite work callback with a fake transaction. */
+  async function runWrite(
+    executeWrite: jest.Mock,
+    index: number,
+  ): Promise<{ cypher: string; params: Record<string, unknown> }> {
+    const work = executeWrite.mock.calls[index][0];
+    const fakeTx = { run: jest.fn().mockResolvedValue([]) };
+    await work(fakeTx);
+    const [cypher, params] = fakeTx.run.mock.calls[0];
+    return { cypher, params };
+  }
+
+  it('setActiveRepository runs ONE atomic write deactivating every other repo', async () => {
+    const { db } = createMockDb();
+    const repo = new GraphRepository(db);
+
+    await repo.setActiveRepository('repo:budget-buddy');
+
+    const { cypher, params } = await runWrite(db.executeWrite as jest.Mock, 0);
+    expect(cypher).toContain('MATCH (r:Repository)');
+    // The same statement marks the target active AND every other repo inactive,
+    // so exactly one repository can ever be active at a time.
+    expect(cypher).toContain('SET r.active = (r.id = $repoId)');
+    expect(cypher).not.toContain('$repoId}}');
+    expect(params).toEqual({ repoId: 'repo:budget-buddy' });
+    expect(db.executeWrite).toHaveBeenCalledTimes(1);
+  });
+
+  it('markRepositoryActive after an import is atomic (never leaves two repos active)', async () => {
+    const { db } = createMockDb();
+    const repo = new GraphRepository(db);
+
+    await repo.markRepositoryActive('repo:new-import');
+
+    const { cypher, params } = await runWrite(db.executeWrite as jest.Mock, 0);
+    expect(cypher).toContain('MATCH (r:Repository)');
+    expect(cypher).toContain('SET r.active = (r.id = $repoId)');
+    expect(params).toEqual({ repoId: 'repo:new-import' });
+    expect(db.executeWrite).toHaveBeenCalledTimes(1);
+  });
+
   it('findRepositoryActivity threads the since cutoff into all three queries', async () => {
     const { db, executeRead } = createMockDb();
     executeRead.mockResolvedValue([]);

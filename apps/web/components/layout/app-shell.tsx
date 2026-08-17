@@ -163,9 +163,17 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Wordmark href="/dashboard" />
       </header>
 
-      {/* Main content */}
+      {/* Main content — padding-left animates in lockstep with the sidebar
+          width so the collapse feels continuous. When the rail is collapsed
+          the content uncaps (lg:max-w-none) and uses the entire freed width;
+          the expanded reading width stays capped at max-w-6xl. */}
       <div className={cn('transition-[padding] duration-200 ease-out print:pl-0', effectiveCollapsed ? 'lg:pl-16' : 'lg:pl-60')}>
-        <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:py-10 print:max-w-none print:px-0 print:py-0">
+        <main
+          className={cn(
+            'mx-auto w-full px-4 py-8 sm:px-6 lg:py-10 print:max-w-none print:px-0 print:py-0',
+            effectiveCollapsed ? 'lg:max-w-none' : 'max-w-6xl',
+          )}
+        >
           {children}
         </main>
       </div>

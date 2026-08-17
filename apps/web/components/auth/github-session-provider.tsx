@@ -98,22 +98,30 @@ export function GitHubSessionProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async (): Promise<void> => {
     const token = typeof window !== 'undefined' ? window.localStorage.getItem(TOKEN_KEY) : null;
-    try {
-      await fetch(`${apiBaseUrl}/auth/logout`, {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        credentials: 'include',
-        cache: 'no-store',
-      });
-    } catch {
-      // Best-effort server revocation — local state clears regardless.
-    }
+    // Local sign-out is IMMEDIATE — the user is signed out before any network
+    // call. The server revocation is best-effort and time-boxed so a slow or
+    // unreachable API (serverless cold start, DB hiccup) can never block the
+    // navigation or leave the user looking signed in.
     window.localStorage.removeItem(TOKEN_KEY);
     setUser(null);
     router.push('/');
+    if (token) {
+      try {
+        await fetch(`${apiBaseUrl}/auth/logout`, {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          credentials: 'include',
+          cache: 'no-store',
+          // The server also clears the httpOnly cookie; never wait forever.
+          signal: AbortSignal.timeout(5_000),
+        });
+      } catch {
+        // Best-effort server revocation — the session also dies at JWT expiry.
+      }
+    }
   }, [router]);
 
   const value = useMemo(

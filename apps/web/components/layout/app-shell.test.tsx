@@ -117,10 +117,13 @@ describe('AppShell navigation', () => {
     expect(screen.getByRole('link', { name: 'Overview' })).toHaveAttribute('aria-label', 'Overview');
     expect(screen.getByRole('link', { name: 'Overview' })).not.toHaveTextContent('Overview');
     expect(window.localStorage.getItem('tracegraph:sidebar-collapsed')).toBe('1');
+    // The content uncaps to use the full freed width while the rail is collapsed.
+    expect(screen.getByRole('main')).toHaveClass('lg:max-w-none');
 
-    // Expand — full labels return.
+    // Expand — full labels return and the reading width cap is restored.
     fireEvent.click(screen.getByRole('button', { name: 'Expand sidebar' }));
     expect(screen.getByRole('link', { name: 'Overview' })).toHaveTextContent('Overview');
+    expect(screen.getByRole('main')).not.toHaveClass('lg:max-w-none');
     expect(window.localStorage.getItem('tracegraph:sidebar-collapsed')).toBe('0');
     window.localStorage.clear();
   });

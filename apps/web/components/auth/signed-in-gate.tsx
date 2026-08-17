@@ -20,7 +20,7 @@ import { useGitHubSession } from '@/hooks/use-github-session';
  */
 export function SignedInGate({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const { user, isSignedIn, loading } = useGitHubSession();
+  const { isSignedIn, loading } = useGitHubSession();
 
   useEffect(() => {
     if (!loading && !isSignedIn) {

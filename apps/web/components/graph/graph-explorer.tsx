@@ -25,9 +25,13 @@ import {
   ArrowRight,
   GitCompareArrows,
   GitFork,
+  LayoutGrid,
+  Layers,
   Network,
+  Orbit,
   Radar,
   Search,
+  Target,
   Workflow,
 } from 'lucide-react';
 import { useGitHubSession } from '@/hooks/use-github-session';
@@ -42,6 +46,12 @@ import {
   NodeTypeIcon,
 } from '@/components/dependencies/relationship-badge';
 import { NodeDetailsPanel } from '@/components/graph/node-details-panel';
+import {
+  DEFAULT_GRAPH_LAYOUT,
+  GRAPH_LAYOUTS,
+  layoutGraph,
+  type GraphLayoutKey,
+} from '@/lib/graph-layouts';
 
 /** Node-type → hex accents (dark-theme 400-level tones). Mirrors getNodeTypeColor. */
 const NODE_TYPE_HEX: Record<string, string> = {
@@ -199,6 +209,7 @@ export function GraphExplorer() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [depth, setDepth] = useState(1);
+  const [layout, setLayout] = useState<GraphLayoutKey>(DEFAULT_GRAPH_LAYOUT);
 
   useEffect(() => {
     let ignore = false;
@@ -232,82 +243,14 @@ export function GraphExplorer() {
     };
   }, [nodeId, getToken, refreshTrigger, depth]);
 
-  // Convert graphData into ReactFlow nodes & edges with concentric hop-ring layout.
-  // Hop distance per node is computed by BFS over the returned edges (the
-  // neighborhood is bidirectional), so deeper traversals expand outward in rings.
+  // Convert graphData into ReactFlow nodes & edges. The node positions come
+  // from the selected layout engine (rings / flow / force — see
+  // lib/graph-layouts.ts); edges are layout-independent, so they are built
+  // once here with the traveling-dash overlay + directional arrows.
   const { rfNodes, rfEdges } = useMemo(() => {
     if (!graphData) return { rfNodes: [], rfEdges: [] };
 
-    const rootId = graphData.root.id;
-
-    // BFS hop distance from the root over the returned edge set (undirected).
-    const adjacency = new Map<string, string[]>();
-    for (const e of graphData.edges) {
-      const out = adjacency.get(e.source) ?? [];
-      out.push(e.target);
-      adjacency.set(e.source, out);
-      const inn = adjacency.get(e.target) ?? [];
-      inn.push(e.source);
-      adjacency.set(e.target, inn);
-    }
-
-    const hops = new Map<string, number>([[rootId, 0]]);
-    const queue: string[] = [rootId];
-    while (queue.length > 0) {
-      const current = queue.shift()!;
-      const currentHop = hops.get(current)!;
-      for (const next of adjacency.get(current) ?? []) {
-        if (!hops.has(next)) {
-          hops.set(next, currentHop + 1);
-          queue.push(next);
-        }
-      }
-    }
-
-    // Group nodes by hop ring (isolated nodes default to ring 1).
-    const rings = new Map<number, GraphNode[]>();
-    for (const n of graphData.nodes) {
-      if (n.id === rootId) continue;
-      const ring = Math.min(hops.get(n.id) ?? 1, depth);
-      const list = rings.get(ring) ?? [];
-      list.push(n);
-      rings.set(ring, list);
-    }
-
-    const center = { x: 350, y: 250 };
-    const baseRadius = 190;
-    const ringGap = 150;
-    const nodes: Node[] = [];
-
-    // Root node at center
-    const rootNode = graphData.nodes.find((n) => n.id === rootId);
-    if (rootNode) {
-      nodes.push({
-        id: rootNode.id,
-        type: 'custom',
-        position: { x: center.x, y: center.y },
-        data: { node: rootNode, isRoot: true },
-      });
-    }
-
-    // Concentric rings: each hop level sits further out; radius grows with
-    // node count so dense rings get more circumference.
-    for (const [ring, ringNodes] of [...rings.entries()].sort((a, b) => a[0] - b[0])) {
-      const count = ringNodes.length;
-      const radius = baseRadius + (ring - 1) * ringGap + Math.max(0, (count - 12) * 4);
-      ringNodes.forEach((n, idx) => {
-        const angle = (idx / Math.max(1, count)) * 2 * Math.PI - Math.PI / 2;
-        nodes.push({
-          id: n.id,
-          type: 'custom',
-          position: {
-            x: center.x + radius * Math.cos(angle),
-            y: center.y + radius * Math.sin(angle),
-          },
-          data: { node: n, isRoot: false },
-        });
-      });
-    }
+    const nodes = layoutGraph(graphData, depth, layout);
 
     const edges: Edge[] = graphData.edges.map((e) => {
       const color = REL_TYPE_HEX[e.type] ?? '#94a3b8';
@@ -328,7 +271,7 @@ export function GraphExplorer() {
     });
 
     return { rfNodes: nodes, rfEdges: edges };
-  }, [graphData, depth]);
+  }, [graphData, depth, layout]);
 
   const presentNodeTypes = useMemo(
     () => Array.from(new Set(graphData?.nodes.map((n) => n.type) ?? [])),
@@ -390,13 +333,14 @@ export function GraphExplorer() {
 
   const isEmpty = !loading && !error && graphData !== null && graphData.nodes.length === 0;
 
-  // Re-fit the viewport whenever a new neighborhood (or depth change) renders.
+  // Re-fit the viewport whenever a new neighborhood, depth change, or layout
+  // switch re-renders the canvas.
   useEffect(() => {
     if (graphData && !loading) {
       const t = window.setTimeout(() => void fitView({ padding: 0.2, duration: 350 }), 60);
       return () => window.clearTimeout(t);
     }
-  }, [graphData, loading, depth, fitView]);
+  }, [graphData, loading, depth, layout, fitView]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -408,7 +352,8 @@ export function GraphExplorer() {
           </span>
           <div className="flex flex-col gap-0.5">
             <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-              Structural view · {depth}-hop neighborhood
+              {GRAPH_LAYOUTS.find((l) => l.key === layout)?.viewLabel ?? 'Radial'} view ·{' '}
+              {depth}-hop neighborhood
             </p>
             <h1 className="text-xl font-semibold tracking-tight text-foreground">Graph Explorer</h1>
             <p className="text-xs text-muted-foreground">
@@ -418,6 +363,36 @@ export function GraphExplorer() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Layout selector */}
+          <div
+            role="group"
+            aria-label="Graph layout"
+            className="flex items-center rounded-md border border-border/60 bg-muted/40 p-0.5 text-xs shrink-0"
+          >
+            <LayoutGrid className="mx-1.5 size-3.5 text-muted-foreground/70" aria-hidden />
+            {GRAPH_LAYOUTS.map(({ key, label, title }) => {
+              const Icon = key === 'rings' ? Target : key === 'flow' ? Layers : Orbit;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setLayout(key)}
+                  aria-pressed={layout === key}
+                  title={title}
+                  aria-label={`${label} layout`}
+                  className={`flex items-center gap-1.5 rounded px-2.5 py-1 transition-colors ${
+                    layout === key
+                      ? 'bg-background font-medium text-foreground shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Icon className="size-3.5" aria-hidden />
+                  <span className="hidden sm:inline">{label}</span>
+                </button>
+              );
+            })}
+          </div>
+
           {/* Depth selector */}
           <div
             role="group"
@@ -636,7 +611,11 @@ export function GraphExplorer() {
         ) : null}
       </div>
 
-      <EntitySearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+      <EntitySearchDialog
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        onSelect={(id) => router.push(`/graph?node=${encodeURIComponent(id)}`)}
+      />
     </div>
   );
 }

@@ -4,8 +4,10 @@ import type { GraphNode, GraphResponse } from '@tracegraph/shared';
 import { GraphExplorer } from './graph-explorer';
 
 // ── React Flow mock: renders children (so custom nodes render real labels) and
-// exposes the props for interaction tests (onNodeClick).
+// exposes the props for interaction tests (onNodeClick). Node positions are
+// captured so layout-switcher tests can assert nodes actually move.
 const reactFlowProps: Record<string, unknown> = {};
+const reactFlowNodePositions: Array<{ id: string; position: { x: number; y: number } }> = [];
 vi.mock('@xyflow/react', () => {
   const rf = ({
     children,
@@ -15,11 +17,22 @@ vi.mock('@xyflow/react', () => {
     ...props
   }: {
     children: React.ReactNode;
-    nodes?: Array<{ id: string; type: string; data: unknown; selected?: boolean }>;
+    nodes?: Array<{
+      id: string;
+      type: string;
+      data: unknown;
+      selected?: boolean;
+      position: { x: number; y: number };
+    }>;
     nodeTypes?: Record<string, (p: { data: unknown; selected?: boolean }) => React.ReactNode>;
     onNodeClick?: (event: React.MouseEvent, node: { id: string }) => void;
   }) => {
     Object.assign(reactFlowProps, props);
+    reactFlowNodePositions.splice(
+      0,
+      reactFlowNodePositions.length,
+      ...nodes.map((n) => ({ id: n.id, position: n.position })),
+    );
     return (
       <div data-testid="react-flow">
         {nodes.map((n) => {
@@ -121,6 +134,7 @@ function graphResponse(nodes: GraphNode[] = [ROOT, NEIGHBOR]): GraphResponse {
 beforeEach(() => {
   vi.clearAllMocks();
   Object.keys(reactFlowProps).forEach((k) => delete reactFlowProps[k]);
+  reactFlowNodePositions.splice(0, reactFlowNodePositions.length);
   vi.mocked(apiClient.getGraph).mockResolvedValue(graphResponse());
   vi.mocked(apiClient.getNode).mockResolvedValue(ROOT);
 });
@@ -227,6 +241,44 @@ describe('GraphExplorer', () => {
     expect(
       screen.getByRole('button', { name: /Search symbols/ }),
     ).toBeInTheDocument();
+  });
+
+  it('defaults to the radial rings layout and switches layouts, re-positioning the graph', async () => {
+    render(<GraphExplorer />);
+    await waitFor(() => expect(reactFlowNodePositions.length).toBeGreaterThan(0));
+
+    // Rings is the default and the root sits at the ring center.
+    expect(screen.getByRole('button', { name: 'Rings layout' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    const rootPos = () => reactFlowNodePositions.find((n) => n.id === ROOT.id)!.position;
+    expect(rootPos()).toEqual({ x: 350, y: 250 });
+
+    // Flow: root moves to the leftmost column (x shrinks toward the flow origin).
+    fireEvent.click(screen.getByRole('button', { name: 'Flow layout' }));
+    await waitFor(() => expect(rootPos().x).toBeLessThan(350));
+    expect(screen.getByRole('button', { name: 'Flow layout' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    const flowPos = rootPos();
+
+    // Force: the physics simulation moves the root off its flow/ring spots.
+    fireEvent.click(screen.getByRole('button', { name: 'Force layout' }));
+    await waitFor(() => {
+      const p = rootPos();
+      expect(p.x).not.toBe(flowPos.x);
+      expect(p.y).not.toBe(flowPos.y);
+    });
+    expect(screen.getByRole('button', { name: 'Force layout' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+
+    // Switching back to rings restores the centered root.
+    fireEvent.click(screen.getByRole('button', { name: 'Rings layout' }));
+    await waitFor(() => expect(rootPos()).toEqual({ x: 350, y: 250 }));
   });
 
   it('deep-links a whole multi-selection into the blast-radius tool', async () => {

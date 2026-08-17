@@ -123,15 +123,22 @@ export class AuthController {
     return { user: session.user, token };
   }
 
-  /** Revokes the session and clears the cookie. Client discards its token. */
+  /**
+   * Revokes the session and clears the cookie. Client discards its token.
+   *
+   * The cookie is cleared FIRST and revocation is best-effort: a database
+   * failure (or any revoke error) must never turn logout into a 500 or leave
+   * the browser holding a valid httpOnly session cookie — the browser session
+   * ends regardless, and the server-side record also dies at its JWT expiry.
+   */
   @Public()
   @HttpCode(HttpStatus.OK)
   @Post('logout')
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<void> {
+    clearCookie(res, SESSION_COOKIE);
     const token = extractSessionToken(req, SESSION_COOKIE);
     if (token) {
-      await this.sessions.revoke(token);
+      await this.sessions.revoke(token).catch(() => undefined);
     }
-    clearCookie(res, SESSION_COOKIE);
   }
 }
