@@ -545,6 +545,117 @@ describe('GraphExplorer', () => {
     });
   });
 
+  it('overlays trace path nodes/edges when the call targets are outside the neighborhood', async () => {
+    // The neighborhood is just ROOT + NEIGHBOR, but the real call path reaches
+    // a function the tree view never returns (function-level CALLS targets).
+    const FAR: GraphNode = { id: 'fn:far.ts:FarHelper', type: 'Function', label: 'FarHelper', properties: {} };
+    vi.mocked(apiClient.getGraph).mockResolvedValue(graphResponse([ROOT, NEIGHBOR]));
+    vi.mocked(apiClient.getTraversal).mockResolvedValue({
+      root: { id: ROOT.id, type: ROOT.type, label: ROOT.label },
+      depth: 2,
+      nodes: [
+        { ...ROOT, hops: 0 },
+        { ...NEIGHBOR, hops: 1 },
+        { ...FAR, hops: 2 },
+      ],
+      edges: [
+        { id: 't1', source: ROOT.id, target: NEIGHBOR.id, type: 'CALLS', properties: {} },
+        { id: 't2', source: NEIGHBOR.id, target: FAR.id, type: 'CALLS', properties: {} },
+      ],
+      paths: [{ nodes: [ROOT.id, NEIGHBOR.id, FAR.id], relTypes: ['CALLS', 'CALLS'] }],
+    });
+    render(<GraphExplorer />);
+    await waitFor(() => expect(reactFlowNodePositions.length).toBeGreaterThan(0));
+
+    fireEvent.click(screen.getByRole('button', { name: /Trace/ }));
+    fireEvent.click(within(screen.getByTestId('react-flow')).getByText('Root'));
+
+    // The out-of-neighborhood call target is layered onto the canvas…
+    await waitFor(() =>
+      expect(reactFlowNodePositions.some((n) => n.id === FAR.id)).toBe(true),
+    );
+    // …and its CALLS edge is drawn with a unique (trace-prefixed) id.
+    const farEdge = reactFlowEdges.find((e) => e.source === NEIGHBOR.id && e.target === FAR.id);
+    expect(farEdge).toBeDefined();
+    expect(farEdge!.id.startsWith('trace-')).toBe(true);
+    expect((farEdge!.data as { traceStep?: boolean }).traceStep).toBe(false);
+    expect((farEdge!.data as { tracePath?: boolean }).tracePath).toBe(true);
+  });
+
+  it('animates the shortest evidence path between two picked nodes (A → B)', async () => {
+    const C: GraphNode = { id: 'fn:c.ts:C', type: 'Function', label: 'C', properties: {} };
+    vi.mocked(apiClient.getGraph).mockResolvedValue(graphResponse([ROOT, NEIGHBOR, C]));
+    // The traversal is rooted at A (outbound) — paths start at A and follow
+    // the edge order, so the component slices out the one ending at B.
+    vi.mocked(apiClient.getTraversal).mockResolvedValue({
+      root: { id: ROOT.id, type: ROOT.type, label: ROOT.label },
+      depth: 2,
+      nodes: [
+        { ...ROOT, hops: 0 },
+        { ...NEIGHBOR, hops: 1 },
+        { ...C, hops: 2 },
+      ],
+      edges: [
+        { id: 'p1', source: ROOT.id, target: NEIGHBOR.id, type: 'CALLS', properties: {} },
+        { id: 'p2', source: NEIGHBOR.id, target: C.id, type: 'CALLS', properties: {} },
+      ],
+      paths: [{ nodes: [ROOT.id, NEIGHBOR.id, C.id], relTypes: ['CALLS', 'CALLS'] }],
+    });
+    render(<GraphExplorer />);
+    await waitFor(() => expect(screen.getAllByText('Root').length).toBeGreaterThan(0));
+
+    // Enter path mode: the canvas waits for A.
+    fireEvent.click(screen.getByRole('button', { name: /Path/ }));
+    expect(screen.getByText(/Pick the start/)).toBeInTheDocument();
+
+    // Click A (Root) → the banner waits for B.
+    fireEvent.click(within(screen.getByTestId('react-flow')).getByText('Root'));
+    expect(screen.getByText(/Now pick the end/)).toBeInTheDocument();
+
+    // Click B (C) → the outbound traversal from A is fetched and the A→B
+    // slice is animated hop by hop.
+    fireEvent.click(within(screen.getByTestId('react-flow')).getByText('C'));
+    await waitFor(() =>
+      expect(apiClient.getTraversal).toHaveBeenCalledWith(
+        ROOT.id,
+        expect.objectContaining({ depth: 2, direction: 'out' }),
+        'test-token',
+      ),
+    );
+
+    // The spine lights up in order: hop 1 active, hop 2 on the path.
+    await waitFor(() => {
+      const e1 = reactFlowEdges.find((e) => e.source === ROOT.id && e.target === NEIGHBOR.id)!;
+      expect((e1.data as { traceStep?: boolean }).traceStep).toBe(true);
+      expect((e1.data as { tracePath?: boolean }).tracePath).toBe(true);
+    });
+    const e2 = reactFlowEdges.find((e) => e.source === NEIGHBOR.id && e.target === C.id)!;
+    expect((e2.data as { tracePath?: boolean }).tracePath).toBe(true);
+    expect((e2.data as { traceStep?: boolean }).traceStep).toBe(false);
+
+    // The banner narrates the animated path (text split across elements).
+    const statuses = screen.getAllByRole('status');
+    const banner = statuses.map((s) => s.textContent).join(' ');
+    expect(banner).toMatch(/Path from Root/);
+    expect(banner).toMatch(/step 1\/2/);
+
+    // The clock advances the glow to the final hop.
+    await waitFor(
+      () => {
+        const e2b = reactFlowEdges.find((e) => e.source === NEIGHBOR.id && e.target === C.id)!;
+        expect((e2b.data as { traceStep?: boolean }).traceStep).toBe(true);
+      },
+      { timeout: 2000 },
+    );
+
+    // Stopping restores the canvas.
+    fireEvent.click(screen.getByRole('button', { name: /Stop path/ }));
+    await waitFor(() => {
+      const e1c = reactFlowEdges.find((e) => e.source === ROOT.id && e.target === NEIGHBOR.id)!;
+      expect((e1c.data as { tracePath?: boolean }).tracePath).toBe(false);
+    });
+  });
+
   it('deep-links a whole multi-selection into the blast-radius tool', async () => {
     const A: GraphNode = {
       id: 'file:src/a.ts',

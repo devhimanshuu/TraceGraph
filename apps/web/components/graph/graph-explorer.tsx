@@ -90,6 +90,8 @@ function CustomGraphNode({ data, selected }: NodeProps) {
   const isRoot = Boolean(data.isRoot);
   const whatIfStatus = data.whatIfStatus as 'removed' | 'affected' | undefined;
   const traceEntry = Boolean(data.traceEntry);
+  const pathStart = Boolean(data.pathStart);
+  const pathEnd = Boolean(data.pathEnd);
   const typeHex = NODE_TYPE_HEX[node?.type ?? 'Class'] ?? '#94a3b8';
 
   return (
@@ -139,6 +141,10 @@ function CustomGraphNode({ data, selected }: NodeProps) {
           <span className="font-mono text-[9px] font-bold uppercase text-rose-400">
             Would break
           </span>
+        ) : pathStart ? (
+          <span className="font-mono text-[9px] font-bold uppercase text-emerald-400">Start</span>
+        ) : pathEnd ? (
+          <span className="font-mono text-[9px] font-bold uppercase text-emerald-400">End</span>
         ) : traceEntry ? (
           <span className="font-mono text-[9px] font-bold uppercase text-cyan-400">Entry</span>
         ) : isRoot ? (
@@ -311,6 +317,41 @@ function tracePathNodeIds(traversal: TraversalResult | null): Set<string> {
 }
 
 /**
+ * The shortest evidence path from `fromId` to `toId` inside an OUTBOUND
+ * traversal rooted at `fromId` (paths start at the root and edges follow the
+ * path order, so the slice animates as-is). Picks the fewest-hop path that
+ * ends at `toId`. Returns null when no such path exists — e.g. `toId` is not
+ * reachable from `fromId` within the traversal depth.
+ */
+function findPathBetween(
+  traversal: TraversalResult | null,
+  fromId: string,
+  toId: string,
+): TraversalResult | null {
+  if (!traversal || fromId === toId) return null;
+  const path = traversal.paths
+    .filter((p) => p.nodes.length > 1 && p.nodes[0] === fromId && p.nodes[p.nodes.length - 1] === toId)
+    .sort((a, b) => a.nodes.length - b.nodes.length)[0];
+  if (!path) return null;
+  const ids = new Set(path.nodes);
+  const edgeKeys = new Set<string>();
+  for (let i = 0; i + 1 < path.nodes.length; i += 1) {
+    edgeKeys.add(`${path.nodes[i]}→${path.nodes[i + 1]}`);
+  }
+  const nodes = traversal.nodes.filter((n) => ids.has(n.id));
+  const edges = traversal.edges.filter(
+    (e) => ids.has(e.source) && ids.has(e.target) && edgeKeys.has(`${e.source}→${e.target}`),
+  );
+  return {
+    root: traversal.root,
+    depth: traversal.depth,
+    nodes,
+    edges,
+    paths: [path],
+  };
+}
+
+/**
  * The trace overlay's extra nodes: path endpoints that the neighborhood query
  * didn't return (the explorer shows a structural tree; the call path lives at
  * the function level). They're laid out as a vertical call chain hanging off
@@ -325,7 +366,6 @@ function traceOverlayNodes(
   if (!traversal) return [];
   const nodes: Node[] = [];
   const placed = new Set<string>();
-  const onPath = tracePathNodeIds(traversal);
   for (const path of traversal.paths) {
     for (let i = 0; i < path.nodes.length; i += 1) {
       const id = path.nodes[i];
@@ -523,21 +563,125 @@ export function GraphExplorer() {
   const [traceStep, setTraceStep] = useState(0);
   const [traceLoading, setTraceLoading] = useState(false);
   const [traceError, setTraceError] = useState<string | null>(null);
+  // Path mode: pick two entities and the shortest evidence path between them
+  // is fetched and animated hop-by-hop (emerald, vs. the trace's cyan).
+  const [pathMode, setPathMode] = useState(false);
+  const [pathFromId, setPathFromId] = useState<string | null>(null);
+  const [pathToId, setPathToId] = useState<string | null>(null);
+  const [pathResult, setPathResult] = useState<TraversalResult | null>(null);
+  const [pathStep, setPathStep] = useState(0);
+  const [pathLoading, setPathLoading] = useState(false);
+  const [pathError, setPathError] = useState<string | null>(null);
 
-  // The animation clock — advances one hop every 550ms while a trace is live.
+  const togglePathMode = useCallback(() => {
+    setTrace(false);
+    setPathMode((prev) => {
+      if (prev) {
+        setPathFromId(null);
+        setPathToId(null);
+        setPathResult(null);
+        setPathError(null);
+        setPathStep(0);
+      }
+      return !prev;
+    });
+  }, []);
+
+  // Fetch the OUTBOUND traversal from `fromId` (same shape the trace mode
+  // uses — paths start at the root and edges follow the path order), then
+  // slice out the shortest path that ends at `toId`.
+  const handlePathPick = useCallback(
+    async (fromId: string, toId: string) => {
+      setPathFromId(fromId);
+      setPathToId(toId);
+      setPathResult(null);
+      setPathError(null);
+      setPathStep(0);
+      setPathLoading(true);
+      try {
+        const token = await getToken();
+        const result = await apiClient.getTraversal(
+          fromId,
+          { depth: Math.min(3, Math.max(2, depth)), direction: 'out', limit: 60 },
+          token,
+        );
+        const path = findPathBetween(result, fromId, toId);
+        if (!path) {
+          setPathError('no-path');
+        } else {
+          setPathResult(path);
+        }
+        setPathStep(0);
+      } catch (err) {
+        setPathError(err instanceof Error ? err.message : 'Failed to find a path');
+      } finally {
+        setPathLoading(false);
+      }
+    },
+    [depth, getToken],
+  );
+
+  // Trace and path modes share one animation spine: the hop edges of the
+  // active traversal. The path mode feeds the traversal the A→B slice, so both
+  // modes animate the same way — only the accent color differs.
   const traceHops = useMemo(
     () => traceHopEdges(traceResult),
     [traceResult],
   );
+  const pathHops = useMemo(
+    () => traceHopEdges(pathResult),
+    [pathResult],
+  );
+  // The single overlay driving node/edge styling + the animation clock.
+  const activeOverlay = useMemo(() => {
+    if (trace && traceEntryId && traceResult) {
+      return {
+        mode: 'trace' as const,
+        color: '#22d3ee',
+        entryId: traceEntryId,
+        result: traceResult,
+        step: traceStep,
+        setStep: setTraceStep,
+        hops: traceHops,
+      };
+    }
+    if (pathMode && pathFromId && pathToId && pathResult) {
+      return {
+        mode: 'path' as const,
+        color: '#34d399',
+        entryId: pathFromId,
+        result: pathResult,
+        step: pathStep,
+        setStep: setPathStep,
+        hops: pathHops,
+      };
+    }
+    return null;
+  }, [
+    trace,
+    traceEntryId,
+    traceResult,
+    traceStep,
+    traceHops,
+    pathMode,
+    pathFromId,
+    pathToId,
+    pathResult,
+    pathStep,
+    pathHops,
+  ]);
+
+  // The animation clock — advances one hop every 550ms while an overlay is live.
   useEffect(() => {
-    if (!trace || !traceEntryId || traceHops.length === 0) return;
+    if (!activeOverlay || activeOverlay.hops.length === 0) return;
     const id = window.setInterval(() => {
-      setTraceStep((s) => (s + 1) % traceHops.length);
+      activeOverlay.setStep((s: number) => (s + 1) % activeOverlay.hops.length);
     }, 550);
     return () => window.clearInterval(id);
-  }, [trace, traceEntryId, traceHops.length]);
+  }, [activeOverlay]);
 
   const toggleTrace = useCallback(() => {
+    setPathMode(false);
     setTrace((prev) => {
       if (prev) {
         setTraceEntryId(null);
@@ -628,6 +772,20 @@ export function GraphExplorer() {
     ? (graphData?.nodes.find((n) => n.id === whatIfNodeId)?.label ?? whatIfNodeId)
     : null;
 
+  // Path-mode endpoint labels (A → B): the neighborhood first, then the
+  // traversal's own nodes, then a best-effort label from the raw id.
+  const pathNodeLabel = (id: string | null): string | null => {
+    if (!id) return null;
+    return (
+      graphData?.nodes.find((n) => n.id === id)?.label ??
+      pathResult?.nodes.find((n) => n.id === id)?.label ??
+      id.split(':').pop() ??
+      id
+    );
+  };
+  const pathFromLabel = pathNodeLabel(pathFromId);
+  const pathToLabel = pathNodeLabel(pathToId);
+
   const toggleWhatIf = useCallback(() => {
     setWhatIf((prev) => {
       if (prev) setWhatIfNodeId(null);
@@ -673,18 +831,31 @@ export function GraphExplorer() {
             data: { ...n.data, whatIfStatus: 'affected' },
           };
         }
-      } else if (trace && traceEntryId && traceResult) {
-        // Trace: everything off the call path fades so the animation reads.
-        const onPath = tracePathNodeIds(traceResult);
+      } else if (activeOverlay) {
+        // Trace / path overlay: everything off the animated spine fades so
+        // the traveling dash reads; the endpoints stay lit with a glow.
+        const onPath = tracePathNodeIds(activeOverlay.result);
         if (!onPath.has(n.id)) {
           return { ...n, position, style: { opacity: 0.22, transition: 'opacity 200ms' } };
         }
-        if (n.id === traceEntryId) {
+        if (n.id === activeOverlay.entryId) {
           return {
             ...n,
             position,
-            style: { filter: 'drop-shadow(0 0 10px rgba(34,211,238,0.55))' },
-            data: { ...n.data, traceEntry: true },
+            style: { filter: `drop-shadow(0 0 10px ${activeOverlay.color}8c)` },
+            data: {
+              ...n.data,
+              traceEntry: true,
+              pathStart: activeOverlay.mode === 'path',
+            },
+          };
+        }
+        if (activeOverlay.mode === 'path' && n.id === pathToId) {
+          return {
+            ...n,
+            position,
+            style: { filter: 'drop-shadow(0 0 10px rgba(52,211,153,0.55))' },
+            data: { ...n.data, pathEnd: true },
           };
         }
       } else if (hoveredNodeId) {
@@ -696,14 +867,19 @@ export function GraphExplorer() {
       return { ...n, position };
     });
 
-    // Trace animation state (only meaningful while a trace is live):
-    //   traceActive — the entry point is set and the traversal is in hand;
-    //   onPath / onStep — edge membership in the traced spine / current hop.
-    const traceActive = Boolean(trace && traceEntryId && traceResult);
-    const traceHopsActive = traceActive ? traceHops : [];
-    const traceStepEdge = traceHopsActive[traceStep] ?? null;
+    // Trace / path animation state (only meaningful while an overlay is live):
+    //   overlayActive — both endpoints are set and the traversal is in hand;
+    //   onPath / onStep — edge membership in the animated spine / current hop.
+    const overlayActive = Boolean(activeOverlay);
+    const overlayColor = activeOverlay?.color ?? '#22d3ee';
+    const overlayHops = activeOverlay?.hops ?? [];
+    const overlayStepEdge = overlayHops[activeOverlay?.step ?? 0] ?? null;
     const hopByEdgeKey = new Map<string, number>();
-    traceHopsActive.forEach((h, i) => hopByEdgeKey.set(`${h.source}→${h.target}`, i));
+    overlayHops.forEach((h, i) => hopByEdgeKey.set(`${h.source}→${h.target}`, i));
+    const hexToRgba = (hex: string, alpha: number): string => {
+      const v = parseInt(hex.slice(1), 16);
+      return `rgba(${(v >> 16) & 255},${(v >> 8) & 255},${v & 255},${alpha})`;
+    };
 
     const edges: Edge[] = graphData.edges.map((e) => {
       const color = REL_TYPE_HEX[e.type] ?? '#94a3b8';
@@ -715,19 +891,19 @@ export function GraphExplorer() {
           e.source !== whatIfNodeId &&
           whatIfAffected.has(e.source) &&
           (e.target === whatIfNodeId || whatIfAffected.has(e.target));
-      } else if (traceActive) {
-        // Trace: only the traced spine stays lit — the current hop glows.
+      } else if (overlayActive) {
+        // Overlay: only the animated spine stays lit — the current hop glows.
         dimmed = !hopByEdgeKey.has(`${e.source}→${e.target}`);
       } else if (hoveredNodeId) {
         dimmed = e.source !== hoveredNodeId && e.target !== hoveredNodeId;
       }
       const stroke = red ? '#f43f5e' : color;
-      const traceOnPath = traceActive ? hopByEdgeKey.has(`${e.source}→${e.target}`) : false;
+      const traceOnPath = overlayActive ? hopByEdgeKey.has(`${e.source}→${e.target}`) : false;
       const traceOnStep =
-        traceActive &&
-        traceStepEdge !== null &&
-        e.source === traceStepEdge.source &&
-        e.target === traceStepEdge.target;
+        overlayActive &&
+        overlayStepEdge !== null &&
+        e.source === overlayStepEdge.source &&
+        e.target === overlayStepEdge.target;
       return {
         id: e.id,
         source: e.source,
@@ -735,38 +911,44 @@ export function GraphExplorer() {
         type: 'flow',
         data: { color: stroke, label: e.type, dimmed, tracePath: traceOnPath, traceStep: traceOnStep },
         style: {
-          stroke: traceOnStep ? '#22d3ee' : stroke,
+          stroke: traceOnStep ? overlayColor : stroke,
           strokeWidth: traceOnStep ? 3 : red ? 2 : 1.5,
-          opacity: dimmed ? 0.12 : traceOnStep ? 1 : hoveredNodeId && !whatIf && !traceActive ? 0.9 : red ? 0.85 : 0.55,
+          opacity: dimmed ? 0.12 : traceOnStep ? 1 : hoveredNodeId && !whatIf && !overlayActive ? 0.9 : red ? 0.85 : 0.55,
           transition: 'opacity 200ms',
-          filter: traceOnStep ? 'drop-shadow(0 0 6px rgba(34,211,238,0.8))' : undefined,
+          filter: traceOnStep
+            ? `drop-shadow(0 0 6px ${hexToRgba(overlayColor, 0.8)})`
+            : undefined,
         },
         markerEnd: {
           type: MarkerType.ArrowClosed,
           width: 14,
           height: 14,
-          color: traceOnStep ? '#22d3ee' : stroke,
+          color: traceOnStep ? overlayColor : stroke,
         },
       };
     });
 
-    // Trace overlay: the neighborhood query only returns structural edges
-    // (e.g. CONTAINS in a directory tree), so the real call path often isn't
-    // drawn. While a trace is live, add the traversal's own edges AND the
-    // path nodes the neighborhood didn't return (function-level call targets),
-    // so the animated spine is always visible.
-    if (traceActive && traceResult) {
-      const entryNode = nodes.find((n) => n.id === traceEntryId);
+    // Overlay: the neighborhood query only returns structural edges (e.g.
+    // CONTAINS in a directory tree), so the real call path often isn't drawn.
+    // While an overlay is live, add the traversal's own edges AND the path
+    // nodes the neighborhood didn't return, so the animated spine is visible.
+    if (activeOverlay) {
+      const entryNode = nodes.find((n) => n.id === activeOverlay.entryId);
       const entryPos = entryNode?.position ?? { x: 0, y: 0 };
       const existingIds = new Set(nodes.map((n) => n.id));
-      const overlay = traceOverlayNodes(traceResult, existingIds, traceEntryId ?? '', entryPos);
-      const onPath = tracePathNodeIds(traceResult);
-      for (const on of overlay) {
+      const extraNodes = traceOverlayNodes(
+        activeOverlay.result,
+        existingIds,
+        activeOverlay.entryId,
+        entryPos,
+      );
+      const onPath = tracePathNodeIds(activeOverlay.result);
+      for (const on of extraNodes) {
         // The generic node pass above may have dimmed these as off-path;
-        // overlay nodes ARE the path, so keep them lit with a trace tint.
+        // overlay nodes ARE the path, so keep them lit with a mode tint.
         nodes.push({
           ...on,
-          style: { opacity: 1, filter: 'drop-shadow(0 0 8px rgba(34,211,238,0.4))' },
+          style: { opacity: 1, filter: `drop-shadow(0 0 8px ${hexToRgba(overlayColor, 0.4)})` },
           data: { ...on.data, onPath: true },
         });
       }
@@ -778,22 +960,23 @@ export function GraphExplorer() {
       }
     }
 
-    // Trace overlay edges: merge the traversal's CALLS edges in so the
-    // animated spine is always visible — even when its endpoints are the
-    // freshly added overlay nodes.
-    if (traceActive && traceResult) {
+    // Overlay edges: merge the traversal's own edges in so the animated spine
+    // is always visible — even when its endpoints are freshly added overlay
+    // nodes. Unique ids (traversal ids collide with neighborhood ids, and
+    // duplicate React keys break edge rendering).
+    if (activeOverlay) {
       const existingKeys = new Set(edges.map((e) => `${e.source}→${e.target}`));
       let traceEdgeIdx = 0;
-      for (const te of traceResult.edges) {
+      for (const te of activeOverlay.result.edges) {
         const key = `${te.source}→${te.target}`;
         if (existingKeys.has(key)) continue;
         existingKeys.add(key);
         const color = REL_TYPE_HEX[te.type] ?? '#94a3b8';
         const traceOnPath = hopByEdgeKey.has(key);
         const traceOnStep =
-          traceStepEdge !== null && te.source === traceStepEdge.source && te.target === traceStepEdge.target;
-        // Unique ids — traversal edge ids collide with neighborhood ids, and
-        // duplicate React keys break edge rendering.
+          overlayStepEdge !== null &&
+          te.source === overlayStepEdge.source &&
+          te.target === overlayStepEdge.target;
         traceEdgeIdx += 1;
         edges.push({
           id: `trace-${te.id}-${traceEdgeIdx}`,
@@ -802,27 +985,24 @@ export function GraphExplorer() {
           type: 'flow',
           data: { color, label: te.type, dimmed: false, tracePath: traceOnPath, traceStep: traceOnStep },
           style: {
-            stroke: traceOnStep ? '#22d3ee' : color,
+            stroke: traceOnStep ? overlayColor : color,
             strokeWidth: traceOnStep ? 3 : 1.5,
             opacity: traceOnStep ? 1 : 0.85,
             transition: 'opacity 200ms',
-            filter: traceOnStep ? 'drop-shadow(0 0 6px rgba(34,211,238,0.8))' : undefined,
+            filter: traceOnStep
+              ? `drop-shadow(0 0 6px ${hexToRgba(overlayColor, 0.8)})`
+              : undefined,
           },
           markerEnd: {
             type: MarkerType.ArrowClosed,
             width: 14,
             height: 14,
-            color: traceOnStep ? '#22d3ee' : color,
+            color: traceOnStep ? overlayColor : color,
           },
         });
       }
     }
 
-    if (traceActive) {
-      // TEMP DEBUG
-      console.log('[TRACE-EDGES]', edges.map((e) => e.id).join(', '));
-      console.log('[TRACE-NODES]', nodes.map((n) => n.id).join(', '));
-    }
     return { rfNodes: nodes, rfEdges: edges };
   }, [
     graphData,
@@ -834,11 +1014,8 @@ export function GraphExplorer() {
     whatIf,
     whatIfNodeId,
     whatIfAffectedSet,
-    trace,
-    traceEntryId,
-    traceResult,
-    traceStep,
-    traceHops,
+    activeOverlay,
+    pathToId,
   ]);
 
   const presentNodeTypes = useMemo(
@@ -908,8 +1085,26 @@ export function GraphExplorer() {
           void handleTraceEntry(gn);
         }
       }
+      // In path mode: first click picks the start (A), second picks the end
+      // (B) and fetches the shortest evidence path between them.
+      if (pathMode) {
+        if (pathFromId === null || pathFromId === node.id) {
+          setPathFromId(pathFromId === node.id ? null : node.id);
+          setPathToId(null);
+          setPathResult(null);
+          setPathError(null);
+        } else if (pathToId === null || pathToId === node.id) {
+          if (pathToId === node.id) {
+            setPathToId(null);
+            setPathResult(null);
+            setPathError(null);
+          } else {
+            void handlePathPick(pathFromId, node.id);
+          }
+        }
+      }
     },
-    [graphData, whatIf, trace, traceEntryId, handleTraceEntry],
+    [graphData, whatIf, trace, traceEntryId, handleTraceEntry, pathMode, pathFromId, pathToId, handlePathPick],
   );
 
   const handleNodeDoubleClick = (_: React.MouseEvent, node: Node) => {
@@ -1051,6 +1246,17 @@ export function GraphExplorer() {
             Trace
           </Button>
           <Button
+            variant={pathMode ? 'default' : 'outline'}
+            size="sm"
+            onClick={togglePathMode}
+            aria-pressed={pathMode}
+            className="h-8 text-xs gap-1.5 bg-background/80 backdrop-blur data-[pressed=true]:bg-emerald-500/15 data-[pressed=true]:text-emerald-300 data-[pressed=true]:border-emerald-500/40"
+            title="Highlight the shortest evidence path between two nodes — click A, then B"
+          >
+            <GitFork className="size-3.5" />
+            Path
+          </Button>
+          <Button
             variant={whatIf ? 'default' : 'outline'}
             size="sm"
             onClick={toggleWhatIf}
@@ -1110,6 +1316,70 @@ export function GraphExplorer() {
               size="sm"
               onClick={toggleTrace}
               className="h-7 shrink-0 text-xs gap-1.5 text-cyan-300 hover:bg-cyan-500/10 hover:text-cyan-200"
+            >
+              Stop
+            </Button>
+          </div>
+        ) : null}
+
+        {/* Path highlight banner */}
+        {pathMode ? (
+          <div
+            role="status"
+            className="absolute left-1/2 top-14 z-20 flex w-full max-w-xl -translate-x-1/2 items-center justify-between gap-3 rounded-lg border border-emerald-500/30 bg-background/90 px-3 py-2 backdrop-blur"
+          >
+            <p className="flex items-center gap-2 truncate text-xs text-foreground/90">
+              <GitFork className="size-3.5 shrink-0 text-emerald-400" aria-hidden />
+              {pathError === 'no-path' ? (
+                <span className="text-rose-300">
+                  No evidence path from{' '}
+                  <code className="rounded bg-emerald-500/10 px-1.5 py-0.5 font-mono text-emerald-300">
+                    {pathFromLabel}
+                  </code>{' '}
+                  to{' '}
+                  <code className="rounded bg-emerald-500/10 px-1.5 py-0.5 font-mono text-emerald-300">
+                    {pathToLabel}
+                  </code>{' '}
+                  within {depth} hop{depth === 1 ? '' : 's'}.
+                </span>
+              ) : pathError ? (
+                <span className="text-rose-300">Could not find the path.</span>
+              ) : pathLoading ? (
+                <span>Resolving the shortest evidence path…</span>
+              ) : !pathFromId ? (
+                <span>
+                  Pick the start <span className="font-medium text-emerald-300">(A)</span> — then a second node as
+                  the end <span className="font-medium text-emerald-300">(B)</span> to animate the shortest evidence
+                  path between them.
+                </span>
+              ) : !pathToId ? (
+                <span>
+                  Now pick the end <span className="font-medium text-emerald-300">(B)</span> — the shortest evidence
+                  path from{' '}
+                  <code className="rounded bg-emerald-500/10 px-1.5 py-0.5 font-mono text-emerald-300">
+                    {pathFromLabel}
+                  </code>{' '}
+                  will animate hop by hop.
+                </span>
+              ) : pathResult ? (
+                <span>
+                  Path from{' '}
+                  <code className="rounded bg-emerald-500/10 px-1.5 py-0.5 font-mono text-emerald-300">
+                    {pathFromLabel}
+                  </code>{' '}
+                  →{' '}
+                  <code className="rounded bg-emerald-500/10 px-1.5 py-0.5 font-mono text-emerald-300">
+                    {pathToLabel}
+                  </code>{' '}
+                  — step <span className="font-medium text-emerald-300">{pathStep + 1}</span>/{pathHops.length}
+                </span>
+              ) : null}
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={togglePathMode}
+              className="h-7 shrink-0 text-xs gap-1.5 text-emerald-300 hover:bg-emerald-500/10 hover:text-emerald-200"
             >
               Stop
             </Button>
@@ -1238,6 +1508,17 @@ export function GraphExplorer() {
                 Trace
               </Button>
               <Button
+                variant={pathMode ? 'default' : 'outline'}
+                size="sm"
+                onClick={togglePathMode}
+                aria-pressed={pathMode}
+                className={`h-8 text-xs gap-1.5 ${pathMode ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/20 hover:text-emerald-200' : ''}`}
+                title="Highlight the shortest evidence path between two nodes — click A, then B"
+              >
+                <GitFork className="size-3.5" />
+                Path
+              </Button>
+              <Button
                 variant={whatIf ? 'default' : 'outline'}
                 size="sm"
                 onClick={toggleWhatIf}
@@ -1361,6 +1642,71 @@ export function GraphExplorer() {
             className="h-7 text-xs gap-1.5 text-cyan-300 hover:bg-cyan-500/10 hover:text-cyan-200"
           >
             Stop trace
+          </Button>
+        </div>
+      ) : null}
+
+      {/* Path highlight banner */}
+      {pathMode ? (
+        <div
+          role="status"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-2.5"
+        >
+          <p className="flex items-center gap-2 text-xs text-foreground/90">
+            <GitFork className="size-3.5 shrink-0 text-emerald-400" aria-hidden />
+            {pathError === 'no-path' ? (
+              <span className="text-rose-300">
+                No evidence path from{' '}
+                <code className="rounded bg-emerald-500/10 px-1.5 py-0.5 font-mono text-emerald-300">
+                  {pathFromLabel}
+                </code>{' '}
+                to{' '}
+                <code className="rounded bg-emerald-500/10 px-1.5 py-0.5 font-mono text-emerald-300">
+                  {pathToLabel}
+                </code>{' '}
+                within {depth} hop{depth === 1 ? '' : 's'}.
+              </span>
+            ) : pathError ? (
+              <span className="text-rose-300">Could not find the path.</span>
+            ) : pathLoading ? (
+              <span>Resolving the shortest evidence path…</span>
+            ) : !pathFromId ? (
+              <>
+                Pick the start <span className="font-medium text-emerald-300">(A)</span> — then a second node as
+                the end <span className="font-medium text-emerald-300">(B)</span> to animate the shortest evidence
+                path between them.
+              </>
+            ) : !pathToId ? (
+              <>
+                Now pick the end <span className="font-medium text-emerald-300">(B)</span> — the shortest evidence
+                path from{' '}
+                <code className="rounded bg-emerald-500/10 px-1.5 py-0.5 font-mono text-emerald-300">
+                  {pathFromLabel}
+                </code>{' '}
+                will animate hop by hop.
+              </>
+            ) : pathResult ? (
+              <>
+                Path from{' '}
+                <code className="rounded bg-emerald-500/10 px-1.5 py-0.5 font-mono text-emerald-300">
+                  {pathFromLabel}
+                </code>{' '}
+                →{' '}
+                <code className="rounded bg-emerald-500/10 px-1.5 py-0.5 font-mono text-emerald-300">
+                  {pathToLabel}
+                </code>{' '}
+                — step <span className="font-medium text-emerald-300">{pathStep + 1}</span>/{pathHops.length}. Click
+                another node to re-pick the start.
+              </>
+            ) : null}
+          </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={togglePathMode}
+            className="h-7 text-xs gap-1.5 text-emerald-300 hover:bg-emerald-500/10 hover:text-emerald-200"
+          >
+            Stop path
           </Button>
         </div>
       ) : null}

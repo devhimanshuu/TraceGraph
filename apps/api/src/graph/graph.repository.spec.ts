@@ -39,6 +39,36 @@ async function runWork(
 }
 
 describe('GraphRepository', () => {
+  it('mergeTraversals re-keys edges globally unique (outgoing + incoming both number e-1…)', () => {
+    const { db } = createMockDb();
+    const repo = new GraphRepository(db) as unknown as {
+      mergeTraversals(a: unknown, b: unknown): { edges: Array<{ id: string }> };
+    };
+    const outgoing = {
+      root: { id: 'root', type: 'File', label: 'Root' },
+      depth: 1,
+      nodes: [{ id: 'a', type: 'File', label: 'A', hops: 1 }],
+      edges: [
+        { id: 'e-1', source: 'root', target: 'a', type: 'CONTAINS', properties: {} },
+        { id: 'e-2', source: 'a', target: 'b', type: 'IMPORTS', properties: {} },
+      ],
+      paths: [],
+    };
+    const incoming = {
+      root: { id: 'root', type: 'File', label: 'Root' },
+      depth: 1,
+      nodes: [{ id: 'c', type: 'File', label: 'C', hops: 1 }],
+      edges: [
+        // Same id numbers as the outgoing traversal — the bug this guards.
+        { id: 'e-1', source: 'c', target: 'root', type: 'CALLS', properties: {} },
+      ],
+      paths: [],
+    };
+    const merged = repo.mergeTraversals(outgoing, incoming);
+    expect(merged.edges.map((e) => e.id)).toEqual(['e-1', 'e-2', 'e-3']);
+    expect(new Set(merged.edges.map((e) => e.id)).size).toBe(3);
+  });
+
   it('findNodeById returns null when the node does not exist', async () => {
     const { db, executeRead } = createMockDb();
     executeRead.mockResolvedValue([]);
