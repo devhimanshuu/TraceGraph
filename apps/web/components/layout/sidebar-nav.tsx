@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FlaskConical, FolderGit2, LayoutGrid, Network, Radar, ScanSearch, ShieldCheck, Users, Workflow } from 'lucide-react';
+import { Building2, FlaskConical, FolderGit2, LayoutGrid, Network, Radar, ScanSearch, ShieldCheck, Users, Workflow } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Overview', icon: LayoutGrid },
+  { href: '/workspaces', label: 'Workspace', icon: Building2 },
   { href: '/repositories', label: 'Repositories', icon: FolderGit2 },
   { href: '/graph', label: 'Graph', icon: Network },
   { href: '/dependencies', label: 'Dependencies', icon: Workflow },

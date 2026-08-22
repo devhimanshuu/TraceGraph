@@ -459,4 +459,24 @@ export const apiClient = {
       `/ownership/developer/${encodeURIComponent(username)}`,
       token,
     ),
+
+  // ── Workspace & Team (Phase 20) ──
+  listWorkspaces: (token?: string | null) =>
+    request<import('@tracegraph/shared').Workspace[]>('/workspaces', token),
+  createWorkspace: (dto: import('@tracegraph/shared').CreateWorkspaceRequest, token?: string | null) =>
+    mutate<import('@tracegraph/shared').Workspace>('/workspaces', 'POST', token, dto),
+  getWorkspace: (id: string, token?: string | null) =>
+    request<import('@tracegraph/shared').Workspace>(`/workspaces/${encodeURIComponent(id)}`, token),
+  getWorkspaceDashboard: (id: string, token?: string | null) =>
+    request<import('@tracegraph/shared').WorkspaceDashboard>(`/workspaces/${encodeURIComponent(id)}/dashboard`, token),
+  listWorkspaceMembers: (id: string, token?: string | null) =>
+    request<import('@tracegraph/shared').WorkspaceMembership[]>(`/workspaces/${encodeURIComponent(id)}/members`, token),
+  addWorkspaceMember: (wsId: string, dto: { userId: string; role: import('@tracegraph/shared').WorkspaceRole; name?: string }, token?: string | null) =>
+    mutate<import('@tracegraph/shared').WorkspaceMembership>(`/workspaces/${encodeURIComponent(wsId)}/members`, 'POST', token, dto),
+  listWorkspaceReports: (id: string, token?: string | null) =>
+    request<import('@tracegraph/shared').SavedReport[]>(`/workspaces/${encodeURIComponent(id)}/reports`, token),
+  createWorkspaceReport: (wsId: string, dto: import('@tracegraph/shared').CreateReportRequest, token?: string | null) =>
+    mutate<import('@tracegraph/shared').SavedReport>(`/workspaces/${encodeURIComponent(wsId)}/reports`, 'POST', token, dto),
+  listWorkspaceActivity: (id: string, token?: string | null) =>
+    request<import('@tracegraph/shared').AuditEvent[]>(`/workspaces/${encodeURIComponent(id)}/activity`, token),
 };

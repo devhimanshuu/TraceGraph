@@ -16,6 +16,7 @@ import { SyncModule } from './sync/sync.module';
 import { TestIntelligenceModule } from './test-intelligence/test-intelligence.module';
 import { GuardrailsModule } from './guardrails/guardrails.module';
 import { OwnershipModule } from './ownership/ownership.module';
+import { WorkspaceModule } from './workspace/workspace.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { OwnershipModule } from './ownership/ownership.module';
     TestIntelligenceModule,
     GuardrailsModule,
     OwnershipModule,
+    WorkspaceModule,
     HistoryModule,
   ],
 })
