@@ -24,6 +24,7 @@ import {
 import { RecentActivity } from '@/components/dashboard/recent-activity';
 import { ImportedRepositories } from '@/components/dashboard/imported-repositories';
 import { SyncStatusPanel } from '@/components/dashboard/sync-status-panel';
+import { ChangeHeatmap } from '@/components/dashboard/change-heatmap';
 import { SectionError } from '@/components/dashboard/section-error';
 import { RepoChooser } from '@/components/onboarding/repo-chooser';
 import { useRepositoryContext } from '@/components/layout/repository-provider';
@@ -219,6 +220,14 @@ export default function DashboardPage() {
           </Card>
         )}
       </section>
+
+      {/* Change heatmap */}
+      {repository ? (
+        <section className="flex flex-col gap-4">
+          <SectionTitle>Change frequency</SectionTitle>
+          <ChangeHeatmap repositoryId={repository.id} />
+        </section>
+      ) : null}
 
       {/* Recent activity */}
       <section className="flex flex-col gap-4">

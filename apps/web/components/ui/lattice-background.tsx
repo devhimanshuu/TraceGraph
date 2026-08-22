@@ -362,6 +362,7 @@ export function LatticeBackground({
     >
       <canvas
         ref={canvasRef}
+        aria-hidden="true"
         className="absolute inset-0 block cursor-crosshair"
       />
 

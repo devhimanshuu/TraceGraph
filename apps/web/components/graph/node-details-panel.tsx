@@ -24,6 +24,9 @@ import {
 } from '@/components/dependencies/relationship-badge';
 import { TopCommitterChip } from '@/components/dependencies/top-committer-chip';
 import { CodePreview } from '@/components/graph/code-preview';
+import { HistoryTimeline } from '@/components/dashboard/history-timeline';
+import { WhyChangedPanel } from '@/components/dashboard/why-changed-panel';
+import { ContributorsList } from '@/components/dashboard/contributors-list';
 
 export interface NodeDetailsPanelProps {
   node: GraphNode | null;
@@ -34,6 +37,7 @@ export function NodeDetailsPanel({ node, onClose }: NodeDetailsPanelProps) {
   if (!node) return null;
 
   const [showCode, setShowCode] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   // properties is optional on the shared GraphNode type — never assume it.
   const filePath =
@@ -169,6 +173,22 @@ export function NodeDetailsPanel({ node, onClose }: NodeDetailsPanelProps) {
               highlightRange={lineStart && lineEnd ? { start: lineStart, end: lineEnd } : undefined}
             />
           </div>
+      ) : null}
+      {/* History section */}
+      {canShowCode ? (
+        <div className="flex flex-col gap-2 border-t border-border/60 pt-3">
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {showHistory ? 'Hide history' : 'Show history'}
+          </button>
+          {showHistory && filePath ? (
+            <div className="flex flex-col gap-3">
+              <WhyChangedPanel entityId={node.id} />
+            </div>
+          ) : null}
+        </div>
       ) : null}
       </CardContent>
     </Card>

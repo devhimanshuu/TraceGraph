@@ -1,5 +1,6 @@
 import {
   ArrowDown,
+  ArrowRight,
   CheckCircle2,
   ChevronDown,
   Database,
@@ -11,54 +12,72 @@ import {
   ShieldCheck,
   Star,
   Workflow,
+  Zap,
+  Code2,
+  Layers,
+  Search,
+  History,
+  FileCode2,
+  Terminal,
+  Sparkles,
+  Cpu,
+  Eye,
+  Check,
 } from 'lucide-react';
 import { LandingCta } from '@/components/auth/landing-cta';
 import { FadeIn } from '@/components/fade-in';
-import { LatticeBackground } from '@/components/ui/lattice-background';
+import { FractalBloomCanvas } from '@/components/ui/fractal-bloom-tree';
 import { Wordmark } from '@/components/wordmark';
 
 const features = [
   {
     icon: Network,
-    title: 'Graph explorer',
+    title: 'Graph Explorer',
     description:
-      'See how files, classes, and functions connect — navigate your codebase the way you think about it, as a graph.',
+      'See how files, classes, and functions connect — navigate your codebase the way you think about it, as a living interactive graph.',
+    accent: 'sky',
   },
   {
     icon: Radar,
-    title: 'Impact analysis',
+    title: 'Impact Analysis',
     description:
-      'Ask “what breaks if I change this?” and get every component affected — directly or indirectly — with the path that explains why.',
+      'Ask "what breaks if I change this?" and get every component affected — directly or indirectly — with the exact traversal path that explains why.',
+    accent: 'amber',
   },
   {
     icon: Workflow,
-    title: 'Dependency explorer',
+    title: 'Dependency Explorer',
     description:
-      'Follow imports, calls, and inheritance from any entity. Understand what depends on your code before you touch it.',
+      'Follow imports, calls, and inheritance from any entity. Understand what depends on your code before you touch a single line.',
+    accent: 'emerald',
   },
   {
-    icon: GitPullRequestArrow,
-    title: 'Engineering history',
+    icon: History,
+    title: 'Engineering History',
     description:
-      'Connect commits, pull requests, and issues to the code they touched — context that lives alongside the graph.',
+      'Connect commits, pull requests, and issues directly to the code they modified — context that lives seamlessly alongside the graph.',
+    accent: 'violet',
   },
 ];
 
 const steps = [
   {
     number: '01',
+    icon: FileCode2,
     title: 'Map your repository',
-    body: 'TraceGraph loads your codebase as a labeled property graph — files, classes, functions, tests, commits, and issues are first-class citizens.',
+    body: 'TraceGraph loads your codebase as a labeled property graph — files, classes, functions, tests, commits, and issues become first-class graph entities.',
   },
   {
     number: '02',
+    icon: Search,
     title: 'Explore relationships',
-    body: 'Follow imports, calls, and inheritance from any entity. See what depends on what, in either direction.',
+    body: 'Follow imports, calls, and inheritance from any entity. Inspect incoming and outgoing dependencies in either direction with sub-millisecond queries.',
   },
   {
     number: '03',
-    title: 'Analyze impact',
-    body: 'Ask what breaks if you change this — and see every affected component, direct or indirect, with the path that explains why.',
+    icon: Zap,
+    title: 'Analyze impact & risk',
+    body: 'Instantly calculate blast radius before merging. See every affected component, direct or indirect, alongside covering test suites.',
   },
 ];
 
@@ -69,6 +88,7 @@ const testimonials = [
     name: 'Maya Chen',
     role: 'Staff Engineer · payments platform',
     initials: 'MC',
+    color: 'from-sky-400 to-indigo-500',
   },
   {
     quote:
@@ -76,6 +96,7 @@ const testimonials = [
     name: 'André Silva',
     role: 'Engineering Manager',
     initials: 'AS',
+    color: 'from-violet-400 to-fuchsia-500',
   },
   {
     quote:
@@ -83,6 +104,7 @@ const testimonials = [
     name: 'Priya Nair',
     role: 'Platform Team Lead',
     initials: 'PN',
+    color: 'from-emerald-400 to-teal-500',
   },
 ];
 
@@ -97,17 +119,17 @@ const trust = [
   {
     icon: Lock,
     title: 'Token stays on the server',
-    body: 'Your GitHub token is stored backend-only and never ships to the browser. Sign-in is plain OAuth — no password, no paste.',
+    body: 'Your GitHub token is stored backend-only and never ships to the client bundle. Authentication is strict OAuth — no passwords, no token pasting.',
   },
   {
     icon: Database,
     title: 'Your graph, your CognoDB',
-    body: 'The mapped repository lives in your own CognoDB instance — you own the data, the queries, and the analysis.',
+    body: 'The mapped repository lives securely in your own CognoDB instance — you own the database, the schema, the queries, and the analysis.',
   },
   {
     icon: ShieldCheck,
-    title: 'Deterministic and explainable',
-    body: 'Impact is graph traversal over typed relationships, not a guess. AI only summarizes evidence that already exists.',
+    title: 'Deterministic & explainable',
+    body: 'Impact analysis is mathematical graph traversal over typed relationships, not an AI hallucination. AI only summarizes existing deterministic evidence.',
   },
 ];
 
@@ -136,18 +158,18 @@ const faqs = [
 
 const NODE_KINDS = {
   direct: {
-    dot: 'size-3 rounded-full bg-gradient-to-br from-sky-400 to-indigo-500 shadow-[0_0_10px_rgba(56,189,248,0.55)]',
-    edge: 'stroke-sky-400/40',
+    dot: 'size-3 rounded-full bg-gradient-to-br from-sky-400 to-indigo-500 shadow-[0_0_12px_rgba(56,189,248,0.7)] ring-2 ring-sky-400/20',
+    edge: 'stroke-sky-400/50',
     flow: 'stroke-sky-300',
   },
   indirect: {
-    dot: 'size-3 rounded-full border-2 border-amber-400 bg-amber-400/10',
-    edge: 'stroke-amber-400/40',
+    dot: 'size-3 rounded-full border-2 border-amber-400 bg-amber-400/20 shadow-[0_0_10px_rgba(251,191,36,0.5)]',
+    edge: 'stroke-amber-400/50',
     flow: 'stroke-amber-300',
   },
   test: {
-    dot: 'size-2.5 rounded-[3px] border-2 border-emerald-400 bg-emerald-400/15',
-    edge: 'stroke-emerald-400/40',
+    dot: 'size-2.5 rounded-[3px] border-2 border-emerald-400 bg-emerald-400/20 shadow-[0_0_10px_rgba(52,211,153,0.5)]',
+    edge: 'stroke-emerald-400/50',
     flow: 'stroke-emerald-300',
   },
 } as const;
@@ -162,79 +184,99 @@ function edgePath(x1: number, y1: number, x2: number, y2: number): string {
   return `M ${x1} ${y1} Q ${mx} ${my} ${x2} ${y2}`;
 }
 
-const IMPACT_ROWS = [
-  { name: 'CheckoutService', kind: 'direct', note: '' },
-  { name: 'RefundService', kind: 'direct', note: '' },
-  { name: 'PaymentController', kind: 'direct', note: '' },
-  { name: 'OrderService', kind: 'indirect', note: 'via CheckoutService' },
-  { name: 'PaymentServiceTest', kind: 'test', note: '' },
-] as const;
+
 
 /**
- * Compact live impact-analysis preview for the hero: a glass panel showing
- * PaymentService's direct/indirect impact with traveling data pulses on the
- * connector lines. Purely presentational (aria-hidden internals, motion-safe
- * — the pulse animation only runs under `prefers-reduced-motion: no-preference`).
+ * Terminal Code preview with macOS chrome and ambient glow
  */
-function ImpactPreviewCard() {
+function CodePreview() {
   return (
-    <div className="pointer-events-none mt-10 w-full max-w-md text-left">
-      <div className="relative overflow-hidden rounded-2xl border border-sky-400/30 bg-white/75 p-4 shadow-[0_28px_60px_-28px_rgba(2,6,23,0.25)] backdrop-blur-md dark:border-sky-400/20 dark:bg-white/[0.04] dark:shadow-[0_28px_60px_-28px_rgba(2,6,23,0.8)]">
-        <div
-          aria-hidden
-          className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-sky-400/50 to-transparent"
-        />
+    <div className="relative mx-auto mt-16 w-full max-w-2xl">
+      {/* Outer ambient glow */}
+      <div 
+        aria-hidden
+        className="absolute -inset-2 rounded-3xl bg-gradient-to-r from-sky-500/20 via-indigo-500/20 to-purple-500/20 blur-xl opacity-75"
+      />
 
-        {/* Header */}
-        <div className="flex items-center justify-between gap-3">
-          <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest text-slate-500 dark:text-slate-300">
-            <Radar className="size-4 text-sky-400" aria-hidden />
-            Impact analysis
-          </span>
-          <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-emerald-400">
-            <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-emerald-400" />
-            Live
+      <div className="relative overflow-hidden rounded-2xl border border-sky-500/30 bg-[#0b0f19] shadow-[0_32px_90px_-20px_rgba(2,6,23,0.85)] ring-1 ring-white/10 backdrop-blur-xl">
+        {/* Window chrome */}
+        <div className="flex items-center justify-between border-b border-white/10 bg-white/[0.04] px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className="flex gap-1.5">
+              <span className="size-3 rounded-full bg-rose-500/80 shadow-[0_0_6px_rgba(244,63,94,0.4)]" />
+              <span className="size-3 rounded-full bg-amber-400/80 shadow-[0_0_6px_rgba(251,191,36,0.4)]" />
+              <span className="size-3 rounded-full bg-emerald-400/80 shadow-[0_0_6px_rgba(52,211,153,0.4)]" />
+            </span>
+            <span className="ml-3 font-mono text-[11px] text-slate-400">
+              tracegraph analyze acme/commerce-platform
+            </span>
+          </div>
+          <span className="flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] text-emerald-400">
+            <span className="size-1.5 animate-ping rounded-full bg-emerald-400" />
+            14.2ms
           </span>
         </div>
 
-        {/* Root entity + risk */}
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <span className="font-mono text-sm font-bold text-slate-900 dark:text-white">PaymentService</span>
-          <span className="rounded-md border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-amber-300">
-            Medium risk
-          </span>
-        </div>
+        {/* Terminal output */}
+        <div className="p-6 font-mono text-[13px] leading-relaxed">
+          <div className="text-slate-400 flex items-center gap-2">
+            <span className="text-emerald-400 font-bold">✓</span>{' '}
+            <span className="text-slate-200">Repository connected to CognoDB</span>
+          </div>
+          <div className="text-slate-400 flex items-center gap-2 mt-1">
+            <span className="text-emerald-400 font-bold">✓</span>{' '}
+            <span className="text-slate-300">1,842 files discovered</span>
+          </div>
+          <div className="text-slate-400 flex items-center gap-2 mt-1">
+            <span className="text-emerald-400 font-bold">✓</span>{' '}
+            <span className="text-slate-300">1,103 source files indexed</span>
+          </div>
+          <div className="text-slate-400 flex items-center gap-2 mt-1">
+            <span className="text-emerald-400 font-bold">✓</span>{' '}
+            <span className="text-slate-300">8,421 symbols extracted</span>
+          </div>
+          <div className="text-slate-400 flex items-center gap-2 mt-1">
+            <span className="text-emerald-400 font-bold">✓</span>{' '}
+            <span className="text-slate-300">12,843 typed relationships resolved</span>
+          </div>
 
-        {/* Affected rows with traveling pulses */}
-        <ul className="mt-3 space-y-1.5">
-          {IMPACT_ROWS.map((row) => (
-            <li key={row.name} className="flex items-center gap-2">
-              <span className={NODE_KINDS[row.kind].dot} aria-hidden />
-              <svg aria-hidden className="h-4 w-7">
-                <line x1="0" y1="8" x2="28" y2="8" className={NODE_KINDS[row.kind].edge} strokeWidth="1.25" />
-                <line
-                  x1="0"
-                  y1="8"
-                  x2="28"
-                  y2="8"
-                  className={`tg-flow-line ${NODE_KINDS[row.kind].flow}`}
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeDasharray="2 9"
-                />
-              </svg>
-              <span className="truncate font-mono text-[11px] text-slate-700 dark:text-slate-200">{row.name}</span>
-              <span className="ml-auto shrink-0 font-mono text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                {row.note ? `${row.kind} · ${row.note}` : row.kind}
+          <div className="mt-4 flex items-center gap-2 text-slate-300">
+            <span className="text-sky-400 font-bold">$</span>{' '}
+            <span className="font-semibold text-white">tracegraph impact PaymentService</span>
+          </div>
+
+          <div className="mt-3 rounded-xl border border-sky-500/20 bg-sky-500/[0.04] p-4 text-slate-300">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-white flex items-center gap-2">
+                <Radar className="size-4 text-sky-400" />
+                Target: <span className="text-sky-300">PaymentService</span>
               </span>
-            </li>
-          ))}
-        </ul>
-
-        {/* Footer stats */}
-        <div className="mt-3 flex items-center justify-between border-t border-slate-900/10 pt-2.5 font-mono text-[10px] uppercase tracking-wider text-slate-500 dark:border-white/5 dark:text-slate-400">
-          <span>3 direct · 2 indirect · 1 test</span>
-          <span>2 hops</span>
+              <span className="rounded-md border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.2)]">
+                MEDIUM RISK
+              </span>
+            </div>
+            <div className="mt-2 text-xs text-slate-400 font-mono">
+              3 direct · 2 indirect · 1 test · 2 hops
+            </div>
+            <div className="mt-3 space-y-1.5 text-[12px] font-mono">
+              <div className="flex items-center gap-2 text-slate-300">
+                <span className="text-sky-400 font-bold">→</span> CheckoutService{' '}
+                <span className="text-slate-500 text-[11px]">(direct caller)</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-300">
+                <span className="text-sky-400 font-bold">→</span> RefundService{' '}
+                <span className="text-slate-500 text-[11px]">(direct caller)</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-300">
+                <span className="text-sky-400 font-bold">→</span> OrderService{' '}
+                <span className="text-slate-500 text-[11px]">(via CheckoutService)</span>
+              </div>
+              <div className="flex items-center gap-2 text-emerald-300">
+                <span className="text-emerald-400 font-bold">⬡</span> PaymentServiceTest{' '}
+                <span className="text-emerald-500/80 text-[11px]">(covering test suite)</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -242,9 +284,7 @@ function ImpactPreviewCard() {
 }
 
 /**
- * Decorative product preview — a static illustration of the graph explorer
- * concept (hub entity + neighborhood). Purely presentational: aria-hidden
- * internals, motion-safe animations.
+ * Interactive Graph explorer illustration
  */
 function GraphPreview() {
   const hub = { x: 50, y: 46 };
@@ -256,60 +296,59 @@ function GraphPreview() {
     { x: 87, y: 74, label: 'OrderService', kind: 'indirect' as const },
     { x: 50, y: 88, label: 'PaymentServiceTest', kind: 'test' as const },
   ];
-  const edges = nodes.map((n) => ({ d: edgePath(hub.x, hub.y, n.x, n.y), kind: n.kind }));
+  const edges = nodes.map((n) => ({
+    d: edgePath(hub.x, hub.y, n.x, n.y),
+    kind: n.kind,
+  }));
 
   return (
     <div className="relative mx-auto mt-14 w-full max-w-3xl">
-      {/* Ambient glow behind the card — a soft white bloom in light theme so
-          the card emerges from the page (matching the hero fade); sky glow in
-          dark, where the card floats over the near-black page. */}
       <div
         aria-hidden
-        className="absolute -inset-6 rounded-[2.5rem] bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.9),transparent_65%)] blur-2xl dark:bg-[radial-gradient(ellipse_at_center,rgba(56,189,248,0.16),transparent_65%)]"
+        className="absolute -inset-8 rounded-[3rem] bg-[radial-gradient(ellipse_at_center,rgba(56,189,248,0.25),transparent_65%)] blur-3xl opacity-80"
       />
 
       <div
         role="img"
         aria-label="Illustration of the graph explorer: PaymentService at the center, connected to its dependents and tests"
-        className="relative rounded-2xl bg-gradient-to-b from-white/20 via-white/5 to-white/0 p-px shadow-[0_32px_80px_-24px_rgba(2,6,23,0.6)]"
+        className="relative rounded-2xl bg-gradient-to-b from-sky-400/30 via-indigo-500/10 to-transparent p-px shadow-[0_32px_90px_-24px_rgba(2,6,23,0.7)]"
       >
-        <div className="overflow-hidden rounded-[15px] bg-card/95 text-left backdrop-blur-sm">
+        <div className="overflow-hidden rounded-[15px] bg-card/95 text-left backdrop-blur-xl border border-border/80">
           {/* Window chrome */}
-          <div className="flex items-center gap-2 border-b border-border/60 bg-muted/40 px-4 py-2.5">
+          <div className="flex items-center gap-2 border-b border-border/70 bg-muted/50 px-4 py-3">
             <span aria-hidden className="flex gap-1.5">
-              <span className="size-2.5 rounded-full bg-red-400/80" />
-              <span className="size-2.5 rounded-full bg-amber-400/80" />
-              <span className="size-2.5 rounded-full bg-emerald-400/80" />
+              <span className="size-3 rounded-full bg-rose-500/80 shadow-[0_0_6px_rgba(244,63,94,0.4)]" />
+              <span className="size-3 rounded-full bg-amber-400/80 shadow-[0_0_6px_rgba(251,191,36,0.4)]" />
+              <span className="size-3 rounded-full bg-emerald-400/80 shadow-[0_0_6px_rgba(52,211,153,0.4)]" />
             </span>
-            <span className="ml-2 truncate font-mono text-[11px] text-muted-foreground">
-              commerce-platform — impact preview
+            <span className="ml-3 truncate font-mono text-[11px] text-foreground/80 font-medium">
+              commerce-platform — graph explorer
             </span>
             <span
               aria-hidden
-              className="ml-auto hidden items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-emerald-400/90 sm:flex"
+              className="ml-auto hidden items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-emerald-400 sm:flex rounded-full bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5"
             >
-              <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />
-              Connected
+              <span className="size-1.5 animate-ping rounded-full bg-emerald-400" />
+              CognoDB Connected
             </span>
           </div>
 
           {/* Graph canvas */}
           <div className="relative h-[420px] w-full sm:h-[470px]">
-            {/* Dot grid */}
             <div
               aria-hidden
               className="absolute inset-0 opacity-40"
               style={{
-                backgroundImage: 'radial-gradient(circle, var(--border) 1px, transparent 1px)',
+                backgroundImage:
+                  'radial-gradient(circle, var(--border) 1px, transparent 1px)',
                 backgroundSize: '22px 22px',
               }}
             />
-            {/* Radar rings + hub glow */}
             <div aria-hidden className="absolute inset-0">
               {[26, 46, 66].map((s) => (
                 <div
                   key={s}
-                  className="absolute rounded-full border border-foreground/10"
+                  className="absolute rounded-full border border-sky-400/15"
                   style={{
                     left: `${hub.x - s / 2}%`,
                     top: `${hub.y - s / 2}%`,
@@ -319,12 +358,11 @@ function GraphPreview() {
                 />
               ))}
               <div
-                className="absolute h-[72%] w-[72%] rounded-full bg-[radial-gradient(circle,rgba(56,189,248,0.13),transparent_70%)] blur-xl"
+                className="absolute h-[72%] w-[72%] rounded-full bg-[radial-gradient(circle,rgba(56,189,248,0.16),transparent_70%)] blur-2xl"
                 style={{ left: `${hub.x - 36}%`, top: `${hub.y - 36}%` }}
               />
             </div>
 
-            {/* Edges — base + animated data-flow layer */}
             <svg
               aria-hidden
               viewBox="0 0 100 100"
@@ -337,7 +375,7 @@ function GraphPreview() {
                     d={e.d}
                     fill="none"
                     vectorEffect="non-scaling-stroke"
-                    strokeWidth="1.25"
+                    strokeWidth="1.5"
                     strokeDasharray={e.kind === 'indirect' ? '5 4' : undefined}
                     className={NODE_KINDS[e.kind].edge}
                   />
@@ -345,7 +383,7 @@ function GraphPreview() {
                     d={e.d}
                     fill="none"
                     vectorEffect="non-scaling-stroke"
-                    strokeWidth="1.5"
+                    strokeWidth="2"
                     strokeLinecap="round"
                     strokeDasharray="3 14"
                     className={`tg-flow-line ${NODE_KINDS[e.kind].flow}`}
@@ -354,41 +392,38 @@ function GraphPreview() {
               ))}
             </svg>
 
-            {/* Floating telemetry chips */}
             <div
               aria-hidden
-              className="absolute left-3 top-3 -rotate-1 rounded-md border border-border/50 bg-card/85 px-2 py-1 font-mono text-[10px] text-muted-foreground shadow-sm backdrop-blur-sm"
+              className="absolute left-3 top-3 -rotate-1 rounded-md border border-border/80 bg-card/90 px-2.5 py-1 font-mono text-[10px] text-muted-foreground shadow-sm backdrop-blur-md"
             >
               12ms · multi-hop traversal
             </div>
             <div
               aria-hidden
-              className="absolute bottom-3 right-3 rotate-1 rounded-md border border-border/50 bg-card/85 px-2 py-1 font-mono text-[10px] text-muted-foreground shadow-sm backdrop-blur-sm"
+              className="absolute bottom-3 right-3 rotate-1 rounded-md border border-border/80 bg-card/90 px-2.5 py-1 font-mono text-[10px] text-muted-foreground shadow-sm backdrop-blur-md"
             >
-              238 relationships
+              238 active relationships
             </div>
 
-            {/* Hub */}
             <div
               className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5"
               style={{ left: `${hub.x}%`, top: `${hub.y}%` }}
             >
               <div className="relative flex items-center justify-center">
-                <span aria-hidden className="tg-hub-pulse absolute size-11 rounded-full bg-sky-400/25" />
+                <span aria-hidden className="tg-hub-pulse absolute size-12 rounded-full bg-sky-400/30" />
                 <span
                   aria-hidden
-                  className="tg-hub-pulse tg-hub-pulse-delay absolute size-11 rounded-full bg-sky-400/20"
+                  className="tg-hub-pulse tg-hub-pulse-delay absolute size-12 rounded-full bg-sky-400/20"
                 />
-                <span className="relative flex size-11 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-indigo-500 shadow-[0_0_28px_rgba(56,189,248,0.5),inset_0_1px_0_rgba(255,255,255,0.4)] ring-1 ring-white/20">
-                  <span className="size-2 rounded-full bg-white/90" />
+                <span className="relative flex size-12 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 via-sky-500 to-indigo-600 shadow-[0_0_32px_rgba(56,189,248,0.6),inset_0_1px_0_rgba(255,255,255,0.5)] ring-2 ring-white/30">
+                  <span className="size-2.5 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.9)]" />
                 </span>
               </div>
-              <span className="relative whitespace-nowrap rounded-md border border-sky-400/40 bg-sky-400/10 px-2 py-0.5 font-mono text-[11px] font-semibold text-sky-300 backdrop-blur-sm">
+              <span className="relative whitespace-nowrap rounded-lg border border-sky-400/50 bg-sky-400/15 px-2.5 py-1 font-mono text-[11px] font-bold text-sky-400 dark:text-sky-300 backdrop-blur-md shadow-sm">
                 PaymentService
               </span>
             </div>
 
-            {/* Neighbors */}
             {nodes.map((n) => (
               <div
                 key={n.label}
@@ -396,35 +431,33 @@ function GraphPreview() {
                 style={{ left: `${n.x}%`, top: `${n.y}%` }}
               >
                 <span className={NODE_KINDS[n.kind].dot} />
-                <span className="whitespace-nowrap rounded border border-border/50 bg-card/85 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground backdrop-blur-sm sm:text-[11px]">
+                <span className="whitespace-nowrap rounded-md border border-border/80 bg-card/90 px-2 py-0.5 font-mono text-[10px] font-medium text-foreground backdrop-blur-md shadow-sm sm:text-[11px]">
                   {n.label}
                 </span>
               </div>
             ))}
 
-            {/* Top highlight + vignette */}
             <div
               aria-hidden
-              className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-foreground/15 to-transparent"
+              className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-foreground/20 to-transparent"
             />
             <div
               aria-hidden
-              className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgba(0,0,0,0.35))]"
+              className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_50%,rgba(0,0,0,0.4))]"
             />
           </div>
 
-          {/* Legend strip */}
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-border/60 bg-muted/30 px-4 py-2.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-border/70 bg-muted/40 px-5 py-3 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
             <span className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-gradient-to-br from-sky-400 to-indigo-500" />
+              <span className="size-2 rounded-full bg-gradient-to-br from-sky-400 to-indigo-500 shadow-[0_0_6px_rgba(56,189,248,0.6)]" />
               Direct impact · 3
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full border-2 border-amber-400" />
+              <span className="size-2 rounded-full border-2 border-amber-400 bg-amber-400/20 shadow-[0_0_6px_rgba(251,191,36,0.5)]" />
               Indirect impact · 2
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="size-2 rounded-[3px] border-2 border-emerald-400 bg-emerald-400/15" />
+              <span className="size-2 rounded-[3px] border-2 border-emerald-400 bg-emerald-400/20 shadow-[0_0_6px_rgba(52,211,153,0.5)]" />
               Test coverage · 1
             </span>
           </div>
@@ -434,50 +467,101 @@ function GraphPreview() {
   );
 }
 
+/** Accent color map for feature cards */
+const ACCENT_MAP = {
+  sky: {
+    bg: 'bg-sky-500/10 dark:bg-sky-500/15',
+    text: 'text-sky-600 dark:text-sky-400',
+    ring: 'ring-sky-500/20 dark:ring-sky-400/30',
+    hoverBg: 'group-hover:bg-sky-500/20 dark:group-hover:bg-sky-500/30',
+    hoverRing: 'group-hover:ring-sky-500/40 dark:group-hover:ring-sky-400/50',
+    shadow: 'group-hover:shadow-[0_0_24px_rgba(56,189,248,0.4)]',
+    glow: 'rgba(56,189,248,0.18)',
+    borderHover: 'hover:border-sky-500/50',
+  },
+  amber: {
+    bg: 'bg-amber-500/10 dark:bg-amber-500/15',
+    text: 'text-amber-600 dark:text-amber-400',
+    ring: 'ring-amber-500/20 dark:ring-amber-400/30',
+    hoverBg: 'group-hover:bg-amber-500/20 dark:group-hover:bg-amber-500/30',
+    hoverRing: 'group-hover:ring-amber-500/40 dark:group-hover:ring-amber-400/50',
+    shadow: 'group-hover:shadow-[0_0_24px_rgba(251,191,36,0.4)]',
+    glow: 'rgba(251,191,36,0.18)',
+    borderHover: 'hover:border-amber-500/50',
+  },
+  emerald: {
+    bg: 'bg-emerald-500/10 dark:bg-emerald-500/15',
+    text: 'text-emerald-600 dark:text-emerald-400',
+    ring: 'ring-emerald-500/20 dark:ring-emerald-400/30',
+    hoverBg: 'group-hover:bg-emerald-500/20 dark:group-hover:bg-emerald-500/30',
+    hoverRing: 'group-hover:ring-emerald-500/40 dark:group-hover:ring-emerald-400/50',
+    shadow: 'group-hover:shadow-[0_0_24px_rgba(52,211,153,0.4)]',
+    glow: 'rgba(52,211,153,0.18)',
+    borderHover: 'hover:border-emerald-500/50',
+  },
+  violet: {
+    bg: 'bg-violet-500/10 dark:bg-violet-500/15',
+    text: 'text-violet-600 dark:text-violet-400',
+    ring: 'ring-violet-500/20 dark:ring-violet-400/30',
+    hoverBg: 'group-hover:bg-violet-500/20 dark:group-hover:bg-violet-500/30',
+    hoverRing: 'group-hover:ring-violet-500/40 dark:group-hover:ring-violet-400/50',
+    shadow: 'group-hover:shadow-[0_0_24px_rgba(167,139,250,0.4)]',
+    glow: 'rgba(167,139,250,0.18)',
+    borderHover: 'hover:border-violet-500/50',
+  },
+} as const;
+
 export default function Home() {
   return (
     <main className="flex flex-1 flex-col">
-      {/* Hero — full-viewport lattice background (design reference) */}
+      {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <section className="relative h-screen min-h-[760px] w-full overflow-hidden">
         <div aria-hidden className="absolute inset-0">
-          {/* Pure background layer — the branded hero content overlays it. The
-              lattice follows the active theme (dark canvas on dark, light on
-              light). */}
-          <LatticeBackground title="" subtitle="" description="" />
+          <FractalBloomCanvas />
         </div>
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 z-10 h-px bg-gradient-to-r from-transparent via-sky-500/40 to-transparent"
+          className="pointer-events-none absolute inset-x-0 top-0 z-10 h-px bg-gradient-to-r from-transparent via-sky-500/50 to-transparent"
         />
         <div className="pointer-events-none relative z-10 mx-auto flex h-full w-full max-w-6xl flex-col items-center justify-center px-6 text-center">
-          {/* Eyebrow badge */}
-          <span className="flex items-center gap-2.5 rounded-full border border-sky-400/40 bg-sky-400/10 px-4 py-1.5 font-mono text-[11px] uppercase tracking-widest text-sky-700 backdrop-blur-sm dark:border-sky-400/30 dark:text-sky-300">
+          {/* Eyebrow badge with backdrop blur */}
+          <span className="flex items-center gap-2.5 rounded-full border border-sky-400/40 bg-white/80 dark:bg-slate-900/80 px-4 py-1.5 font-mono text-[11px] uppercase tracking-widest text-sky-700 dark:text-sky-300 backdrop-blur-md shadow-sm dark:shadow-[0_0_20px_rgba(56,189,248,0.2)]">
             <span aria-hidden className="relative flex size-2">
               <span className="absolute inline-flex size-full animate-ping rounded-full bg-sky-400 opacity-75" />
-              <span className="relative inline-flex size-2 rounded-full bg-sky-400" />
+              <span className="relative inline-flex size-2 rounded-full bg-sky-500" />
             </span>
             Codebase intelligence · powered by CognoDB
           </span>
 
-          {/* Headline — value-first; the brand lives in the nav and footer */}
-          <h1 className="mt-6 font-mono text-4xl font-bold uppercase leading-[0.95] tracking-tighter text-slate-900 dark:text-white sm:text-6xl lg:text-7xl">
+          {/* Headline */}
+          <h1
+            className="mt-8 font-mono text-5xl font-bold uppercase leading-[0.92] tracking-tighter text-slate-900 dark:text-white sm:text-7xl lg:text-8xl drop-shadow-[0_2px_16px_rgba(255,255,255,0.8)] dark:drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)]"
+            style={{ textWrap: 'balance' }}
+          >
             Know what breaks
             <span className="block bg-gradient-to-r from-sky-600 via-sky-500 to-indigo-600 bg-clip-text pb-1 text-transparent dark:from-sky-300 dark:via-sky-200 dark:to-indigo-300">
               before you commit
             </span>
           </h1>
 
-          <p className="mt-5 max-w-2xl text-base leading-relaxed text-slate-600 dark:text-slate-200/90 sm:text-lg">
+          {/* Subtitle with frosted glass blur */}
+          <p
+            className="mt-6 max-w-2xl rounded-2xl border border-slate-200/70 bg-white/75 px-6 py-3.5 text-base leading-relaxed text-slate-800 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-slate-950/70 dark:text-slate-200 sm:text-lg dark:shadow-[0_8px_32px_rgba(0,0,0,0.36)]"
+            style={{ textWrap: 'pretty' }}
+          >
             TraceGraph maps your repository into a labeled property graph — files, functions, tests,
             and change history — so impact analysis is a{' '}
-            <span className="font-semibold text-sky-600 dark:text-sky-300">traversal, not a guess</span>.
+            <span className="font-semibold text-sky-600 dark:text-sky-300">
+              traversal, not a guess
+            </span>
+            .
           </p>
 
           <div className="pointer-events-auto mt-8 flex flex-wrap items-center justify-center gap-3">
             <LandingCta label="Get started free" size="lg" />
             <a
               href="#how-it-works"
-              className="group inline-flex h-11 items-center gap-2 rounded-md border border-slate-300 bg-white/70 px-6 text-sm font-medium text-slate-800 backdrop-blur-sm transition-colors hover:border-slate-400 hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-white/90 dark:hover:border-white/30 dark:hover:bg-white/10"
+              className="group inline-flex h-11 items-center gap-2 rounded-md border border-slate-300/90 bg-white/80 px-6 text-sm font-medium text-slate-800 backdrop-blur-md transition-all hover:border-slate-400 hover:bg-white hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 dark:border-white/20 dark:bg-white/10 dark:text-white dark:hover:border-white/40 dark:hover:bg-white/15 dark:shadow-[0_0_20px_rgba(255,255,255,0.1)]"
             >
               See how it works
               <ArrowDown
@@ -487,34 +571,28 @@ export default function Home() {
             </a>
           </div>
 
-          {/* Trust markers */}
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 font-mono text-[11px] uppercase tracking-widest text-slate-500 dark:text-slate-400">
-            <span className="flex items-center gap-1.5">
+          {/* Trust markers with frosted glass blur */}
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5 font-mono text-[11px] uppercase tracking-widest text-slate-700 dark:text-slate-300">
+            <span className="flex items-center gap-1.5 rounded-full border border-slate-200/80 bg-white/75 px-3 py-1 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-slate-900/70">
               <CheckCircle2 className="size-3.5 text-emerald-500 dark:text-emerald-400" aria-hidden />
               Free to start
             </span>
-            <span aria-hidden className="text-slate-400 dark:text-slate-600">
-              •
-            </span>
-            <span className="flex items-center gap-1.5">
+            <span className="flex items-center gap-1.5 rounded-full border border-slate-200/80 bg-white/75 px-3 py-1 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-slate-900/70">
               <GitBranch className="size-3.5 text-sky-500 dark:text-sky-400" aria-hidden />
               Your GitHub repo, mapped in minutes
             </span>
+            <span className="flex items-center gap-1.5 rounded-full border border-slate-200/80 bg-white/75 px-3 py-1 shadow-sm backdrop-blur-md dark:border-white/10 dark:bg-slate-900/70">
+              <Layers className="size-3.5 text-violet-500 dark:text-violet-400" aria-hidden />
+              Multi-language support
+            </span>
           </div>
-
-          {/* Live impact-analysis preview */}
-          <ImpactPreviewCard />
-
         </div>
 
-        {/* Soft bottom fade — the lattice melts into the page background instead
-            of ending at a hard line (token-based, so it works in both themes). */}
         <div
           aria-hidden
           className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-44 bg-gradient-to-b from-transparent to-background"
         />
 
-        {/* Scroll cue — minimal chevron so it never collides with the card */}
         <div
           aria-hidden
           className="pointer-events-none absolute bottom-4 left-1/2 z-10 -translate-x-1/2"
@@ -523,214 +601,306 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Product preview — floats over the lattice hero */}
+      {/* ── Social proof strip ──────────────────────────────────────────── */}
+      <section className="relative border-y border-border/70 bg-muted/20 backdrop-blur-sm" aria-label="Social proof">
+        <div
+          aria-hidden
+          className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-500/40 to-transparent"
+        />
+        <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-4 px-6 py-6 sm:flex-row sm:justify-between">
+          <p className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground font-medium">
+            Trusted by engineering teams across stacks
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+            {['Payments', 'Platform', 'Commerce', 'Infrastructure', 'DevOps'].map((team) => (
+              <span
+                key={team}
+                className="font-mono text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/60 transition-all duration-300 hover:text-sky-500 dark:hover:text-sky-400 hover:scale-105 cursor-default"
+              >
+                {team}
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Product preview ─────────────────────────────────────────────── */}
       <section className="relative z-10 px-6 pb-20">
         <GraphPreview />
       </section>
 
-      {/* Capability strip */}
-      <section className="relative border-y border-border/60 bg-muted/30">
+      {/* ── Capability strip ────────────────────────────────────────────── */}
+      <section className="relative border-y border-border/70 bg-muted/30 backdrop-blur-sm" aria-label="Key capabilities">
         <div
           aria-hidden
-          className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-sky-500/40 to-transparent"
+          className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-sky-500/50 to-transparent"
         />
         <div
           aria-hidden
-          className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-sky-500/20 to-transparent"
+          className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-sky-500/30 to-transparent"
         />
-        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-center gap-x-6 gap-y-2 px-6 py-4 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
-          {['Labeled property graph', 'openCypher queries', 'Multi-hop traversal', 'Test-aware impact'].map(
-            (item, i) => (
+        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-center gap-x-6 gap-y-2.5 px-6 py-4 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+          {[
+            'Labeled property graph',
+            'openCypher queries',
+            'Multi-hop traversal',
+            'Test-aware impact',
+            'Living context graph',
+          ].map((item, i) => (
+            <span
+              key={item}
+              className="flex cursor-default items-center gap-2 font-medium transition-colors duration-300 hover:text-sky-500 dark:hover:text-sky-300"
+            >
+              {i > 0 && (
+                <span aria-hidden className="mr-6 hidden text-border sm:inline font-bold">
+                  ·
+                </span>
+              )}
               <span
-                key={item}
-                className="flex cursor-default items-center gap-2 transition-colors duration-300 hover:text-sky-300"
-              >
-                {i > 0 && (
-                  <span aria-hidden className="mr-6 hidden text-border sm:inline">
-                    •
-                  </span>
-                )}
-                <span
-                  aria-hidden
-                  className="size-1.5 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 shadow-[0_0_8px_rgba(56,189,248,0.5)]"
-                />
-                {item}
-              </span>
-            ),
-          )}
+                aria-hidden
+                className="size-1.5 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 shadow-[0_0_8px_rgba(56,189,248,0.7)]"
+              />
+              {item}
+            </span>
+          ))}
         </div>
       </section>
 
-      {/* How it works */}
-      <section id="how-it-works" className="mx-auto w-full max-w-6xl scroll-mt-24 px-6 py-20">
+      {/* ── How it works ────────────────────────────────────────────────── */}
+      <section id="how-it-works" className="relative mx-auto w-full max-w-6xl scroll-mt-24 px-6 py-28">
         <FadeIn className="flex flex-col items-center gap-3 text-center">
-          <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
-            How it works
-          </p>
-          <h2 className="max-w-xl font-heading text-2xl font-bold uppercase tracking-tight sm:text-3xl">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-400/40 bg-sky-500/10 px-3 py-1 font-mono text-xs uppercase tracking-widest text-sky-600 dark:text-sky-300 backdrop-blur-sm">
+            <Sparkles className="size-3.5" />
+            Workflow
+          </span>
+          <h2
+            className="max-w-xl font-heading text-2xl font-bold uppercase tracking-tight sm:text-4xl text-foreground"
+            style={{ textWrap: 'balance' }}
+          >
             From repository to risk in three steps
           </h2>
+          <p className="max-w-lg text-sm text-muted-foreground">
+            Connect your codebase once and gain continuous, deterministic impact intelligence.
+          </p>
         </FadeIn>
-        <ol className="relative mt-12 grid gap-4 sm:grid-cols-3">
-          {/* Process rail — connects the step badges on desktop */}
+
+        <ol className="relative mt-16 grid gap-6 sm:grid-cols-3">
           <span
             aria-hidden
-            className="absolute left-[16.66%] right-[16.66%] top-[44px] hidden h-px -translate-y-1/2 bg-gradient-to-r from-sky-400/0 via-sky-400/40 to-sky-400/0 sm:block"
+            className="absolute left-[16.66%] right-[16.66%] top-[48px] hidden h-px -translate-y-1/2 bg-gradient-to-r from-sky-400/0 via-sky-400/60 to-sky-400/0 sm:block"
           />
-          {steps.map(({ number, title, body }, i) => (
-            <FadeIn key={number} delay={i * 80} className="h-full">
-              <li className="group relative flex h-full flex-col gap-4 overflow-hidden rounded-xl border border-border/60 bg-card/50 p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-sky-500/40 hover:bg-card hover:shadow-[0_16px_40px_-20px_rgba(2,6,23,0.28)]">
-                {/* Ghost number watermark */}
+          {steps.map(({ number, icon: Icon, title, body }, i) => (
+            <FadeIn key={number} delay={i * 90} className="h-full">
+              <li className="group relative flex h-full flex-col gap-4 overflow-hidden rounded-2xl border border-border/70 bg-card/60 p-7 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-sky-500/50 hover:bg-card hover:shadow-[0_20px_50px_-20px_rgba(56,189,248,0.25)]">
+                {/* Large subtle number background watermark */}
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute -right-2 -top-5 font-mono text-6xl font-bold leading-none text-foreground/[0.05] transition-colors duration-300 group-hover:text-sky-400/10"
+                  className="pointer-events-none absolute -right-2 -top-6 font-mono text-7xl font-bold leading-none text-foreground/[0.04] transition-colors duration-300 group-hover:text-sky-500/10"
                 >
                   {number}
                 </span>
-                <span className="flex size-10 items-center justify-center rounded-full border border-sky-400/30 bg-sky-500/10 font-mono text-sm font-bold text-sky-300 transition-all duration-300 group-hover:border-sky-400/60 group-hover:bg-sky-500/20 group-hover:shadow-[0_0_18px_rgba(56,189,248,0.35)]">
-                  {number}
-                </span>
-                <h3 className="relative text-sm font-semibold">{title}</h3>
-                <p className="relative text-sm leading-relaxed text-muted-foreground">{body}</p>
+
+                <div className="flex items-center justify-between">
+                  <span className="flex size-11 items-center justify-center rounded-xl border border-sky-400/40 bg-sky-500/10 font-mono text-sm font-bold text-sky-500 dark:text-sky-300 transition-all duration-300 group-hover:border-sky-400/70 group-hover:bg-sky-500/20 group-hover:shadow-[0_0_20px_rgba(56,189,248,0.45)]">
+                    {number}
+                  </span>
+                  <Icon
+                    className="size-6 text-sky-500/70 transition-colors duration-300 group-hover:text-sky-400 group-hover:scale-110"
+                    aria-hidden
+                  />
+                </div>
+
+                <h3 className="relative text-base font-semibold text-foreground mt-2">{title}</h3>
+                <p
+                  className="relative text-sm leading-relaxed text-muted-foreground"
+                  style={{ textWrap: 'pretty' }}
+                >
+                  {body}
+                </p>
               </li>
             </FadeIn>
           ))}
         </ol>
       </section>
 
-      {/* Features */}
-      <section id="features" className="relative scroll-mt-24 overflow-hidden border-t border-border/60 bg-card/30">
-        {/* Dot-grid texture — echoes the graph canvas */}
+      {/* ── Code preview ────────────────────────────────────────────────── */}
+      <section className="px-6 pb-24" aria-label="Product demo">
+        <FadeIn>
+          <CodePreview />
+        </FadeIn>
+      </section>
+
+      {/* ── Features ────────────────────────────────────────────────────── */}
+      <section id="features" className="relative scroll-mt-24 overflow-hidden border-t border-border/70 bg-card/30">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-30"
+          className="pointer-events-none absolute inset-0 opacity-25"
           style={{
-            backgroundImage: 'radial-gradient(circle, var(--border) 1px, transparent 1px)',
+            backgroundImage:
+              'radial-gradient(circle, var(--border) 1px, transparent 1px)',
             backgroundSize: '22px 22px',
           }}
         />
-        <div className="relative mx-auto w-full max-w-6xl px-6 py-20">
+        <div className="relative mx-auto w-full max-w-6xl px-6 py-28">
           <FadeIn className="flex flex-col items-center gap-3 text-center">
-            <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-400/40 bg-sky-500/10 px-3 py-1 font-mono text-xs uppercase tracking-widest text-sky-600 dark:text-sky-300 backdrop-blur-sm">
+              <Cpu className="size-3.5" />
               Capabilities
-            </p>
-            <h2 className="max-w-2xl font-heading text-2xl font-bold uppercase tracking-tight sm:text-3xl">
+            </span>
+            <h2
+              className="max-w-2xl font-heading text-2xl font-bold uppercase tracking-tight sm:text-4xl text-foreground"
+              style={{ textWrap: 'balance' }}
+            >
               Everything you need to change code with confidence
             </h2>
-            <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-              TraceGraph stores your repository as a labeled property graph, so relationship questions
-              are answered by traversal — not by joining tables.
+            <p
+              className="mt-1 max-w-xl text-sm text-muted-foreground leading-relaxed"
+              style={{ textWrap: 'pretty' }}
+            >
+              TraceGraph stores your repository as a labeled property graph, so relationship
+              questions are answered by lightning-fast traversal — not by joining tables.
             </p>
           </FadeIn>
 
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {features.map(({ icon: Icon, title, description }, i) => (
-              <FadeIn key={title} delay={(i % 4) * 80} className="h-full">
-                <div className="group relative flex h-full flex-col gap-3 overflow-hidden rounded-xl border border-border/60 bg-card/70 p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-sky-500/40 hover:shadow-[0_16px_40px_-20px_rgba(2,6,23,0.28)]">
-                  {/* Icon glow that blooms on hover */}
-                  <div
-                    aria-hidden
-                    className="pointer-events-none absolute inset-0 bg-[radial-gradient(140px_90px_at_28%_0%,rgba(56,189,248,0.14),transparent_70%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-                  />
-                  <span className="relative flex size-9 items-center justify-center rounded-lg bg-sky-500/10 text-sky-400 ring-1 ring-inset ring-sky-400/20 transition-all duration-300 group-hover:bg-sky-500/20 group-hover:ring-sky-400/40 group-hover:shadow-[0_0_18px_rgba(56,189,248,0.3)]">
-                    <Icon className="size-4.5" />
-                  </span>
-                  <h3 className="relative text-sm font-semibold">{title}</h3>
-                  <p className="relative text-sm leading-relaxed text-muted-foreground">{description}</p>
-                </div>
-              </FadeIn>
-            ))}
+          <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {features.map(({ icon: Icon, title, description, accent }, i) => {
+              const a = ACCENT_MAP[accent as keyof typeof ACCENT_MAP] ?? ACCENT_MAP.sky;
+              return (
+                <FadeIn key={title} delay={(i % 4) * 80} className="h-full">
+                  <div className={`group relative flex h-full flex-col gap-3.5 overflow-hidden rounded-2xl border border-border/70 bg-card/75 p-6 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 ${a.borderHover} hover:shadow-[0_20px_45px_-15px_rgba(2,6,23,0.3)] dark:hover:shadow-[0_20px_45px_-15px_rgba(56,189,248,0.25)]`}>
+                    <div
+                      aria-hidden
+                      className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                      style={{
+                        background: `radial-gradient(180px 120px at 28% 0%, ${a.glow}, transparent 75%)`,
+                      }}
+                    />
+                    <span
+                      className={`relative flex size-11 items-center justify-center rounded-xl ${a.bg} ${a.text} ring-1 ring-inset ${a.ring} transition-all duration-300 ${a.hoverBg} ${a.hoverRing} ${a.shadow} group-hover:scale-105`}
+                    >
+                      <Icon className="size-5" />
+                    </span>
+                    <h3 className="relative text-base font-semibold text-foreground">{title}</h3>
+                    <p
+                      className="relative text-sm leading-relaxed text-muted-foreground"
+                      style={{ textWrap: 'pretty' }}
+                    >
+                      {description}
+                    </p>
+                  </div>
+                </FadeIn>
+              );
+            })}
           </div>
         </div>
       </section>
 
-      {/* Value proposition */}
-      <section className="relative mx-auto w-full max-w-6xl px-6 py-20">
-        {/* Ambient glow behind the grid */}
+      {/* ── Value proposition ───────────────────────────────────────────── */}
+      <section className="relative mx-auto w-full max-w-6xl px-6 py-28">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-1/3 mx-auto h-72 max-w-3xl rounded-full bg-[radial-gradient(ellipse_at_center,rgba(56,189,248,0.07),transparent_65%)] blur-2xl"
+          className="pointer-events-none absolute inset-x-0 top-1/3 mx-auto h-72 max-w-3xl rounded-full bg-[radial-gradient(ellipse_at_center,rgba(56,189,248,0.12),transparent_65%)] blur-3xl"
         />
         <FadeIn className="relative flex flex-col items-center gap-3 text-center">
-          <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-400/40 bg-sky-500/10 px-3 py-1 font-mono text-xs uppercase tracking-widest text-sky-600 dark:text-sky-300 backdrop-blur-sm">
+            <Network className="size-3.5" />
             Why a graph
-          </p>
-          <h2 className="max-w-2xl font-heading text-2xl font-bold uppercase tracking-tight sm:text-3xl">
+          </span>
+          <h2
+            className="max-w-2xl font-heading text-2xl font-bold uppercase tracking-tight sm:text-4xl text-foreground"
+            style={{ textWrap: 'balance' }}
+          >
             Relationship questions, answered by traversal
           </h2>
         </FadeIn>
-        <div className="relative mt-12 grid gap-4 sm:grid-cols-3">
+        <div className="relative mt-14 grid gap-5 sm:grid-cols-3">
           {[
             {
               icon: Workflow,
               title: 'Multi-hop traversal',
-              body: 'Answer “what else is affected?” across 1, 2, or 3 relationship hops — dynamically, without recursive joins.',
+              body: 'Answer "what else is affected?" across 1, 2, or 3 relationship hops — dynamically, without sluggish recursive relational joins.',
             },
             {
               icon: ShieldCheck,
               title: 'Test-aware impact',
-              body: 'Every impact report shows which tests cover the components you are about to change.',
+              body: 'Every impact report highlights covering test suites and untested paths so you never ship untested code regressions.',
             },
             {
               icon: GitPullRequestArrow,
               title: 'Change context',
-              body: 'Commits, pull requests, and issues are first-class graph citizens, linked to the code they touched.',
+              body: 'Commits, pull requests, and issues are first-class graph citizens, linked directly to the functions and classes they modified.',
             },
           ].map(({ icon: Icon, title, body }, i) => (
             <FadeIn key={title} delay={i * 80} className="h-full">
-              <div className="group relative flex h-full flex-col gap-3 overflow-hidden rounded-xl border border-border/60 bg-card/50 p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-sky-500/40 hover:bg-card hover:shadow-[0_16px_40px_-20px_rgba(2,6,23,0.28)]">
+              <div className="group relative flex h-full flex-col gap-4 overflow-hidden rounded-2xl border border-border/70 bg-card/60 p-7 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-sky-500/50 hover:bg-card hover:shadow-[0_20px_50px_-20px_rgba(56,189,248,0.25)]">
                 <div
                   aria-hidden
-                  className="pointer-events-none absolute inset-0 bg-[radial-gradient(140px_90px_at_28%_0%,rgba(56,189,248,0.14),transparent_70%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                  className="pointer-events-none absolute inset-0 bg-[radial-gradient(160px_100px_at_28%_0%,rgba(56,189,248,0.18),transparent_70%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100"
                 />
-                <span className="relative flex size-9 items-center justify-center rounded-lg bg-sky-500/10 text-sky-400 ring-1 ring-inset ring-sky-400/20 transition-all duration-300 group-hover:bg-sky-500/20 group-hover:ring-sky-400/40 group-hover:shadow-[0_0_18px_rgba(56,189,248,0.3)]">
-                  <Icon className="size-4.5" />
+                <span className="relative flex size-11 items-center justify-center rounded-xl bg-sky-500/10 text-sky-500 dark:text-sky-400 ring-1 ring-inset ring-sky-400/30 transition-all duration-300 group-hover:bg-sky-500/20 group-hover:ring-sky-400/60 group-hover:shadow-[0_0_20px_rgba(56,189,248,0.4)] group-hover:scale-105">
+                  <Icon className="size-5" />
                 </span>
-                <h3 className="relative text-base font-semibold">{title}</h3>
-                <p className="relative text-sm leading-relaxed text-muted-foreground">{body}</p>
+                <h3 className="relative text-base font-semibold text-foreground">{title}</h3>
+                <p
+                  className="relative text-sm leading-relaxed text-muted-foreground"
+                  style={{ textWrap: 'pretty' }}
+                >
+                  {body}
+                </p>
               </div>
             </FadeIn>
           ))}
         </div>
       </section>
 
-      {/* Testimonials + stats — social proof */}
-      <section id="testimonials" className="relative scroll-mt-24 overflow-hidden border-t border-border/60 bg-card/30">
+      {/* ── Testimonials + stats ────────────────────────────────────────── */}
+      <section id="testimonials" className="relative scroll-mt-24 overflow-hidden border-t border-border/70 bg-card/30">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-30"
+          className="pointer-events-none absolute inset-0 opacity-25"
           style={{
-            backgroundImage: 'radial-gradient(circle, var(--border) 1px, transparent 1px)',
+            backgroundImage:
+              'radial-gradient(circle, var(--border) 1px, transparent 1px)',
             backgroundSize: '22px 22px',
           }}
         />
-        <div className="relative mx-auto w-full max-w-6xl px-6 py-20">
+        <div className="relative mx-auto w-full max-w-6xl px-6 py-28">
           <FadeIn className="flex flex-col items-center gap-3 text-center">
-            <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
-              Loved by engineers
-            </p>
-            <h2 className="max-w-2xl font-heading text-2xl font-bold uppercase tracking-tight sm:text-3xl">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-400/40 bg-sky-500/10 px-3 py-1 font-mono text-xs uppercase tracking-widest text-sky-600 dark:text-sky-300 backdrop-blur-sm">
+              <Star className="size-3.5 fill-current" />
+              Engineers
+            </span>
+            <h2
+              className="max-w-2xl font-heading text-2xl font-bold uppercase tracking-tight sm:text-4xl text-foreground"
+              style={{ textWrap: 'balance' }}
+            >
               The impact view teams actually read
             </h2>
           </FadeIn>
-          <div className="mt-12 grid gap-4 md:grid-cols-3">
+
+          <div className="mt-14 grid gap-5 md:grid-cols-3">
             {testimonials.map((t, i) => (
               <FadeIn key={t.name} delay={i * 80} className="h-full">
-                <figure className="group relative flex h-full flex-col gap-4 overflow-hidden rounded-xl border border-border/60 bg-card/70 p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-sky-500/40 hover:shadow-[0_16px_40px_-20px_rgba(2,6,23,0.28)]">
+                <figure className="group relative flex h-full flex-col gap-4 overflow-hidden rounded-2xl border border-border/70 bg-card/80 p-7 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-sky-500/50 hover:shadow-[0_20px_50px_-20px_rgba(56,189,248,0.25)]">
                   <div aria-hidden className="flex items-center gap-1 text-amber-400">
                     {Array.from({ length: 5 }).map((_, s) => (
-                      <Star key={s} className="size-3.5 fill-current" aria-hidden />
+                      <Star key={s} className="size-4 fill-current drop-shadow-[0_0_6px_rgba(251,191,36,0.5)]" aria-hidden />
                     ))}
                   </div>
-                  <blockquote className="relative text-sm leading-relaxed text-muted-foreground">
-                    “{t.quote}”
+                  <blockquote
+                    className="relative text-sm leading-relaxed text-foreground/90 font-normal"
+                    style={{ textWrap: 'pretty' }}
+                  >
+                    &ldquo;{t.quote}&rdquo;
                   </blockquote>
-                  <figcaption className="mt-auto flex items-center gap-3 border-t border-border/60 pt-4">
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 font-mono text-[11px] font-bold text-white shadow-[0_0_14px_rgba(167,139,250,0.35)]">
+                  <figcaption className="mt-auto flex items-center gap-3.5 border-t border-border/70 pt-5">
+                    <span
+                      className={`flex size-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${t.color} font-mono text-xs font-bold text-white shadow-[0_0_16px_rgba(167,139,250,0.45)] ring-2 ring-white/20`}
+                    >
                       {t.initials}
                     </span>
                     <span className="flex flex-col">
-                      <span className="text-sm font-semibold">{t.name}</span>
+                      <span className="text-sm font-semibold text-foreground">{t.name}</span>
                       <span className="text-xs text-muted-foreground">{t.role}</span>
                     </span>
                   </figcaption>
@@ -740,14 +910,17 @@ export default function Home() {
           </div>
 
           {/* Stats row */}
-          <dl className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <dl className="mt-12 grid grid-cols-2 gap-4 sm:grid-cols-4">
             {STATS.map((s, i) => (
               <FadeIn key={s.label} delay={i * 60} className="h-full">
-                <div className="flex h-full flex-col items-center justify-center gap-1 rounded-xl border border-border/60 bg-card/50 px-4 py-6 text-center">
-                  <dt className="order-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+                <div className="flex h-full flex-col items-center justify-center gap-1.5 rounded-2xl border border-border/70 bg-card/60 px-5 py-7 text-center backdrop-blur-xl transition-all duration-300 hover:border-sky-500/40 hover:shadow-[0_10px_30px_-10px_rgba(56,189,248,0.2)]">
+                  <dt className="order-2 font-mono text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
                     {s.label}
                   </dt>
-                  <dd className="order-1 bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500 bg-clip-text font-mono text-3xl font-bold text-transparent">
+                  <dd
+                    className="order-1 bg-gradient-to-r from-sky-400 via-indigo-400 to-purple-500 bg-clip-text font-mono text-3xl sm:text-4xl font-bold text-transparent"
+                    style={{ fontVariantNumeric: 'tabular-nums' }}
+                  >
                     {s.value}
                   </dd>
                 </div>
@@ -757,88 +930,118 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Trust — private by design */}
-      <section id="trust" className="mx-auto w-full max-w-6xl scroll-mt-24 px-6 py-20">
+      {/* ── Trust ───────────────────────────────────────────────────────── */}
+      <section id="trust" className="mx-auto w-full max-w-6xl scroll-mt-24 px-6 py-28">
         <FadeIn className="flex flex-col items-center gap-3 text-center">
-          <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">
-            Private by design
-          </p>
-          <h2 className="max-w-2xl font-heading text-2xl font-bold uppercase tracking-tight sm:text-3xl">
-            Your code is yours
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-400/40 bg-sky-500/10 px-3 py-1 font-mono text-xs uppercase tracking-widest text-sky-600 dark:text-sky-300 backdrop-blur-sm">
+            <Lock className="size-3.5" />
+            Security & Ownership
+          </span>
+          <h2
+            className="max-w-2xl font-heading text-2xl font-bold uppercase tracking-tight sm:text-4xl text-foreground"
+            style={{ textWrap: 'balance' }}
+          >
+            Your code belongs to you
           </h2>
         </FadeIn>
-        <div className="mt-12 grid gap-4 sm:grid-cols-3">
+        <div className="mt-14 grid gap-5 sm:grid-cols-3">
           {trust.map(({ icon: Icon, title, body }, i) => (
             <FadeIn key={title} delay={i * 80} className="h-full">
-              <div className="group relative flex h-full flex-col gap-3 overflow-hidden rounded-xl border border-border/60 bg-card/50 p-6 transition-all duration-300 hover:-translate-y-0.5 hover:border-sky-500/40 hover:bg-card hover:shadow-[0_16px_40px_-20px_rgba(2,6,23,0.28)]">
+              <div className="group relative flex h-full flex-col gap-4 overflow-hidden rounded-2xl border border-border/70 bg-card/60 p-7 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-violet-500/50 hover:bg-card hover:shadow-[0_20px_50px_-20px_rgba(167,139,250,0.25)]">
                 <div
                   aria-hidden
-                  className="pointer-events-none absolute inset-0 bg-[radial-gradient(140px_90px_at_28%_0%,rgba(167,139,250,0.14),transparent_70%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                  className="pointer-events-none absolute inset-0 bg-[radial-gradient(160px_100px_at_28%_0%,rgba(167,139,250,0.18),transparent_70%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100"
                 />
-                <span className="relative flex size-9 items-center justify-center rounded-lg bg-violet-500/10 text-violet-400 ring-1 ring-inset ring-violet-400/20 transition-all duration-300 group-hover:bg-violet-500/20 group-hover:ring-violet-400/40 group-hover:shadow-[0_0_18px_rgba(167,139,250,0.3)]">
-                  <Icon className="size-4.5" />
+                <span className="relative flex size-11 items-center justify-center rounded-xl bg-violet-500/10 text-violet-500 dark:text-violet-400 ring-1 ring-inset ring-violet-400/30 transition-all duration-300 group-hover:bg-violet-500/20 group-hover:ring-violet-400/60 group-hover:shadow-[0_0_20px_rgba(167,139,250,0.4)] group-hover:scale-105">
+                  <Icon className="size-5" />
                 </span>
-                <h3 className="relative text-sm font-semibold">{title}</h3>
-                <p className="relative text-sm leading-relaxed text-muted-foreground">{body}</p>
+                <h3 className="relative text-base font-semibold text-foreground">{title}</h3>
+                <p
+                  className="relative text-sm leading-relaxed text-muted-foreground"
+                  style={{ textWrap: 'pretty' }}
+                >
+                  {body}
+                </p>
               </div>
             </FadeIn>
           ))}
         </div>
       </section>
 
-      {/* FAQ */}
-      <section id="faq" className="mx-auto w-full max-w-3xl scroll-mt-24 px-6 py-20">
+      {/* ── FAQ ─────────────────────────────────────────────────────────── */}
+      <section id="faq" className="mx-auto w-full max-w-3xl scroll-mt-24 px-6 py-28">
         <FadeIn className="flex flex-col items-center gap-3 text-center">
-          <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">FAQ</p>
-          <h2 className="font-heading text-2xl font-bold uppercase tracking-tight sm:text-3xl">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-sky-400/40 bg-sky-500/10 px-3 py-1 font-mono text-xs uppercase tracking-widest text-sky-600 dark:text-sky-300 backdrop-blur-sm">
+            FAQ
+          </span>
+          <h2
+            className="font-heading text-2xl font-bold uppercase tracking-tight sm:text-4xl text-foreground"
+            style={{ textWrap: 'balance' }}
+          >
             Frequently asked questions
           </h2>
         </FadeIn>
-        <div className="mt-10 flex flex-col gap-3">
+        <div className="mt-12 flex flex-col gap-3.5">
           {faqs.map(({ q, a }, i) => (
             <FadeIn key={q} delay={i * 60} className="h-full">
-              <details className="group rounded-xl border border-border/60 bg-card/50 transition-colors duration-300 open:border-sky-500/40 hover:border-sky-500/40">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-sm font-semibold [&::-webkit-details-marker]:hidden">
+              <details className="group rounded-2xl border border-border/70 bg-card/65 backdrop-blur-xl transition-all duration-300 open:border-sky-500/50 hover:border-sky-500/40 hover:shadow-sm">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-6 py-5 text-sm sm:text-base font-semibold text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400 [&::-webkit-details-marker]:hidden">
                   {q}
                   <ChevronDown
-                    className="size-4 shrink-0 text-muted-foreground transition-transform duration-300 group-open:rotate-180"
+                    className="size-4 shrink-0 text-muted-foreground transition-transform duration-300 group-open:rotate-180 group-open:text-sky-400"
                     aria-hidden
                   />
                 </summary>
-                <p className="px-5 pb-5 text-sm leading-relaxed text-muted-foreground">{a}</p>
+                <p
+                  className="px-6 pb-6 text-sm leading-relaxed text-muted-foreground border-t border-border/40 pt-4"
+                  style={{ textWrap: 'pretty' }}
+                >
+                  {a}
+                </p>
               </details>
             </FadeIn>
           ))}
         </div>
       </section>
 
-      {/* CTA band */}
-      <section className="px-6 pb-20">
-        <FadeIn className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-br from-sky-500/10 via-background to-indigo-500/10 px-6 py-14 text-center sm:px-12">
+      {/* ── CTA band ────────────────────────────────────────────────────── */}
+      <section className="px-6 pb-28">
+        <FadeIn className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-3xl border border-sky-500/30 bg-gradient-to-br from-sky-500/15 via-background to-indigo-500/15 px-6 py-20 text-center sm:px-16 shadow-[0_30px_90px_-20px_rgba(56,189,248,0.25)]">
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(56,189,248,0.12),transparent_60%)]"
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(56,189,248,0.2),transparent_65%)]"
           />
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-0 opacity-40"
+            className="pointer-events-none absolute inset-0 opacity-30"
             style={{
-              backgroundImage: 'radial-gradient(circle, var(--border) 1px, transparent 1px)',
+              backgroundImage:
+                'radial-gradient(circle, var(--border) 1px, transparent 1px)',
               backgroundSize: '22px 22px',
             }}
           />
-          <h2 className="relative font-heading text-2xl font-bold uppercase tracking-tight sm:text-3xl">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-sky-400/70 to-transparent"
+          />
+          <h2
+            className="relative font-heading text-3xl font-bold uppercase tracking-tight sm:text-5xl text-foreground"
+            style={{ textWrap: 'balance' }}
+          >
             Change code with confidence
           </h2>
-          <p className="relative mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
-            Sign in with GitHub and map your repository in minutes — see your codebase as a graph, then
-            predict the impact of every change before you make it.
+          <p
+            className="relative mx-auto mt-5 max-w-xl text-base text-muted-foreground leading-relaxed"
+            style={{ textWrap: 'pretty' }}
+          >
+            Sign in with GitHub and map your repository in minutes — see your codebase as a graph,
+            then predict the blast radius of every change before you merge.
           </p>
-          <div className="relative mt-8 flex flex-wrap items-center justify-center gap-3">
+          <div className="relative mt-9 flex flex-wrap items-center justify-center gap-4">
             <LandingCta label="Get started free" size="lg" />
             <a
               href="#how-it-works"
-              className="inline-flex h-11 items-center justify-center rounded-md px-5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="inline-flex h-11 items-center justify-center rounded-lg border border-border/80 bg-card/80 px-6 text-sm font-medium text-foreground backdrop-blur-md transition-all hover:bg-card hover:border-border hover:scale-105 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
             >
               See how it works
             </a>
@@ -846,73 +1049,93 @@ export default function Home() {
         </FadeIn>
       </section>
 
-      <footer className="relative overflow-hidden border-t border-border/60 bg-card/30">
-        {/* Glowing top border accent line */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-500/40 to-transparent" />
+      {/* ── Footer ──────────────────────────────────────────────────────── */}
+      <footer className="relative overflow-hidden border-t border-border/70 bg-card/30">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-violet-500/50 to-transparent" />
 
-        {/* Giant brand watermark — solid muted ghost. Theme-aware (muted-foreground)
-            and quiet: no gradient, no glow. The vertical mask fades it into the page. */}
         <div
           aria-hidden
           className="pointer-events-none absolute inset-x-0 bottom-0 flex select-none items-end justify-center overflow-hidden [mask-image:linear-gradient(to_top,black_40%,transparent_98%)]"
         >
-          <p className="translate-y-6 text-center font-sans text-[clamp(4rem,18vw,16rem)] font-bold tracking-wide leading-none text-muted-foreground/20">
+          <p className="translate-y-6 text-center font-sans text-[clamp(4rem,18vw,16rem)] font-bold tracking-wide leading-none text-muted-foreground/15">
             TraceGraph
           </p>
         </div>
 
-        <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-12 lg:flex-row lg:items-start lg:justify-between">
+        <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-14 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex max-w-sm flex-col gap-4">
-            {/* Same brand lockup as the header — one logo everywhere */}
             <Wordmark href="/" />
             <p className="text-xs leading-relaxed text-muted-foreground">
               Understand your codebase through relationships — files, classes, functions, tests, and
               change history, mapped as a labeled property graph.
             </p>
-            {/* Operational status chip */}
-            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-border/60 bg-background/50 px-2.5 py-1 text-[11px] text-muted-foreground backdrop-blur-sm">
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-border/80 bg-background/60 px-3 py-1 text-[11px] text-muted-foreground backdrop-blur-md shadow-sm">
               <span className="relative flex size-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
               </span>
-              <span>All Systems Operational</span>
+              <span className="font-medium">All Systems Operational</span>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-8 text-xs sm:grid-cols-3 sm:gap-12">
             <div className="flex flex-col gap-3">
-              <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-foreground/80">Product</span>
-              <a href="#how-it-works" className="text-muted-foreground transition-colors hover:text-foreground">
+              <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-foreground">
+                Product
+              </span>
+              <a
+                href="#how-it-works"
+                className="text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+              >
                 How it works
               </a>
-              <a href="#features" className="text-muted-foreground transition-colors hover:text-foreground">
+              <a
+                href="#features"
+                className="text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+              >
                 Features
               </a>
-              <a href="#faq" className="text-muted-foreground transition-colors hover:text-foreground">
+              <a
+                href="#faq"
+                className="text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+              >
                 FAQ
               </a>
             </div>
 
             <div className="flex flex-col gap-3">
-              <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-foreground/80">Capabilities</span>
-              <a href="#features" className="text-muted-foreground transition-colors hover:text-foreground">
+              <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-foreground">
+                Capabilities
+              </span>
+              <a
+                href="#features"
+                className="text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+              >
                 Impact Analysis
               </a>
-              <a href="#features" className="text-muted-foreground transition-colors hover:text-foreground">
+              <a
+                href="#features"
+                className="text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+              >
                 Graph Explorer
               </a>
-              <a href="#features" className="text-muted-foreground transition-colors hover:text-foreground">
-                Smell Detection
+              <a
+                href="#features"
+                className="text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+              >
+                Dependency Explorer
               </a>
             </div>
 
             <div className="col-span-2 flex flex-col gap-3 sm:col-span-1">
-              <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-foreground/80">Platform</span>
+              <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-foreground">
+                Platform
+              </span>
               <a
                 href="https://opencypher.org"
                 target="_blank"
                 rel="noreferrer"
-                className="font-mono text-muted-foreground transition-colors hover:text-foreground"
+                className="font-mono text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
               >
                 openCypher ↗
               </a>
@@ -923,10 +1146,12 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="relative border-t border-border/40">
-          <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-2 px-6 py-4 text-[11px] text-muted-foreground/70 sm:flex-row">
+        <div className="relative border-t border-border/50">
+          <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-2 px-6 py-4 text-[11px] text-muted-foreground/80 sm:flex-row">
             <p>© {new Date().getFullYear()} TraceGraph — Codebase intelligence, powered by CognoDB.</p>
-            <p className="font-mono text-[10px] text-muted-foreground/50">Built for high-velocity engineering</p>
+            <p className="font-mono text-[10px] text-muted-foreground/60">
+              Built for high-velocity engineering teams
+            </p>
           </div>
         </div>
       </footer>

@@ -44,6 +44,11 @@ import type {
   SyncProgressResponse,
   SyncRun,
   SyncRunListResponse,
+  ChangeHeatmapResponse,
+  NodeChangeFrequencyResponse,
+  NodeContributorsResponse,
+  NodeHistoryResponse,
+  WhyChangedResponse,
 } from '@tracegraph/shared';
 
 /**
@@ -385,4 +390,30 @@ export const apiClient = {
     mutate<StartSyncResponse>(`/sync-runs/${encodeURIComponent(runId)}/retry`, 'POST', token, {}),
   getRevisionStatus: (repoId: string, token?: string | null) =>
     request<RevisionStatusResponse>(`/repositories/${encodeURIComponent(repoId)}/revision`, token),
+
+  // ── History Intelligence (Phase 16) ──
+  getNodeHistory: (id: string, limit = 20, token?: string | null) =>
+    request<NodeHistoryResponse>(`/node-history/history?id=${encodeURIComponent(id)}&limit=${limit}`, token),
+  getNodeContributors: (id: string, limit = 20, token?: string | null) =>
+    request<NodeContributorsResponse>(`/node-history/contributors?id=${encodeURIComponent(id)}&limit=${limit}`, token),
+  getNodeChangeFrequency: (id: string, token?: string | null) =>
+    request<NodeChangeFrequencyResponse>(`/node-history/change-frequency?id=${encodeURIComponent(id)}`, token),
+  getWhyChanged: (id: string, token?: string | null) =>
+    request<WhyChangedResponse>(`/node-history/why-changed?id=${encodeURIComponent(id)}`, token),
+  getChangeHeatmap: (repoId: string, limit = 30, token?: string | null) =>
+    request<ChangeHeatmapResponse>(`/repository/change-heatmap?id=${encodeURIComponent(repoId)}&limit=${limit}`, token),
+ getRepositoryHistory: (repoId: string, limit = 20, token?: string | null) =>
+    request<{ repositoryId: string; timeline: any[]; total: number; hasMore: boolean }>(
+      `/repository/history?id=${encodeURIComponent(repoId)}&limit=${limit}`,
+      token,
+    ),
+
+  // ── Test Intelligence (Phase 17) ──
+  selectTests: (dto: import('@tracegraph/shared').TestSelectionRequest, token?: string | null) =>
+    mutate<import('@tracegraph/shared').TestSelectionResponse>('/test-intelligence/select', 'POST', token, dto),
+  getTestIntelligenceOverview: (repoId: string, token?: string | null) =>
+    request<import('@tracegraph/shared').TestIntelligenceOverview>(
+      `/test-intelligence/overview/${encodeURIComponent(repoId)}`,
+      token,
+    ),
 };

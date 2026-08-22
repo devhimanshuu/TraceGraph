@@ -57,7 +57,10 @@ export function FadeIn({ children, delay = 0, className = '' }: FadeInProps) {
       style={{
         opacity: hidden ? 0 : 1,
         transform: hidden ? 'translateY(16px)' : 'none',
-        transition: `opacity 0.5s ease ${delay}ms, transform 0.5s ease ${delay}ms`,
+        transitionProperty: 'opacity, transform',
+        transitionDuration: '0.5s',
+        transitionTimingFunction: 'ease',
+        transitionDelay: `${delay}ms`,
         willChange: hidden ? 'opacity, transform' : 'auto',
       }}
     >
