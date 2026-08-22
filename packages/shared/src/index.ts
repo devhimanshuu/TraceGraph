@@ -648,6 +648,7 @@ export * from './sync';
 export * from './history';
 export * from './test-intelligence';
 export * from './guardrails';
+export * from './ownership';
 
 /** Standard error body returned by the API. */
 export interface ApiError {

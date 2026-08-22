@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FlaskConical, FolderGit2, LayoutGrid, Network, Radar, ScanSearch, ShieldCheck, Workflow } from 'lucide-react';
+import { FlaskConical, FolderGit2, LayoutGrid, Network, Radar, ScanSearch, ShieldCheck, Users, Workflow } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { href: '/intelligence', label: 'Intelligence', icon: ScanSearch },
   { href: '/test-intelligence', label: 'Tests', icon: FlaskConical },
   { href: '/guardrails', label: 'Guardrails', icon: ShieldCheck },
+  { href: '/ownership', label: 'Ownership', icon: Users },
 ] as const;
 
 /**

@@ -442,4 +442,21 @@ export const apiClient = {
       `/guardrails/seed/${encodeURIComponent(repositoryId)}`,
       'POST', token, {},
     ),
+
+  // ── Ownership Intelligence (Phase 19) ──
+  getOwnership: (entityId: string, token?: string | null) =>
+    request<import('@tracegraph/shared').OwnershipResult>(
+      `/ownership/entity?id=${encodeURIComponent(entityId)}`,
+      token,
+    ),
+  getOwnershipOverview: (repoId: string, token?: string | null) =>
+    request<import('@tracegraph/shared').OwnershipOverview>(
+      `/ownership/repository/${encodeURIComponent(repoId)}`,
+      token,
+    ),
+  getDeveloperExpertise: (username: string, token?: string | null) =>
+    request<import('@tracegraph/shared').DeveloperExpertise>(
+      `/ownership/developer/${encodeURIComponent(username)}`,
+      token,
+    ),
 };
