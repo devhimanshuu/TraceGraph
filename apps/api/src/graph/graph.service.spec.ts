@@ -116,7 +116,7 @@ describe('GraphService', () => {
     expect(repo.traverseFromNode).toHaveBeenCalledWith(
       { id: 'class:pp', type: 'Class', label: 'PaymentService' },
       2,
-      ['CALLS', 'IMPORTS', 'EXTENDS'],
+      ['CALLS', 'IMPORTS', 'EXTENDS', 'CROSS_LANGUAGE'],
       100,
     );
     expect(result.root.id).toBe('class:pp');
@@ -137,7 +137,7 @@ describe('GraphService', () => {
     expect(traverseIntoNode).toHaveBeenCalledWith(
       { id: 'class:pp', type: 'Class', label: 'PaymentService' },
       3,
-      ['CALLS', 'IMPORTS', 'EXTENDS'],
+      ['CALLS', 'IMPORTS', 'EXTENDS', 'CROSS_LANGUAGE'],
       100,
     );
     expect(repo.traverseFromNode).not.toHaveBeenCalled();

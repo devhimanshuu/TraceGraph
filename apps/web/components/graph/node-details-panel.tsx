@@ -1,8 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowRight,
+  ChevronDown,
+  ChevronUp,
   FileCode2,
   GitCompareArrows,
   Radar,
@@ -20,6 +23,7 @@ import {
   NodeTypeIcon,
 } from '@/components/dependencies/relationship-badge';
 import { TopCommitterChip } from '@/components/dependencies/top-committer-chip';
+import { CodePreview } from '@/components/graph/code-preview';
 
 export interface NodeDetailsPanelProps {
   node: GraphNode | null;
@@ -29,11 +33,18 @@ export interface NodeDetailsPanelProps {
 export function NodeDetailsPanel({ node, onClose }: NodeDetailsPanelProps) {
   if (!node) return null;
 
+  const [showCode, setShowCode] = useState(false);
+
   // properties is optional on the shared GraphNode type — never assume it.
   const filePath =
     (node.properties?.filePath as string | undefined) ||
     (node.properties?.path as string | undefined) ||
     (node.type === 'File' ? node.label : undefined);
+
+  // Whether we can show a code preview (File nodes or symbols with filePath)
+  const canShowCode = Boolean(filePath);
+  const lineStart = node.properties?.lineStart as number | undefined;
+  const lineEnd = node.properties?.lineEnd as number | undefined;
 
   return (
     <Card className="border-border/80 bg-card/95 shadow-xl backdrop-blur-md">
@@ -127,7 +138,38 @@ export function NodeDetailsPanel({ node, onClose }: NodeDetailsPanelProps) {
             <Sparkles className="size-3.5" />
             Explain impact
           </Link>
+
+          {/* Code preview toggle */}
+          {canShowCode ? (
+            <button
+              type="button"
+              onClick={() => setShowCode((v) => !v)}
+              className={buttonVariants({
+                variant: 'outline',
+                className: 'w-full gap-2 text-xs',
+                size: 'sm',
+              })}
+            >
+              <FileCode2 className="size-3.5" />
+              {showCode ? 'Hide source' : 'View source'}
+              {showCode ? (
+                <ChevronUp className="size-3 ml-auto" />
+              ) : (
+                <ChevronDown className="size-3 ml-auto" />
+              )}
+            </button>
+          ) : null}
         </div>
+
+        {/* Inline code preview */}
+        {showCode && canShowCode && filePath ? (
+          <div className="-mx-4 -mb-4 mt-1">            <CodePreview
+              filePath={filePath}
+              label={node.label}
+              highlightRange={lineStart && lineEnd ? { start: lineStart, end: lineEnd } : undefined}
+            />
+          </div>
+      ) : null}
       </CardContent>
     </Card>
   );

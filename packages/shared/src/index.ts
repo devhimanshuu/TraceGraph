@@ -29,10 +29,15 @@ export type RelationshipType =
   | 'IMPORTS'
   | 'CALLS'
   | 'EXTENDS'
+  | 'IMPLEMENTS'
+  | 'REFERENCES'
+  | 'DEFINES'
+  | 'OVERRIDES'
   | 'TESTS'
   | 'MODIFIES'
   | 'AUTHORED_BY'
-  | 'RELATED_TO';
+  | 'RELATED_TO'
+  | 'CROSS_LANGUAGE';
 
 // ── Health ────────────────────────────────────────────────────────────────────
 

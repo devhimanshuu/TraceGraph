@@ -321,4 +321,11 @@ export const apiClient = {
     const qs = params.toString();
     return request<GraphResponse>(`/graph${qs ? `?${qs}` : ''}`, token);
   },
+
+  // File content for code preview
+  getFileContent: (filePath: string, token?: string | null) =>
+    request<{ content: string | null; language: string }>(
+      `/nodes/file-content?path=${encodeURIComponent(filePath)}`,
+      token,
+    ),
 };

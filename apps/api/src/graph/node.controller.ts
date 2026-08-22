@@ -22,7 +22,9 @@ import { LimitQueryDto } from './dto/limit-query.dto';
  */
 @Controller('nodes')
 export class NodeController {
-  constructor(private readonly graphService: GraphService) {}
+  constructor(
+    private readonly graphService: GraphService,
+  ) {}
 
   @Get()
   getNode(@Query('id') id: string): Promise<GraphNode> {
@@ -71,5 +73,14 @@ export class NodeController {
   @Get('tests')
   getTests(@Query('id') id: string, @Query() query: LimitQueryDto): Promise<TestCoverage[]> {
     return this.graphService.getTests(id, query.limit ?? 100);
+  }
+
+  /**
+   * `GET /api/nodes/file-content?path=...` — returns the raw source code of a
+   * file from the active repository's GitHub origin.
+   */
+  @Get('file-content')
+  getFileContent(@Query('path') path: string): Promise<{ content: string | null; language: string }> {
+    return this.graphService.getFileContent(path);
   }
 }

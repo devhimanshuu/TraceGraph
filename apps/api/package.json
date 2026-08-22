@@ -14,7 +14,10 @@
     "ci:check": "ts-node --transpile-only scripts/ci-check.ts",
     "build:lambda": "node scripts/build-lambda.js",
     "package:lambda": "npm run build:lambda && serverless package && node scripts/verify-lambda-package.js",
-    "deploy:lambda": "npm run build:lambda && serverless package && node scripts/verify-lambda-package.js && serverless deploy"
+    "deploy:lambda": "npm run build:lambda && serverless package && node scripts/verify-lambda-package.js && serverless deploy",
+    "parser:test": "ts-node --transpile-only scripts/test-parser.ts",
+    "parser:fixture": "ts-node --transpile-only scripts/test-parser.ts test/fixtures/multi-lang",
+    "parser:incremental": "ts-node --transpile-only scripts/test-incremental-sync.ts"
   },
   "dependencies": {
     "@codegenie/serverless-express": "^5.0.0",
@@ -30,7 +33,17 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "tar": "^7.4.3",
-    "typescript": "~5.9.3"
+    "tree-sitter-c-sharp": "^0.23.5",
+    "tree-sitter-cli": "^0.26.12",
+    "tree-sitter-go": "^0.25.0",
+    "tree-sitter-java": "^0.23.5",
+    "tree-sitter-javascript": "^0.25.0",
+    "tree-sitter-php": "^0.24.2",
+    "tree-sitter-python": "^0.25.0",
+    "tree-sitter-rust": "^0.24.0",
+    "tree-sitter-typescript": "^0.23.2",
+    "typescript": "~5.9.3",
+    "web-tree-sitter": "^0.26.12"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.24",

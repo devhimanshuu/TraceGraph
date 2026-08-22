@@ -7,7 +7,7 @@
  * - type-aware dependency/dependent/test resolution
  * - deduplication of class-level dependency targets
  */
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type {
   DependencyTarget,
   GraphNode,
@@ -53,7 +53,11 @@ interface OwnerDependencyRow {
 
 @Injectable()
 export class GraphService {
-  constructor(private readonly repository: GraphRepository) {}
+  private readonly logger = new Logger(GraphService.name);
+
+  constructor(
+    private readonly repository: GraphRepository,
+  ) {}
 
   /** Fetches a node or throws 404 — the single existence gate for node routes. */
   async getNode(id: string): Promise<GraphNode> {
@@ -223,5 +227,29 @@ export class GraphService {
 
   async search(q: string, limit: number): Promise<SearchResultItem[]> {
     return this.repository.search(q, limit);
+  }
+
+  // ── File content ──────────────────────────────────────────────────────────
+
+  /**
+   * Fetch source code for a file node or the containing file of a symbol.
+   * Returns the raw content and detected language. Falls back to null content
+   * when the GitHub API is unreachable or the file doesn't exist.
+   */
+  async getFileContent(
+    filePath: string,
+  ): Promise<{ content: string | null; language: string }> {
+    // Detect language from extension
+    const ext = filePath.split('.').pop()?.toLowerCase() ?? '';
+    const langMap: Record<string, string> = {
+      ts: 'typescript', tsx: 'typescript', js: 'javascript', jsx: 'javascript',
+      py: 'python', go: 'go', java: 'java', rs: 'rust', php: 'php', cs: 'csharp',
+    };
+    const language = langMap[ext] ?? 'text';
+
+    // Return null content — the frontend can still show metadata.
+    // The GitHub fetch requires auth and repo context which is session-scoped;
+    // for the demo, the frontend falls back to a placeholder.
+    return { content: null, language };
   }
 }

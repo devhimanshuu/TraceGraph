@@ -13,6 +13,7 @@ TraceGraph is a graph-powered code intelligence platform that models software re
 - **Code Intelligence & Smells:** Automatically detect circular dependencies, god modules, orphaned code, and test coverage gaps.
 - **Engineering Context:** Trace the full lineage of any code entity: `File → Commit → Pull Request → Issue`.
 - **GitHub Integration:** Sign in with GitHub and import repositories directly into graph structures.
+- **Multi-Language Parser Platform:** Tree-sitter-powered analysis for 8 languages: TypeScript, JavaScript, Python, Go, Java, Rust, PHP, C# — all normalized into a single graph schema.
 
 ---
 

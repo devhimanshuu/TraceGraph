@@ -77,11 +77,13 @@ const REL_TYPE_HEX: Record<string, string> = {
   CALLS: '#a78bfa',
   IMPORTS: '#38bdf8',
   EXTENDS: '#34d399',
+  IMPLEMENTS: '#34d399',
   TESTS: '#fbbf24',
   MODIFIES: '#818cf8',
   CONTAINS: '#818cf8',
   AUTHORED_BY: '#818cf8',
   RELATED_TO: '#818cf8',
+  CROSS_LANGUAGE: '#fb923c',
 };
 
 // Custom ReactFlow Node

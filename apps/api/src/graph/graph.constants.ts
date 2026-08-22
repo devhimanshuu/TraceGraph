@@ -16,7 +16,7 @@ export const MAX_TRAVERSAL_PATHS = 250;
 export const DEFAULT_TRAVERSAL_PATHS = 100;
 
 /** Relationship types traversable by the dependency/traversal endpoints. */
-export const TRAVERSAL_TYPES = ['CALLS', 'IMPORTS', 'EXTENDS'] as const;
+export const TRAVERSAL_TYPES = ['CALLS', 'IMPORTS', 'EXTENDS', 'CROSS_LANGUAGE'] as const;
 
 /**
  * Relationship types shown by the graph neighborhood endpoint by default.
@@ -30,6 +30,7 @@ export const GRAPH_RELATIONSHIP_TYPES = [
   'CALLS',
   'EXTENDS',
   'TESTS',
+  'CROSS_LANGUAGE',
 ] as const;
 
 /** Node label whitelist — the 10 TraceGraph labels. */

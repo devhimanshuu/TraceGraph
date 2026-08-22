@@ -67,6 +67,40 @@ export class GithubApiService {
     return data.filter((issue) => !issue.pull_request);
   }
 
+  /**
+   * Fetch raw file content from a repository.
+   * Returns the decoded UTF-8 string, or null on failure.
+   */
+  async getFileContent(
+    fullName: string,
+    filePath: string,
+    branch: string,
+    token?: string,
+  ): Promise<string | null> {
+    try {
+      const response = await this.fetchRaw(
+        `/repos/${fullName}/contents/${encodeURIComponent(filePath)}?ref=${branch}`,
+        token,
+      );
+      if (!response.ok) return null;
+      const data = (await response.json()) as Record<string, unknown>;
+      if (data.encoding === 'base64' && typeof data.content === 'string') {
+        return Buffer.from(data.content, 'base64').toString('utf8');
+      }
+      // If content is a download URL, fetch it
+      if (typeof data.download_url === 'string') {
+        const raw = await this.fetchRaw(
+          `/repos/${fullName}/raw/${encodeURIComponent(filePath)}?ref=${branch}`,
+          token,
+        );
+        if (raw.ok) return await raw.text();
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
   private async getJson<T>(path: string, token?: string): Promise<T> {
     const response = await this.fetchRaw(path, token);
     if (!response.ok) {
