@@ -416,4 +416,30 @@ export const apiClient = {
       `/test-intelligence/overview/${encodeURIComponent(repoId)}`,
       token,
     ),
+
+  // ── Architecture Guardrails (Phase 18) ──
+  listGuardrailRules: (repositoryId: string, token?: string | null) =>
+    request<import('@tracegraph/shared').ArchitectureRule[]>(
+      `/guardrails?repositoryId=${encodeURIComponent(repositoryId)}`,
+      token,
+    ),
+  createGuardrailRule: (dto: Omit<import('@tracegraph/shared').ArchitectureRule, 'id' | 'createdAt' | 'updatedAt'>, token?: string | null) =>
+    mutate<import('@tracegraph/shared').ArchitectureRule>('/guardrails', 'POST', token, dto),
+  evaluateGuardrails: (dto: import('@tracegraph/shared').EvaluationRequest, token?: string | null) =>
+    mutate<import('@tracegraph/shared').EvaluationResponse>('/guardrails/evaluate', 'POST', token, dto),
+  getGuardrailDashboard: (repositoryId: string, token?: string | null) =>
+    request<import('@tracegraph/shared').GuardrailDashboard>(
+      `/guardrails/dashboard/${encodeURIComponent(repositoryId)}`,
+      token,
+    ),
+  suppressViolation: (violationId: string, reason: string, token?: string | null) =>
+    mutate<import('@tracegraph/shared').ArchitectureViolation>(
+      `/guardrails/violations/${encodeURIComponent(violationId)}/suppress`,
+      'POST', token, { reason },
+    ),
+  seedGuardrailRules: (repositoryId: string, token?: string | null) =>
+    mutate<import('@tracegraph/shared').ArchitectureRule[]>(
+      `/guardrails/seed/${encodeURIComponent(repositoryId)}`,
+      'POST', token, {},
+    ),
 };

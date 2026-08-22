@@ -14,6 +14,7 @@ import { IntelligenceModule } from './intelligence/intelligence.module';
 import { IngestionModule } from './ingestion/ingestion.module';
 import { SyncModule } from './sync/sync.module';
 import { TestIntelligenceModule } from './test-intelligence/test-intelligence.module';
+import { GuardrailsModule } from './guardrails/guardrails.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { TestIntelligenceModule } from './test-intelligence/test-intelligence.mo
     IngestionModule,
     SyncModule,
     TestIntelligenceModule,
+    GuardrailsModule,
     HistoryModule,
   ],
 })
