@@ -17,6 +17,7 @@ import { TestIntelligenceModule } from './test-intelligence/test-intelligence.mo
 import { GuardrailsModule } from './guardrails/guardrails.module';
 import { OwnershipModule } from './ownership/ownership.module';
 import { WorkspaceModule } from './workspace/workspace.module';
+import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { WorkspaceModule } from './workspace/workspace.module';
     TestIntelligenceModule,
     GuardrailsModule,
     OwnershipModule,
+    PrismaModule,
     WorkspaceModule,
     HistoryModule,
   ],

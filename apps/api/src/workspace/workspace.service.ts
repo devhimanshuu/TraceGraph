@@ -1,5 +1,5 @@
 /**
- * WorkspaceService — multi-tenant workspace management.
+ * WorkspaceService — multi-tenant workspace management using PostgreSQL.
  *
  * Handles organizations, workspaces, memberships, invitations,
  * saved reports, audit events, and role-based permissions.
@@ -7,8 +7,7 @@
  * Every query is tenant-scoped. No cross-workspace data leakage.
  */
 import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
-import { DatabaseService } from '../database/database.service';
+import { PrismaService } from '../prisma/prisma.service';
 import type {
   Organization,
   Workspace,
@@ -55,215 +54,277 @@ const PERMISSIONS: Record<WorkspaceRole, WorkspacePermissions> = {
   },
 };
 
-/** In-memory stores (would be application DB in production). */
-const orgStore = new Map<string, Organization>();
-const workspaceStore = new Map<string, Workspace>();
-const membershipStore = new Map<string, WorkspaceMembership>();
-const invitationStore = new Map<string, WorkspaceInvitation>();
-const reportStore = new Map<string, SavedReport>();
-const auditStore = new Map<string, AuditEvent>();
-
 @Injectable()
 export class WorkspaceService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   // ── Organization CRUD ──────────────────────────────────────────────────
 
   async createOrganization(dto: CreateOrganizationRequest): Promise<Organization> {
-    const now = new Date().toISOString();
-    const org: Organization = { id: `org:${randomUUID().slice(0, 8)}`, name: dto.name, slug: dto.slug, createdAt: now, updatedAt: now };
-    orgStore.set(org.id, org);
-    return org;
+    const org = await this.prisma.organization.create({ data: { name: dto.name, slug: dto.slug } });
+    return { id: org.id, name: org.name, slug: org.slug, createdAt: org.createdAt.toISOString(), updatedAt: org.updatedAt.toISOString() };
   }
 
   async listOrganizations(): Promise<Organization[]> {
-    return [...orgStore.values()];
+    const orgs = await this.prisma.organization.findMany();
+    return orgs.map((o) => ({ id: o.id, name: o.name, slug: o.slug, createdAt: o.createdAt.toISOString(), updatedAt: o.updatedAt.toISOString() }));
   }
 
   // ── Workspace CRUD ─────────────────────────────────────────────────────
 
   async createWorkspace(dto: CreateWorkspaceRequest, creatorId: string): Promise<Workspace> {
-    const now = new Date().toISOString();
-    const ws: Workspace = {
-      id: `ws:${randomUUID().slice(0, 8)}`, organizationId: dto.organizationId,
-      name: dto.name, slug: dto.slug, description: dto.description ?? '',
-      createdAt: now, updatedAt: now,
-    };
-    workspaceStore.set(ws.id, ws);
+    // Ensure creator user exists (upsert)
+    await this.prisma.user.upsert({
+      where: { id: creatorId },
+      create: { id: creatorId, name: creatorId, username: creatorId, email: `${creatorId}@placeholder.local` },
+      update: {},
+    });
 
-    // Creator becomes OWNER
-    const membership: WorkspaceMembership = {
-      id: `mem:${randomUUID().slice(0, 8)}`, workspaceId: ws.id, userId: creatorId,
-      user: { id: creatorId, name: 'Creator', username: creatorId, email: '', avatarUrl: null, createdAt: now, updatedAt: now },
-      role: 'OWNER', status: 'ACTIVE', createdAt: now, updatedAt: now,
-    };
-    membershipStore.set(membership.id, membership);
+    const ws = await this.prisma.workspace.create({
+      data: {
+        organizationId: dto.organizationId,
+        name: dto.name,
+        slug: dto.slug,
+        description: dto.description ?? '',
+        memberships: {
+          create: { userId: creatorId, role: 'OWNER', status: 'ACTIVE' },
+        },
+      },
+      include: { memberships: true },
+    });
 
     this.audit(ws.id, creatorId, 'WORKSPACE_UPDATED', 'workspace', ws.id, { action: 'created' });
-    return ws;
+    return { id: ws.id, organizationId: ws.organizationId, name: ws.name, slug: ws.slug, description: ws.description, createdAt: ws.createdAt.toISOString(), updatedAt: ws.updatedAt.toISOString() };
   }
 
   async getWorkspace(id: string): Promise<Workspace | null> {
-    return workspaceStore.get(id) ?? null;
+    const ws = await this.prisma.workspace.findUnique({ where: { id } });
+    if (!ws) return null;
+    return { id: ws.id, organizationId: ws.organizationId, name: ws.name, slug: ws.slug, description: ws.description, createdAt: ws.createdAt.toISOString(), updatedAt: ws.updatedAt.toISOString() };
   }
 
   async listWorkspaces(): Promise<Workspace[]> {
-    return [...workspaceStore.values()];
+    const wsList = await this.prisma.workspace.findMany();
+    return wsList.map((ws) => ({ id: ws.id, organizationId: ws.organizationId, name: ws.name, slug: ws.slug, description: ws.description, createdAt: ws.createdAt.toISOString(), updatedAt: ws.updatedAt.toISOString() }));
   }
 
   async updateWorkspace(id: string, patch: Partial<Workspace>): Promise<Workspace | null> {
-    const ws = workspaceStore.get(id);
-    if (!ws) return null;
-    const updated = { ...ws, ...patch, id: ws.id, updatedAt: new Date().toISOString() };
-    workspaceStore.set(id, updated);
-    return updated;
+    const ws = await this.prisma.workspace.update({
+      where: { id },
+      data: { name: patch.name, slug: patch.slug, description: patch.description },
+    });
+    return { id: ws.id, organizationId: ws.organizationId, name: ws.name, slug: ws.slug, description: ws.description, createdAt: ws.createdAt.toISOString(), updatedAt: ws.updatedAt.toISOString() };
   }
 
   async deleteWorkspace(id: string): Promise<boolean> {
-    // Delete all memberships, invitations, reports, audit events for this workspace
-    for (const [k, v] of membershipStore) { if (v.workspaceId === id) membershipStore.delete(k); }
-    for (const [k, v] of invitationStore) { if (v.workspaceId === id) invitationStore.delete(k); }
-    for (const [k, v] of reportStore) { if (v.workspaceId === id) reportStore.delete(k); }
-    for (const [k, v] of auditStore) { if (v.workspaceId === id) auditStore.delete(k); }
-    return workspaceStore.delete(id);
+    await this.prisma.workspace.delete({ where: { id } }).catch(() => null);
+    return true;
   }
 
   // ── Membership ─────────────────────────────────────────────────────────
 
   async listMembers(workspaceId: string): Promise<WorkspaceMembership[]> {
-    return [...membershipStore.values()].filter((m) => m.workspaceId === workspaceId && m.status === 'ACTIVE');
+    const members = await this.prisma.workspaceMembership.findMany({
+      where: { workspaceId, status: 'ACTIVE' },
+      include: { user: true },
+    });
+    return members.map((m) => ({
+      id: m.id, workspaceId: m.workspaceId, userId: m.userId,
+      user: { id: m.user.id, name: m.user.name, username: m.user.username, email: m.user.email, avatarUrl: m.user.avatarUrl, createdAt: m.user.createdAt.toISOString(), updatedAt: m.user.updatedAt.toISOString() },
+      role: m.role as WorkspaceRole, status: m.status as any,
+      createdAt: m.createdAt.toISOString(), updatedAt: m.updatedAt.toISOString(),
+    }));
   }
 
   async addMember(workspaceId: string, userId: string, role: WorkspaceRole, name?: string): Promise<WorkspaceMembership> {
-    const now = new Date().toISOString();
-    const membership: WorkspaceMembership = {
-      id: `mem:${randomUUID().slice(0, 8)}`, workspaceId, userId,
-      user: { id: userId, name: name ?? userId, username: userId, email: '', avatarUrl: null, createdAt: now, updatedAt: now },
-      role, status: 'ACTIVE', createdAt: now, updatedAt: now,
+    await this.prisma.user.upsert({
+      where: { id: userId },
+      create: { id: userId, name: name ?? userId, username: userId, email: `${userId}@placeholder.local` },
+      update: {},
+    });
+
+    const mem = await this.prisma.workspaceMembership.create({
+      data: { workspaceId, userId, role, status: 'ACTIVE' },
+      include: { user: true },
+    });
+
+    this.audit(workspaceId, userId, 'MEMBER_INVITED', 'member', mem.id, { role });
+    return {
+      id: mem.id, workspaceId: mem.workspaceId, userId: mem.userId,
+      user: { id: mem.user.id, name: mem.user.name, username: mem.user.username, email: mem.user.email, avatarUrl: mem.user.avatarUrl, createdAt: mem.user.createdAt.toISOString(), updatedAt: mem.user.updatedAt.toISOString() },
+      role: mem.role as WorkspaceRole, status: mem.status as any,
+      createdAt: mem.createdAt.toISOString(), updatedAt: mem.updatedAt.toISOString(),
     };
-    membershipStore.set(membership.id, membership);
-    this.audit(workspaceId, userId, 'MEMBER_INVITED', 'member', membership.id, { role });
-    return membership;
   }
 
   async updateMemberRole(membershipId: string, role: WorkspaceRole): Promise<WorkspaceMembership | null> {
-    const mem = membershipStore.get(membershipId);
-    if (!mem) return null;
-    mem.role = role;
-    mem.updatedAt = new Date().toISOString();
-    return mem;
+    const mem = await this.prisma.workspaceMembership.update({
+      where: { id: membershipId },
+      data: { role },
+      include: { user: true },
+    });
+    return {
+      id: mem.id, workspaceId: mem.workspaceId, userId: mem.userId,
+      user: { id: mem.user.id, name: mem.user.name, username: mem.user.username, email: mem.user.email, avatarUrl: mem.user.avatarUrl, createdAt: mem.user.createdAt.toISOString(), updatedAt: mem.user.updatedAt.toISOString() },
+      role: mem.role as WorkspaceRole, status: mem.status as any,
+      createdAt: mem.createdAt.toISOString(), updatedAt: mem.updatedAt.toISOString(),
+    };
   }
 
   async removeMember(membershipId: string): Promise<boolean> {
-    const mem = membershipStore.get(membershipId);
-    if (!mem) return false;
-    mem.status = 'DEACTIVATED';
-    mem.updatedAt = new Date().toISOString();
+    await this.prisma.workspaceMembership.update({
+      where: { id: membershipId },
+      data: { status: 'DEACTIVATED' },
+    });
     return true;
   }
 
   // ── Permission check ───────────────────────────────────────────────────
 
   async checkPermission(workspaceId: string, userId: string): Promise<WorkspacePermissions> {
-    const membership = [...membershipStore.values()].find(
-      (m) => m.workspaceId === workspaceId && m.userId === userId && m.status === 'ACTIVE',
-    );
+    const membership = await this.prisma.workspaceMembership.findFirst({
+      where: { workspaceId, userId, status: 'ACTIVE' },
+    });
     if (!membership) {
       throw new ForbiddenException('Not a member of this workspace');
     }
-    return PERMISSIONS[membership.role] ?? PERMISSIONS.VIEWER;
+    return PERMISSIONS[membership.role as WorkspaceRole] ?? PERMISSIONS.VIEWER;
   }
 
   async getMembership(workspaceId: string, userId: string): Promise<WorkspaceMembership | null> {
-    return [...membershipStore.values()].find(
-      (m) => m.workspaceId === workspaceId && m.userId === userId && m.status === 'ACTIVE',
-    ) ?? null;
+    const mem = await this.prisma.workspaceMembership.findFirst({
+      where: { workspaceId, userId, status: 'ACTIVE' },
+      include: { user: true },
+    });
+    if (!mem) return null;
+    return {
+      id: mem.id, workspaceId: mem.workspaceId, userId: mem.userId,
+      user: { id: mem.user.id, name: mem.user.name, username: mem.user.username, email: mem.user.email, avatarUrl: mem.user.avatarUrl, createdAt: mem.user.createdAt.toISOString(), updatedAt: mem.user.updatedAt.toISOString() },
+      role: mem.role as WorkspaceRole, status: mem.status as any,
+      createdAt: mem.createdAt.toISOString(), updatedAt: mem.updatedAt.toISOString(),
+    };
   }
 
   // ── Invitations ────────────────────────────────────────────────────────
 
   async createInvitation(workspaceId: string, dto: InviteMemberRequest, createdBy: string): Promise<WorkspaceInvitation> {
-    const now = new Date().toISOString();
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    const invitation: WorkspaceInvitation = {
-      id: `inv:${randomUUID().slice(0, 8)}`, workspaceId, email: dto.email,
-      role: dto.role, createdBy, status: 'PENDING', expiresAt, createdAt: now,
-    };
-    invitationStore.set(invitation.id, invitation);
-    this.audit(workspaceId, createdBy, 'MEMBER_INVITED', 'invitation', invitation.id, { email: dto.email, role: dto.role });
-    return invitation;
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const inv = await this.prisma.workspaceInvitation.create({
+      data: { workspaceId, email: dto.email, role: dto.role, createdBy, expiresAt },
+    });
+    this.audit(workspaceId, createdBy, 'MEMBER_INVITED', 'invitation', inv.id, { email: dto.email, role: dto.role });
+    return { id: inv.id, workspaceId: inv.workspaceId, email: inv.email, role: inv.role as WorkspaceRole, createdBy: inv.createdBy, status: inv.status as any, expiresAt: inv.expiresAt.toISOString(), createdAt: inv.createdAt.toISOString() };
   }
 
   async listInvitations(workspaceId: string): Promise<WorkspaceInvitation[]> {
-    return [...invitationStore.values()].filter((i) => i.workspaceId === workspaceId && i.status === 'PENDING');
+    const invs = await this.prisma.workspaceInvitation.findMany({
+      where: { workspaceId, status: 'PENDING' },
+    });
+    return invs.map((i) => ({ id: i.id, workspaceId: i.workspaceId, email: i.email, role: i.role as WorkspaceRole, createdBy: i.createdBy, status: i.status as any, expiresAt: i.expiresAt.toISOString(), createdAt: i.createdAt.toISOString() }));
   }
 
   // ── Saved Reports ──────────────────────────────────────────────────────
 
   async createReport(workspaceId: string, dto: CreateReportRequest, createdBy: WorkspaceUser): Promise<SavedReport> {
-    const now = new Date().toISOString();
-    const report: SavedReport = {
-      id: `rpt:${randomUUID().slice(0, 8)}`, workspaceId, repositoryId: dto.repositoryId,
-      repositoryName: '', createdBy, title: dto.title, summary: dto.summary,
-      reportType: dto.reportType, data: dto.data, graphRevision: dto.graphRevision ?? null,
-      createdAt: now,
-    };
-    reportStore.set(report.id, report);
+    const report = await this.prisma.savedReport.create({
+      data: {
+        workspaceId, repositoryId: dto.repositoryId,
+        createdByUserId: createdBy.id,
+        title: dto.title, summary: dto.summary,
+        reportType: dto.reportType, data: dto.data as any,
+        graphRevision: dto.graphRevision ?? null,
+      },
+    });
     this.audit(workspaceId, createdBy.id, 'REPORT_CREATED', 'report', report.id, { title: dto.title });
-    return report;
+    return {
+      id: report.id, workspaceId: report.workspaceId, repositoryId: report.repositoryId,
+      repositoryName: report.repositoryName, createdBy,
+      title: report.title, summary: report.summary,
+      reportType: report.reportType as any, data: report.data as Record<string, unknown>,
+      graphRevision: report.graphRevision, createdAt: report.createdAt.toISOString(),
+    };
   }
 
   async listReports(workspaceId: string): Promise<SavedReport[]> {
-    return [...reportStore.values()].filter((r) => r.workspaceId === workspaceId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const reports = await this.prisma.savedReport.findMany({
+      where: { workspaceId },
+      include: { createdBy: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    return reports.map((r) => ({
+      id: r.id, workspaceId: r.workspaceId, repositoryId: r.repositoryId,
+      repositoryName: r.repositoryName,
+      createdBy: { id: r.createdBy.id, name: r.createdBy.name, username: r.createdBy.username, email: r.createdBy.email, avatarUrl: r.createdBy.avatarUrl, createdAt: r.createdBy.createdAt.toISOString(), updatedAt: r.createdBy.updatedAt.toISOString() },
+      title: r.title, summary: r.summary,
+      reportType: r.reportType as any, data: r.data as Record<string, unknown>,
+      graphRevision: r.graphRevision, createdAt: r.createdAt.toISOString(),
+    }));
   }
 
   async getReport(id: string): Promise<SavedReport | null> {
-    return reportStore.get(id) ?? null;
+    const r = await this.prisma.savedReport.findUnique({ where: { id }, include: { createdBy: true } });
+    if (!r) return null;
+    return {
+      id: r.id, workspaceId: r.workspaceId, repositoryId: r.repositoryId,
+      repositoryName: r.repositoryName,
+      createdBy: { id: r.createdBy.id, name: r.createdBy.name, username: r.createdBy.username, email: r.createdBy.email, avatarUrl: r.createdBy.avatarUrl, createdAt: r.createdBy.createdAt.toISOString(), updatedAt: r.createdBy.updatedAt.toISOString() },
+      title: r.title, summary: r.summary,
+      reportType: r.reportType as any, data: r.data as Record<string, unknown>,
+      graphRevision: r.graphRevision, createdAt: r.createdAt.toISOString(),
+    };
   }
 
   // ── Audit ──────────────────────────────────────────────────────────────
 
   async listActivity(workspaceId: string, limit = 20): Promise<AuditEvent[]> {
-    return [...auditStore.values()]
-      .filter((e) => e.workspaceId === workspaceId)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-      .slice(0, limit);
+    const events = await this.prisma.auditEvent.findMany({
+      where: { workspaceId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+    return events.map((e) => ({
+      id: e.id, workspaceId: e.workspaceId, actorId: e.actorId,
+      actorName: e.actorName, eventType: e.eventType as AuditEventType,
+      resourceType: e.resourceType, resourceId: e.resourceId,
+      metadata: e.metadata as Record<string, unknown>,
+      createdAt: e.createdAt.toISOString(),
+    }));
   }
 
-  private audit(workspaceId: string, actorId: string, eventType: AuditEventType, resourceType: string, resourceId: string, metadata: Record<string, unknown>): void {
-    const event: AuditEvent = {
-      id: `evt:${randomUUID().slice(0, 8)}`, workspaceId, actorId,
-      actorName: actorId, eventType, resourceType, resourceId, metadata,
-      createdAt: new Date().toISOString(),
-    };
-    auditStore.set(event.id, event);
+  private async audit(workspaceId: string, actorId: string, eventType: AuditEventType, resourceType: string, resourceId: string, metadata: Record<string, unknown>): Promise<void> {
+    try {
+      await this.prisma.auditEvent.create({
+        data: { workspaceId, actorId, actorName: actorId, eventType, resourceType, resourceId, metadata: metadata as any },
+      });
+    } catch (err) {
+      logger.warn(`Audit event failed: ${String(err)}`);
+    }
   }
 
   // ── Dashboard ──────────────────────────────────────────────────────────
 
   async getDashboard(workspaceId: string): Promise<WorkspaceDashboard> {
-    const ws = workspaceStore.get(workspaceId);
+    const ws = await this.prisma.workspace.findUnique({ where: { id: workspaceId } });
     if (!ws) throw new NotFoundException('Workspace not found');
 
-    const members = await this.listMembers(workspaceId);
-    const reports = await this.listReports(workspaceId);
-    const activity = await this.listActivity(workspaceId, 10);
+    const [memberCount, reportCount, activity] = await Promise.all([
+      this.prisma.workspaceMembership.count({ where: { workspaceId, status: 'ACTIVE' } }),
+      this.prisma.savedReport.count({ where: { workspaceId } }),
+      this.listActivity(workspaceId, 10),
+    ]);
 
     return {
-      workspace: ws,
-      repositoryCount: 0, // Would query graph for repositories in this workspace
-      memberCount: members.length,
+      workspace: { id: ws.id, organizationId: ws.organizationId, name: ws.name, slug: ws.slug, description: ws.description, createdAt: ws.createdAt.toISOString(), updatedAt: ws.updatedAt.toISOString() },
+      repositoryCount: 0,
+      memberCount,
       guardrailRuleCount: 0,
       openViolations: 0,
-      savedReports: reports.length,
+      savedReports: reportCount,
       recentActivity: activity,
     };
   }
 
-  // ── Cross-repository summary ───────────────────────────────────────────
-
   async getCrossRepoSummary(workspaceId: string): Promise<CrossRepoSummary> {
-    // Would query graph for all repositories in this workspace
     return { workspaceId, repositories: [] };
   }
 }
