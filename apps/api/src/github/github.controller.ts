@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Req } from '@nestjs/common';
 import type { Request } from 'express';
-import type { GithubImportJob, GithubImportJobStart, GithubRepo } from '@tracegraph/shared';
+import type { GithubImportJob, GithubImportJobStart, GithubRepo, SyncDelta } from '@tracegraph/shared';
 import { GithubApiService } from './github-api.service';
 import { GithubImportJobService } from './github-import-job.service';
 import { ImportRepoDto } from './dto/import-repo.dto';
@@ -46,5 +46,19 @@ export class GithubController {
   @Get('imports/:jobId')
   getImportStatus(@Param('jobId') jobId: string): GithubImportJob {
     return this.jobService.getJob(jobId);
+  }
+
+  /**
+   * Re-sync: re-imports the active repository using the same background job
+   * pipeline. The client can poll the returned jobId to show staged progress.
+   * Returns a SyncDelta once complete.
+   */
+  @Post('resync')
+  @HttpCode(HttpStatus.OK)
+  async resyncRepo(
+    @Body() dto: ImportRepoDto,
+    @Req() req: SessionRequest,
+  ): Promise<GithubImportJobStart> {
+    return this.jobService.startImport(dto.fullName, req.githubToken);
   }
 }

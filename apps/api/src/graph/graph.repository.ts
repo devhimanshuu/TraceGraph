@@ -92,10 +92,12 @@ import {
 import {
   FIND_FEATURED_CODE_ENTITIES,
   FIND_FEATURED_FILES,
+  FIND_LANGUAGE_DISTRIBUTION,
   FIND_REPOSITORY_ACTIVITY_COMMITS,
   FIND_REPOSITORY_ACTIVITY_ISSUES,
   FIND_REPOSITORY_ACTIVITY_PULL_REQUESTS,
   FIND_REPOSITORY_COMPONENTS,
+  FIND_REPOSITORY_TIMESTAMPS,
 } from './queries/repository.queries';
 
 /** Row shapes produced by the catalogued queries. */
@@ -724,6 +726,56 @@ export class GraphRepository {
     // Keep the most-connected entities first, stable for equal degrees.
     merged.sort((a, b) => b.dependents - a.dependents || a.label.localeCompare(b.label));
     return merged.slice(0, limit);
+  }
+
+  // ── Sync status ───────────────────────────────────────────────────────────
+
+  /** Language distribution grouped by the `language` property on File nodes. */
+  async findLanguageDistribution(repoId: string): Promise<Array<{
+    language: string;
+    fileCount: number;
+    functionCount: number;
+    classCount: number;
+  }>> {
+    const rows = await this.db.executeRead<
+      Array<{
+        language?: string;
+        fileCount?: unknown;
+        functionCount?: unknown;
+        classCount?: unknown;
+      }>
+    >((tx) => tx.run(FIND_LANGUAGE_DISTRIBUTION, { id: repoId }), {
+      name: 'language-distribution',
+    });
+    return rows.map((row) => ({
+      language: String(row.language ?? 'Unknown'),
+      fileCount: toNumber(row.fileCount),
+      functionCount: toNumber(row.functionCount),
+      classCount: toNumber(row.classCount),
+    }));
+  }
+
+  /** The active repository's timestamps (fullName, updatedAt, createdAt). */
+  async findRepositoryTimestamps(): Promise<{
+    fullName: string;
+    lastPushAt: string | null;
+    createdAt: string | null;
+  } | null> {
+    const rows = await this.db.executeRead<
+      Array<{
+        fullName?: string;
+        lastPushAt?: string;
+        createdAt?: string;
+      }>
+    >((tx) => tx.run(FIND_REPOSITORY_TIMESTAMPS), {
+      name: 'repository-timestamps',
+    });
+    if (!rows.length) return null;
+    return {
+      fullName: String(rows[0].fullName ?? ''),
+      lastPushAt: rows[0].lastPushAt ?? null,
+      createdAt: rows[0].createdAt ?? null,
+    };
   }
 }
 

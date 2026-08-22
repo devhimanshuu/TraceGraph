@@ -5,6 +5,7 @@ import type {
   RepositoryComponent,
   RepositoryOverview,
   SetActiveRepositoryResult,
+  SyncStatus,
 } from '@tracegraph/shared';
 import { HistoryQueryDto } from '../graph/dto/history-query.dto';
 import { SetActiveRepositoryDto } from './dto/set-active-repository.dto';
@@ -50,5 +51,11 @@ export class RepositoryController {
   async setActive(@Body() dto: SetActiveRepositoryDto): Promise<SetActiveRepositoryResult> {
     const active = await this.repositoryService.setActiveRepository(dto.repoId);
     return { active };
+  }
+
+  /** Sync status: entity counts, language distribution, timestamps. */
+  @Get('sync-status')
+  getSyncStatus(): Promise<SyncStatus> {
+    return this.repositoryService.getSyncStatus();
   }
 }

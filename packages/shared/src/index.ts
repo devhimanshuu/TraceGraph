@@ -587,6 +587,64 @@ export interface KnowledgeResponse {
   owners: KnowledgeOwner[];
 }
 
+/** Language distribution item for sync status. */
+export interface LanguageDistribution {
+  language: string;
+  fileCount: number;
+  functionCount: number;
+  classCount: number;
+}
+
+/** `GET /api/repository/sync-status` — current graph sync health. */
+export interface SyncStatus {
+  /** ISO timestamp of the last import or re-sync. */
+  lastSyncAt: string | null;
+  /** ISO timestamp of the repository's last GitHub push. */
+  lastPushAt: string | null;
+  /** The full name of the active repository (owner/repo). */
+  repository: string;
+  /** Total entities in the graph. */
+  totalNodes: number;
+  /** Total relationships in the graph. */
+  totalRelationships: number;
+  /** Per-language breakdown. */
+  languages: LanguageDistribution[];
+  /** Graph entity counts. */
+  stats: {
+    files: number;
+    functions: number;
+    classes: number;
+    tests: number;
+    directories: number;
+    commits: number;
+    pullRequests: number;
+    issues: number;
+    developers: number;
+  };
+}
+
+/** `POST /api/repository/resync` — result of an incremental re-sync. */
+export interface SyncDelta {
+  /** Whether any changes were detected. */
+  hasChanges: boolean;
+  /** Number of new files added. */
+  filesAdded: number;
+  /** Number of existing files modified. */
+  filesChanged: number;
+  /** Number of files removed. */
+  filesRemoved: number;
+  /** Number of unchanged files (skipped). */
+  filesUnchanged: number;
+  /** Total entities parsed from the changed files. */
+  entitiesParsed: number;
+  /** Total relationships resolved from the changed files. */
+  relationshipsResolved: number;
+  /** Duration of the full re-sync in milliseconds. */
+  durationMs: number;
+}
+
+export * from './ingestion';
+
 /** Standard error body returned by the API. */
 export interface ApiError {
   statusCode: number;

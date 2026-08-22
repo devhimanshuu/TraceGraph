@@ -89,3 +89,28 @@ RETURN properties(n) AS n, labels(n)[0] AS nodeType, dependents
 ORDER BY dependents DESC, n.name
 LIMIT $limit
 `;
+
+/**
+ * Language distribution: file count + function + class counts grouped by
+ * the `language` property on File nodes. Used by the sync status panel to
+ * show the polyglot breakdown.
+ */
+export const FIND_LANGUAGE_DISTRIBUTION = `
+MATCH (repo:Repository {id: $id})-[:CONTAINS*1..4]->(f:File)
+WITH coalesce(f.language, 'Unknown') AS lang, f
+OPTIONAL MATCH (f)-[:CONTAINS]->(fn:Function)
+OPTIONAL MATCH (f)-[:CONTAINS]->(c:Class)
+WITH lang, count(DISTINCT f) AS fileCount, count(DISTINCT fn) AS functionCount, count(DISTINCT c) AS classCount
+RETURN lang AS language, fileCount, functionCount, classCount
+ORDER BY fileCount DESC
+`;
+
+/** The active repository's full name and timestamps. */
+export const FIND_REPOSITORY_TIMESTAMPS = `
+MATCH (r:Repository)
+WITH r
+ORDER BY coalesce(r.active, false) DESC, r.createdAt
+LIMIT 1
+RETURN r.fullName AS fullName, r.updatedAt AS lastPushAt, r.createdAt AS createdAt
+`;
+

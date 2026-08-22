@@ -11,6 +11,7 @@ import { HistoryModule } from './history/history.module';
 import { AuthModule } from './auth/auth.module';
 import { GithubModule } from './github/github.module';
 import { IntelligenceModule } from './intelligence/intelligence.module';
+import { IngestionModule } from './ingestion/ingestion.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { IntelligenceModule } from './intelligence/intelligence.module';
     HistoryModule,
     GithubModule,
     IntelligenceModule,
+    IngestionModule,
   ],
 })
 export class AppModule {}

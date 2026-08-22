@@ -2,10 +2,12 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import type {
   GraphNode,
   ImportedRepository,
+  LanguageDistribution,
   RepositoryActivity,
   RepositoryComponent,
   RepositoryOverview,
   RepositoryStats,
+  SyncStatus,
 } from '@tracegraph/shared';
 import { GraphRepository } from '../graph/graph.repository';
 
@@ -86,6 +88,49 @@ export class RepositoryService {
     }
     await this.graphRepository.setActiveRepository(repoId);
     return this.toImportedRepository(target);
+  }
+
+  /**
+   * `GET /api/repository/sync-status` — graph sync health overview.
+   *
+   * Combines label-scoped statistics, language distribution from File nodes,
+   * and the repository's timestamps (last push, last import) into a single
+   * snapshot the SyncStatusPanel renders.
+   */
+  async getSyncStatus(): Promise<SyncStatus> {
+    const repo = await this.requireRepository();
+    const repoId = repo.id;
+
+    const [counts, relationshipCount, languages, timestamps] = await Promise.all([
+      this.graphRepository.countNodesByLabel(),
+      this.graphRepository.countTraceGraphRelationships(),
+      this.graphRepository.findLanguageDistribution(repoId),
+      this.graphRepository.findRepositoryTimestamps(),
+    ]);
+
+    const totalNodes = Object.values(counts).reduce((sum, n) => sum + n, 0);
+
+    const stats = {
+      files: counts.File ?? 0,
+      functions: counts.Function ?? 0,
+      classes: counts.Class ?? 0,
+      tests: counts.Test ?? 0,
+      directories: counts.Directory ?? 0,
+      commits: counts.Commit ?? 0,
+      pullRequests: counts.PullRequest ?? 0,
+      issues: counts.Issue ?? 0,
+      developers: counts.Developer ?? 0,
+    };
+
+    return {
+      lastSyncAt: timestamps?.createdAt ?? null,
+      lastPushAt: timestamps?.lastPushAt ?? null,
+      repository: timestamps?.fullName ?? String(repo.properties.fullName ?? ''),
+      totalNodes,
+      totalRelationships: relationshipCount,
+      languages: languages as LanguageDistribution[],
+      stats,
+    };
   }
 
   private toImportedRepository(repo: GraphNode): ImportedRepository {

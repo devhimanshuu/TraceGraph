@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutGrid, Network, Radar, ScanSearch, Workflow } from 'lucide-react';
+import { FolderGit2, LayoutGrid, Network, Radar, ScanSearch, Workflow } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
   { href: '/dashboard', label: 'Overview', icon: LayoutGrid },
+  { href: '/repositories', label: 'Repositories', icon: FolderGit2 },
   { href: '/graph', label: 'Graph', icon: Network },
   { href: '/dependencies', label: 'Dependencies', icon: Workflow },
   { href: '/impact', label: 'Impact', icon: Radar },

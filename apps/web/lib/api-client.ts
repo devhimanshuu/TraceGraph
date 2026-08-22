@@ -2,6 +2,8 @@ import type {
   ApiError,
   AppHealth,
   BlastRadiusResponse,
+  CreateRepositoryRequest,
+  CreateRepositoryResponse,
   DatabaseHealth,
   DependencyTarget,
   GithubImportJob,
@@ -17,16 +19,22 @@ import type {
   ImpactResponse,
   ImpactSnapshot,
   ImportedRepository,
+  IndexDiagnosticsResponse,
+  IndexProgressResponse,
+  IndexRun,
   KnowledgeResponse,
   NodeRelationships,
   OrphanListResponse,
   RelationshipSummary,
   RepositoryActivity,
   RepositoryComponent,
+  RepositoryDetailResponse,
   RepositoryOverview,
+  RepositoryRecord,
   SearchResultItem,
   SetActiveRepositoryResult,
   SmellResponse,
+  SyncStatus,
   TestCoverage,
   TestGapResponse,
   TestsForChangeResponse,
@@ -328,4 +336,32 @@ export const apiClient = {
       `/nodes/file-content?path=${encodeURIComponent(filePath)}`,
       token,
     ),
+
+  // Sync status
+  getSyncStatus: (token?: string | null) =>
+    request<SyncStatus>('/repository/sync-status', token),
+  startResync: (fullName: string, token?: string | null) =>
+    mutate<GithubImportJobStart>('/github/resync', 'POST', token, { fullName }),
+
+  // ── Repository Ingestion (Phase 14) ──
+  createRepository: (dto: CreateRepositoryRequest, token?: string | null) =>
+    mutate<CreateRepositoryResponse>('/repositories', 'POST', token, dto),
+  listRepositories: (token?: string | null) =>
+    request<RepositoryRecord[]>('/repositories', token),
+  getRepositoryDetail: (id: string, token?: string | null) =>
+    request<RepositoryDetailResponse>(`/repositories/${encodeURIComponent(id)}`, token),
+  startIndex: (repoId: string, token?: string | null) =>
+    mutate<{ indexRun: IndexRun }>(`/repositories/${encodeURIComponent(repoId)}/index`, 'POST', token, {}),
+  getIndexRuns: (repoId: string, token?: string | null) =>
+    request<IndexRun[]>(`/repositories/${encodeURIComponent(repoId)}/index-runs`, token),
+  getIndexRun: (runId: string, token?: string | null) =>
+    request<IndexRun>(`/index-runs/${encodeURIComponent(runId)}`, token),
+  getIndexProgress: (runId: string, token?: string | null) =>
+    request<IndexProgressResponse>(`/index-runs/${encodeURIComponent(runId)}/progress`, token),
+  getIndexDiagnostics: (runId: string, token?: string | null) =>
+    request<IndexDiagnosticsResponse>(`/index-runs/${encodeURIComponent(runId)}/diagnostics`, token),
+  cancelIndexRun: (runId: string, token?: string | null) =>
+    mutate<IndexRun>(`/index-runs/${encodeURIComponent(runId)}/cancel`, 'POST', token, {}),
+  retryIndexRun: (repoId: string, token?: string | null) =>
+    mutate<{ indexRun: IndexRun }>(`/repositories/${encodeURIComponent(repoId)}/retry`, 'POST', token, {}),
 };

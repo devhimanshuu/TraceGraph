@@ -13,7 +13,7 @@ import {
   GitPullRequest,
 } from 'lucide-react';
 import { buttonVariants } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { RepositoryComposition } from '@/components/dashboard/repository-composition';
@@ -23,6 +23,7 @@ import {
 } from '@/components/dashboard/architecture-summary';
 import { RecentActivity } from '@/components/dashboard/recent-activity';
 import { ImportedRepositories } from '@/components/dashboard/imported-repositories';
+import { SyncStatusPanel } from '@/components/dashboard/sync-status-panel';
 import { SectionError } from '@/components/dashboard/section-error';
 import { RepoChooser } from '@/components/onboarding/repo-chooser';
 import { useRepositoryContext } from '@/components/layout/repository-provider';
@@ -185,32 +186,12 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      {/* Composition + secondary counts */}
+      {/* Composition + sync status */}
       <section className="grid items-stretch gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <RepositoryComposition stats={repository.stats} />
         </div>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Also in the graph</CardTitle>
-            <CardDescription>Remaining repository metrics.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <dl className="flex flex-col gap-3">
-              {[
-                ['Directories', repository.stats.directories],
-                ['Issues', repository.stats.issues],
-                ['Developers', repository.stats.developers],
-                ['Relationships', repository.relationshipCount],
-              ].map(([label, value]) => (
-                <div key={String(label)} className="flex items-center justify-between">
-                  <dt className="text-sm text-muted-foreground">{label}</dt>
-                  <dd className="text-sm font-semibold tabular-nums">{value.toLocaleString()}</dd>
-                </div>
-              ))}
-            </dl>
-          </CardContent>
-        </Card>
+        <SyncStatusPanel />
       </section>
 
       {/* Core components */}
