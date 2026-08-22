@@ -123,6 +123,13 @@ export class IndexingWorker {
     return { repository: this.toRepoRecord(repo), latestRun };
   }
 
+    /**
+   * Get raw repository record for sync operations.
+   */
+  getRepositoryRecord(repoId: string): RepoStore | undefined {
+    return this.repos.get(repoId);
+  }
+
   // ── Index run management ─────────────────────────────────────────────────
 
   async startIndex(

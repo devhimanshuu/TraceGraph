@@ -17,7 +17,7 @@ import {
   RefreshCw,
   XCircle,
 } from 'lucide-react';
-import type { IndexRun, LanguageSummary, RepositoryRecord } from '@tracegraph/shared';
+import type { IndexRun, LanguageSummary, RepositoryRecord, SyncRun } from '@tracegraph/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -178,6 +178,8 @@ export default function RepositoryDetailPage() {
 
   const [repo, setRepo] = useState<RepositoryRecord | null>(null);
   const [runs, setRuns] = useState<IndexRun[]>([]);
+  const [syncRuns, setSyncRuns] = useState<SyncRun[]>([]);
+  const [syncing, setSyncing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -188,6 +190,8 @@ export default function RepositoryDetailPage() {
       setRepo(detail.repository);
       const indexRuns = await apiClient.getIndexRuns(repoId, token);
       setRuns(indexRuns);
+      const syncRunsResp = await apiClient.getSyncRuns(repoId, token);
+      setSyncRuns(syncRunsResp.syncRuns);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load repository');
@@ -223,6 +227,8 @@ export default function RepositoryDetailPage() {
 
   const latestRun = runs[0] ?? null;
   const hasRunning = runs.some((r) => r.status === 'RUNNING' || r.status === 'PENDING');
+  const hasSyncing = syncRuns.some((r) => r.status === 'RUNNING' || r.status === 'PENDING');
+  const latestSync = syncRuns[0] ?? null;
 
   return (
     <div className="flex flex-col gap-8">
@@ -276,6 +282,17 @@ export default function RepositoryDetailPage() {
         </div>
       </section>
 
+      {/* Stale graph indicator */}
+      {latestSync && !latestSync.noChanges && latestSync.status === 'COMPLETED' ? (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-2.5 text-xs text-amber-600">
+          <RefreshCw className="size-3.5" aria-hidden />
+          <span>
+            Last synced: {latestSync.fromRevision?.slice(0, 8) ?? '?'} → {latestSync.toRevision?.slice(0, 8) ?? '?'}
+            ({latestSync.filesChanged} files changed)
+          </span>
+        </div>
+      ) : null}
+
       {/* Language breakdown */}
       {repo.detectedLanguages.length > 0 ? (
         <Card>
@@ -322,6 +339,19 @@ export default function RepositoryDetailPage() {
           )}
           {hasRunning ? 'Indexing…' : 'Re-index'}
         </Button>
+        <Button
+          variant="outline"
+          onClick={() => { setSyncing(true); void getToken().then((token) => apiClient.startSync(repoId, token)).then(() => { void fetchData(); }).finally(() => setSyncing(false)); }}
+          disabled={hasRunning || hasSyncing}
+          className="gap-1.5"
+        >
+          {(hasSyncing || syncing) ? (
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+          ) : (
+            <RefreshCw className="size-4" aria-hidden />
+          )}
+          {(hasSyncing || syncing) ? 'Syncing…' : 'Sync Repository'}
+        </Button>
         <Link
           href={`/graph?rootId=file:`}
           className="flex items-center gap-1.5 rounded-md bg-muted/50 px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
@@ -352,6 +382,56 @@ export default function RepositoryDetailPage() {
           </Card>
         )}
       </section>
+
+      {/* Sync runs */}
+      {syncRuns.length > 0 ? (
+        <section className="flex flex-col gap-4">
+          <h2 className="text-sm font-medium text-muted-foreground">Sync History</h2>
+          <div className="flex flex-col gap-3">
+            {syncRuns.map((sr) => (
+              <div key={sr.id} className="flex flex-col gap-2 rounded-xl border border-border/60 bg-card/40 p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs text-muted-foreground">{sr.id.split(':').pop()}</span>
+                    <StatusBadge status={sr.status} />
+                  </div>
+                  <span className="text-[11px] text-muted-foreground">{formatTime(sr.startedAt)}</span>
+                </div>
+                {sr.status === 'RUNNING' ? (
+                  <ProgressBar progress={sr.progress} stage={sr.stageLabel} />
+                ) : null}
+                <div className="grid grid-cols-4 gap-2 text-center">
+                  {[
+                    ['Changed', sr.filesChanged],
+                    ['Added', sr.entitiesAdded],
+                    ['Updated', sr.entitiesUpdated],
+                    ['Removed', sr.entitiesRemoved],
+                  ].map(([label, value]) => (
+                    <div key={String(label)} className="flex flex-col gap-0.5">
+                      <span className="text-[10px] text-muted-foreground">{String(label)}</span>
+                      <span className="text-sm font-semibold tabular-nums">{Number(value).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+                {sr.fromRevision && sr.toRevision ? (
+                  <p className="text-[11px] text-muted-foreground">
+                    {sr.fromRevision.slice(0, 8)} → {sr.toRevision.slice(0, 8)}
+                    {sr.durationMs !== null ? ` (${formatDuration(sr.durationMs)})` : ''}
+                  </p>
+                ) : null}
+                {sr.errorSummary ? (
+                  <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+                    {sr.errorSummary}
+                  </div>
+                ) : null}
+                {sr.noChanges ? (
+                  <p className="text-[11px] text-muted-foreground">No structural changes detected.</p>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

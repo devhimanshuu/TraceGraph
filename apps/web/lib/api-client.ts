@@ -39,6 +39,11 @@ import type {
   TestGapResponse,
   TestsForChangeResponse,
   TraversalResult,
+  RevisionStatusResponse,
+  StartSyncResponse,
+  SyncProgressResponse,
+  SyncRun,
+  SyncRunListResponse,
 } from '@tracegraph/shared';
 
 /**
@@ -364,4 +369,20 @@ export const apiClient = {
     mutate<IndexRun>(`/index-runs/${encodeURIComponent(runId)}/cancel`, 'POST', token, {}),
   retryIndexRun: (repoId: string, token?: string | null) =>
     mutate<{ indexRun: IndexRun }>(`/repositories/${encodeURIComponent(repoId)}/retry`, 'POST', token, {}),
+
+  // ── Incremental Sync (Phase 15) ──
+  startSync: (repoId: string, token?: string | null) =>
+    mutate<StartSyncResponse>(`/repositories/${encodeURIComponent(repoId)}/sync`, 'POST', token, {}),
+  getSyncRuns: (repoId: string, token?: string | null) =>
+    request<SyncRunListResponse>(`/repositories/${encodeURIComponent(repoId)}/sync-runs`, token),
+  getSyncRun: (runId: string, token?: string | null) =>
+    request<SyncRun>(`/sync-runs/${encodeURIComponent(runId)}`, token),
+  getSyncProgress: (runId: string, token?: string | null) =>
+    request<SyncProgressResponse>(`/sync-runs/${encodeURIComponent(runId)}/progress`, token),
+  cancelSyncRun: (runId: string, token?: string | null) =>
+    mutate<SyncRun>(`/sync-runs/${encodeURIComponent(runId)}/cancel`, 'POST', token, {}),
+  retrySyncRun: (runId: string, token?: string | null) =>
+    mutate<StartSyncResponse>(`/sync-runs/${encodeURIComponent(runId)}/retry`, 'POST', token, {}),
+  getRevisionStatus: (repoId: string, token?: string | null) =>
+    request<RevisionStatusResponse>(`/repositories/${encodeURIComponent(repoId)}/revision`, token),
 };

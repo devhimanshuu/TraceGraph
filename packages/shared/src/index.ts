@@ -644,6 +644,7 @@ export interface SyncDelta {
 }
 
 export * from './ingestion';
+export * from './sync';
 
 /** Standard error body returned by the API. */
 export interface ApiError {
