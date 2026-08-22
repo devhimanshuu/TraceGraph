@@ -26,7 +26,8 @@ describe('RepositoryService', () => {
     findAllRepositories: jest.fn(),
     setActiveRepository: jest.fn(),
   } as unknown as GraphRepository;
-  const service = new RepositoryService(graphRepository);
+  const db = { executeRead: jest.fn().mockResolvedValue([]) } as any;
+  const service = new RepositoryService(graphRepository, db);
 
   beforeEach(() => {
     jest.clearAllMocks();

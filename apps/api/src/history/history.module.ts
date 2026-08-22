@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { DatabaseModule } from '../database/database.module';
 import { GraphModule } from '../graph/graph.module';
 import { HistoryController } from './history.controller';
 import { HistoryService } from './history.service';
@@ -8,7 +9,7 @@ import { HistoryService } from './history.service';
  * entity. Imports the graph module for the shared repository/service.
  */
 @Module({
-  imports: [GraphModule],
+  imports: [GraphModule, DatabaseModule],
   providers: [HistoryService],
   controllers: [HistoryController],
 })

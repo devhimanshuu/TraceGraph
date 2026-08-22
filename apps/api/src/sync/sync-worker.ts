@@ -206,6 +206,7 @@ export class SyncWorker {
 
     this.activeSyncs.add(runId);
     const startedAt = Date.now();
+    let workspace: Awaited<ReturnType<typeof prepareSource>> | null = null;
 
     try {
       // ── Stage 1: CHECKING_REVISION ─────────────────────────────────────
@@ -216,7 +217,7 @@ export class SyncWorker {
         progress: 10,
       });
 
-      const workspace = await prepareSource(repo.sourceType, repo.sourceUrl);
+      workspace = await prepareSource(repo.sourceType, repo.sourceUrl);
       const currentSha = await this.gitDiff.getCurrentRevision(workspace.root);
       if (!currentSha) {
         throw new Error('Could not determine repository revision');
@@ -254,7 +255,6 @@ export class SyncWorker {
           durationMs: Date.now() - startedAt,
         });
         logger.log(`Sync ${runId}: repository already synchronized at ${currentSha.slice(0, 8)}`);
-        await workspace.cleanup();
         return;
       }
 
@@ -312,7 +312,6 @@ export class SyncWorker {
           completedAt: new Date().toISOString(),
           durationMs: Date.now() - startedAt,
         });
-        await workspace.cleanup();
         return;
       }
 
@@ -331,22 +330,32 @@ export class SyncWorker {
       ];
 
       let parseResult: BatchParseResult;
-      if (!graphRevision || filesToParse.length === 0) {
-        // Full parse (no previous graph, or only deletions)
+      if (!graphRevision) {
+        // Full parse (no previous graph exists)
         const dirResult = await this.pipeline.parseFromDirectory(
           workspace.root,
           repoId,
           repo.name,
         );
         parseResult = dirResult.result;
+      } else if (filesToParse.length > 0) {
+        // Incremental parse: parse only the changed/added/renamed files
+        parseResult = await this.pipeline.parseFiles(
+          filesToParse,
+          workspace.root,
+          repoId,
+          repo.name,
+        );
       } else {
-        // Incremental parse: only changed files
-        const dirResult = await this.pipeline.parseFromDirectory(
-          workspace.root,
-          repoId,
-          repo.name,
-        );
-        parseResult = dirResult.result;
+        // Only deletions — no parsing needed
+        parseResult = {
+          files: [],
+          symbols: [],
+          relationships: [],
+          diagnostics: [],
+          languageDistribution: {},
+          stats: { filesDiscovered: 0, filesParsed: 0, filesFailed: 0, filesSkipped: 0, entitiesExtracted: 0, relationshipsExtracted: 0, parseErrors: 0, parseDurationMs: 0 },
+        };
       }
 
       // ── Stage 4: RESOLVING_RELATIONSHIPS ───────────────────────────────
@@ -408,7 +417,6 @@ export class SyncWorker {
         `revision ${graphRevision?.slice(0, 8) ?? 'none'} → ${currentSha.slice(0, 8)}`,
       );
 
-      await workspace.cleanup();
     } catch (err) {
       const durationMs = Date.now() - startedAt;
       const errorMsg = err instanceof Error ? err.message : String(err);
@@ -426,6 +434,13 @@ export class SyncWorker {
       logger.error(`Sync ${runId} failed after ${durationMs}ms: ${errorMsg}`);
     } finally {
       this.activeSyncs.delete(runId);
+      // Always clean up the workspace to prevent file-handle / disk leaks.
+      try {
+        await workspace?.cleanup();
+      } catch {
+        // Best-effort cleanup; log but don't mask the original error.
+        logger.warn(`Sync ${runId}: workspace cleanup failed`);
+      }
     }
   }
 

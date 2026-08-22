@@ -1,14 +1,19 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type {
+  ChangeHeatmapEntry,
+  ChangeHeatmapResponse,
   GraphNode,
+  HistoryTimelineEntry,
   ImportedRepository,
   LanguageDistribution,
   RepositoryActivity,
   RepositoryComponent,
+  RepositoryHistoryResponse,
   RepositoryOverview,
   RepositoryStats,
   SyncStatus,
 } from '@tracegraph/shared';
+import { DatabaseService } from '../database/database.service';
 import { GraphRepository } from '../graph/graph.repository';
 
 /**
@@ -21,7 +26,10 @@ import { GraphRepository } from '../graph/graph.repository';
  */
 @Injectable()
 export class RepositoryService {
-  constructor(private readonly graphRepository: GraphRepository) {}
+  constructor(
+    private readonly graphRepository: GraphRepository,
+    private readonly db: DatabaseService,
+  ) {}
 
   async getOverview(): Promise<RepositoryOverview> {
     const repo = await this.requireRepository();
@@ -131,6 +139,86 @@ export class RepositoryService {
       languages: languages as LanguageDistribution[],
       stats,
     };
+  }
+
+  private toNum(v: unknown): number {
+    if (v && typeof v === 'object' && 'low' in v) {
+      return (v as { low: number; high: number }).low + ((v as { low: number; high: number }).high || 0) * 0x100000000;
+    }
+    if (v && typeof v === 'object' && 'toNumber' in v) {
+      return (v as { toNumber: () => number }).toNumber();
+    }
+    return Number(v ?? 0);
+  }
+
+  async getChangeHeatmap(repoId: string, limit = 30): Promise<ChangeHeatmapResponse> {
+    const repo = await this.requireRepository();
+    const rows = await this.db.executeRead<Array<{ f?: Record<string, unknown>; count?: unknown }>>(
+      (tx) => tx.run(
+        `MATCH (c:Commit)-[:MODIFIES]->(f:File)
+         WHERE (f)-[:CONTAINS*1..5]-(:Repository {id: $repoId}) OR (f)<-[:CONTAINS*1..5]-(:Repository {id: $repoId})
+         WITH f, count(c) AS changeCount ORDER BY changeCount DESC LIMIT $limit
+         RETURN f, changeCount`,
+        { repoId, limit },
+      ),
+      { name: 'change-heatmap' },
+    );
+
+    const entries: ChangeHeatmapEntry[] = rows.map((row) => {
+      const file = row.f as Record<string, unknown> | undefined;
+      return { path: String(file?.path ?? ''), label: String(file?.name ?? file?.path ?? ''), changeCount: this.toNum(row.count), normalizedIntensity: 0 };
+    });
+    const maxChanges = entries.length > 0 ? entries[0].changeCount : 0;
+    for (const entry of entries) entry.normalizedIntensity = maxChanges > 0 ? entry.changeCount / maxChanges : 0;
+
+    return { repositoryId: repoId, entries, totalFiles: entries.length, maxChanges };
+  }
+
+  async getRepositoryHistory(repoId: string, limit = 20): Promise<RepositoryHistoryResponse> {
+    const rows = await this.db.executeRead<Array<{
+      c?: Record<string, unknown>;
+      pr?: Record<string, unknown> | null;
+      d?: Record<string, unknown> | null;
+    }>>(
+      (tx) => tx.run(
+        `MATCH (repo:Repository {id: $repoId})-[:CONTAINS*1..5]->(f:File)<-[:MODIFIES]-(c:Commit)
+         OPTIONAL MATCH (pr:PullRequest)-[:CONTAINS]->(c)
+         OPTIONAL MATCH (c)-[:AUTHORED_BY]->(d:Developer)
+         RETURN DISTINCT c, pr, d
+         ORDER BY c.timestamp DESC
+         LIMIT $limit`,
+        { repoId, limit: limit + 1 },
+      ),
+      { name: 'repo-history' },
+    );
+
+    const timeline: HistoryTimelineEntry[] = [];
+    for (const row of rows) {
+      const commit = row.c as Record<string, unknown> | undefined;
+      if (!commit) continue;
+      const pr = row.pr as Record<string, unknown> | undefined;
+      const dev = row.d as Record<string, unknown> | undefined;
+      timeline.push({
+        type: 'commit',
+        timestamp: String(commit.timestamp ?? ''),
+        title: String(commit.message ?? '').slice(0, 100),
+        relatedIds: [`commit:${commit.sha}`, ...(pr ? [`pr:${pr.number}`] : [])],
+        metadata: { sha: String(commit.sha ?? ''), message: String(commit.message ?? ''), author: String(dev?.login ?? commit.author ?? 'unknown'), prNumber: pr?.number ?? null, prTitle: pr?.title ?? null },
+      });
+    }
+
+    const countRows = await this.db.executeRead<Array<{ count?: unknown }>>(
+      (tx) => tx.run(
+        `MATCH (repo:Repository {id: $repoId})-[:CONTAINS*1..5]->(f:File)<-[:MODIFIES]-(c:Commit)
+         RETURN count(DISTINCT c) AS count`,
+        { repoId },
+      ),
+      { name: 'repo-history-count' },
+    );
+
+    const total = this.toNum(countRows[0]?.count);
+
+    return { repositoryId: repoId, timeline: timeline.slice(0, limit), total, hasMore: timeline.length > limit };
   }
 
   private toImportedRepository(repo: GraphNode): ImportedRepository {

@@ -1,5 +1,8 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import type { HistoryCommit, HistoryIssue, HistoryPullRequest } from '@tracegraph/shared';
+import type {
+  HistoryCommit, HistoryIssue, HistoryPullRequest,
+  Contributor, ChangeFrequency, ChangeContext, HistoryTimelineEntry, ChangeHeatmapEntry,
+} from '@tracegraph/shared';
 import { HistoryService } from './history.service';
 import { HistoryQueryDto } from '../graph/dto/history-query.dto';
 
@@ -31,5 +34,33 @@ export class HistoryController {
   @Get('issues')
   getIssues(@Query('id') id: string, @Query() query: HistoryQueryDto): Promise<HistoryIssue[]> {
     return this.historyService.getIssues(id, query.limit ?? 50);
+  }
+
+  // ── Phase 16: Rich Engineering History ──────────────────────────────────
+
+  @Get('history')
+  async getNodeHistory(
+    @Query('id') id: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.historyService.getFileHistory(id, parseInt(limit ?? '20', 10));
+  }
+
+  @Get('contributors')
+  async getNodeContributors(
+    @Query('id') id: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.historyService.getContributors(id, parseInt(limit ?? '20', 10));
+  }
+
+  @Get('change-frequency')
+  async getNodeChangeFrequency(@Query('id') id: string): Promise<ChangeFrequency> {
+    return this.historyService.getChangeFrequency(id);
+  }
+
+  @Get('why-changed')
+  async getWhyChanged(@Query('id') id: string): Promise<ChangeContext> {
+    return this.historyService.getChangeContext(id);
   }
 }

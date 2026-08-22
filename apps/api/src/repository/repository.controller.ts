@@ -1,8 +1,10 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query } from '@nestjs/common';
 import type {
+  ChangeHeatmapResponse,
   ImportedRepository,
   RepositoryActivity,
   RepositoryComponent,
+  RepositoryHistoryResponse,
   RepositoryOverview,
   SetActiveRepositoryResult,
   SyncStatus,
@@ -17,7 +19,9 @@ import { RepositoryService } from './repository.service';
  */
 @Controller('repository')
 export class RepositoryController {
-  constructor(private readonly repositoryService: RepositoryService) {}
+  constructor(
+    private readonly repositoryService: RepositoryService,
+  ) {}
 
   @Get()
   getOverview(): Promise<RepositoryOverview> {
@@ -57,5 +61,23 @@ export class RepositoryController {
   @Get('sync-status')
   getSyncStatus(): Promise<SyncStatus> {
     return this.repositoryService.getSyncStatus();
+  }
+
+  /** Change heatmap: files ranked by commit frequency. */
+  @Get('change-heatmap')
+  async getChangeHeatmap(
+    @Query('id') id: string,
+    @Query('limit') limit?: string,
+  ): Promise<ChangeHeatmapResponse> {
+    return this.repositoryService.getChangeHeatmap(id, parseInt(limit ?? '30', 10));
+  }
+
+  /** Repository-level history timeline. */
+  @Get('history')
+  async getRepositoryHistory(
+    @Query('id') id: string,
+    @Query('limit') limit?: string,
+  ): Promise<RepositoryHistoryResponse> {
+    return this.repositoryService.getRepositoryHistory(id, parseInt(limit ?? '20', 10));
   }
 }

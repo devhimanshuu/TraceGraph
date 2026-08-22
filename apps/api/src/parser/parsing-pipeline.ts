@@ -135,6 +135,20 @@ export class ParsingPipeline {
   }
 
   /**
+   * Parse a specific list of files (relative to rootPath).
+   * Used by incremental sync to reparse only changed/added files.
+   */
+  async parseFiles(
+    filePaths: string[],
+    rootPath: string,
+    _repoId: string,
+    _repoName: string,
+  ): Promise<BatchParseResult> {
+    await this.registry.initialize();
+    return this.parseAllFiles(rootPath, filePaths);
+  }
+
+  /**
    * Incremental parse — computes a file delta via content hashes, then only
    * re-parses added/changed files and deletes removed ones from the graph.
    *

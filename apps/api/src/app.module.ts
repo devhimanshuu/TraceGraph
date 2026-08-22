@@ -13,6 +13,7 @@ import { GithubModule } from './github/github.module';
 import { IntelligenceModule } from './intelligence/intelligence.module';
 import { IngestionModule } from './ingestion/ingestion.module';
 import { SyncModule } from './sync/sync.module';
+import { TestIntelligenceModule } from './test-intelligence/test-intelligence.module';
 
 @Module({
   imports: [
@@ -30,6 +31,8 @@ import { SyncModule } from './sync/sync.module';
     IntelligenceModule,
     IngestionModule,
     SyncModule,
+    TestIntelligenceModule,
+    HistoryModule,
   ],
 })
 export class AppModule {}
